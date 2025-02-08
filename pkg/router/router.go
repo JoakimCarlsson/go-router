@@ -11,9 +11,10 @@ import (
 type HandlerFunc func(*Context)
 type MiddlewareFunc func(HandlerFunc) HandlerFunc
 
-type routeCacheKey struct {
-	method string
-	path   string
+type route struct {
+	method  string
+	path    string
+	handler HandlerFunc
 }
 
 type Router struct {
@@ -21,13 +22,15 @@ type Router struct {
 	prefix      string
 	middlewares []MiddlewareFunc
 	parent      *Router
-	routeCache  sync.Map
+	routes      []route
+	mu          sync.RWMutex
 }
 
 func New() *Router {
 	return &Router{
 		mux:    http.NewServeMux(),
 		prefix: "",
+		routes: make([]route, 0),
 	}
 }
 
@@ -55,6 +58,18 @@ func normalizePath(p string) string {
 	return path.Clean(p)
 }
 
+func (r *Router) findRoute(method, path string) (HandlerFunc, bool) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	for _, route := range r.routes {
+		if route.method == method && route.path == path {
+			return route.handler, true
+		}
+	}
+	return nil, false
+}
+
 func (r *Router) Handle(pattern string, handler HandlerFunc) {
 	parts := strings.SplitN(pattern, " ", 2)
 	if len(parts) != 2 {
@@ -63,24 +78,22 @@ func (r *Router) Handle(pattern string, handler HandlerFunc) {
 	method, subpath := parts[0], parts[1]
 
 	fullpath := normalizePath(path.Join(r.prefix, subpath))
-
 	finalHandler := r.buildMiddlewareChain(handler)
 
-	cacheKey := routeCacheKey{
-		method: method,
-		path:   fullpath,
-	}
-	r.routeCache.Store(cacheKey, finalHandler)
+	r.mu.Lock()
+	r.routes = append(r.routes, route{
+		method:  method,
+		path:    fullpath,
+		handler: finalHandler,
+	})
+	r.mu.Unlock()
 
 	r.mux.HandleFunc(method+" "+fullpath, func(w http.ResponseWriter, req *http.Request) {
 		ctx := acquireContext(w, req)
 		defer releaseContext(ctx)
 
-		if handler, ok := r.routeCache.Load(routeCacheKey{
-			method: req.Method,
-			path:   req.URL.Path,
-		}); ok {
-			handler.(HandlerFunc)(ctx)
+		if handler, ok := r.findRoute(req.Method, req.URL.Path); ok {
+			handler(ctx)
 			return
 		}
 
@@ -118,6 +131,24 @@ func (r *Router) buildMiddlewareChain(handler HandlerFunc) HandlerFunc {
 		h = r.middlewares[i](h)
 	}
 	return h
+}
+
+// Static serves files from the given file system root.
+// The path must end with "/*filepath" where the matched path will be used to serve files.
+func (r *Router) Static(urlPath string, root string) {
+	if !strings.HasSuffix(urlPath, "/*filepath") {
+		panic("static path must end with /*filepath")
+	}
+
+	handler := http.StripPrefix(
+		strings.TrimSuffix(urlPath, "/*filepath"),
+		http.FileServer(http.Dir(root)),
+	)
+
+	pattern := "GET " + urlPath
+	r.Handle(pattern, func(c *Context) {
+		handler.ServeHTTP(c.Writer, c.Request)
+	})
 }
 
 func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {

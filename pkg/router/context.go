@@ -12,8 +12,8 @@ import (
 type Context struct {
 	Writer     http.ResponseWriter
 	Request    *http.Request
-	startTime  time.Time
-	statusCode int
+	StartTime  time.Time
+	StatusCode int
 }
 
 var contextPool = sync.Pool{
@@ -24,29 +24,13 @@ func acquireContext(w http.ResponseWriter, r *http.Request) *Context {
 	ctx := contextPool.Get().(*Context)
 	ctx.Writer = w
 	ctx.Request = r
-	ctx.startTime = time.Now()
-	ctx.statusCode = http.StatusOK
+	ctx.StartTime = time.Now()
+	ctx.StatusCode = http.StatusOK
 	return ctx
 }
 
 func releaseContext(ctx *Context) {
 	contextPool.Put(ctx)
-}
-
-func (c *Context) Deadline() (deadline time.Time, ok bool) {
-	return c.Request.Context().Deadline()
-}
-
-func (c *Context) Done() <-chan struct{} {
-	return c.Request.Context().Done()
-}
-
-func (c *Context) Err() error {
-	return c.Request.Context().Err()
-}
-
-func (c *Context) Value(key any) any {
-	return c.Request.Context().Value(key)
 }
 
 func (c *Context) Query() url.Values {
@@ -70,7 +54,7 @@ func (c *Context) Param(key string) string {
 
 func (c *Context) JSON(code int, obj interface{}) {
 	c.Writer.Header().Set("Content-Type", "application/json")
-	c.statusCode = code
+	c.StatusCode = code
 	c.Writer.WriteHeader(code)
 
 	if err := json.NewEncoder(c.Writer).Encode(obj); err != nil {
@@ -79,6 +63,14 @@ func (c *Context) JSON(code int, obj interface{}) {
 }
 
 func (c *Context) Status(code int) {
-	c.statusCode = code
+	c.StatusCode = code
 	c.Writer.WriteHeader(code)
+}
+
+func (c *Context) GetHeader(key string) string {
+	return c.Request.Header.Get(key)
+}
+
+func (c *Context) SetHeader(key, value string) {
+	c.Writer.Header().Set(key, value)
 }
