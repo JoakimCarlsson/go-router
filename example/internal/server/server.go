@@ -4,8 +4,6 @@ import (
 	"log/slog"
 	"net/http"
 
-	healthv1 "github.com/joakimcarlsson/go-router/example/internal/features/health/v1"
-	healthv2 "github.com/joakimcarlsson/go-router/example/internal/features/health/v2"
 	"github.com/joakimcarlsson/go-router/example/internal/middleware"
 	"github.com/joakimcarlsson/go-router/pkg/router"
 )
@@ -24,14 +22,6 @@ func NewServer(slog *slog.Logger) *Server {
 
 func (s *Server) RegisterRoutes() http.Handler {
 	s.router.Use(middleware.Logger(s.slog))
-
-	s.router.Group("/api/v1", func(v1 *router.Router) {
-		healthv1.NewRouter().Register(v1)
-	})
-
-	s.router.Group("/api/v2", func(v2 *router.Router) {
-		healthv2.NewRouter().Register(v2)
-	})
 
 	return s.router
 }
