@@ -4,6 +4,7 @@ import (
 	"log/slog"
 	"net/http"
 
+	"github.com/joakimcarlsson/go-router/example/internal/features/todos"
 	"github.com/joakimcarlsson/go-router/example/internal/middleware"
 	"github.com/joakimcarlsson/go-router/pkg/router"
 )
@@ -22,6 +23,9 @@ func NewServer(slog *slog.Logger) *Server {
 
 func (s *Server) RegisterRoutes() http.Handler {
 	s.router.Use(middleware.Logger(s.slog))
+	
+	// Register todo routes
+	todos.RegisterRoutes(s.router)
 
 	return s.router
 }
