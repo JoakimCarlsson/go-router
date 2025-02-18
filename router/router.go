@@ -7,7 +7,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/joakimcarlsson/go-router/pkg/http/openapi"
+	"github.com/joakimcarlsson/go-router/openapi"
 )
 
 type HandlerFunc func(*Context)
@@ -27,8 +27,8 @@ type Router struct {
 	parent      *Router
 	routes      []route
 	mu          sync.RWMutex
-	tags        []string                      // Group-level tags
-	security    []openapi.SecurityRequirement // Group-level security
+	tags        []string
+	security    []openapi.SecurityRequirement
 	generator   *openapi.Generator
 }
 

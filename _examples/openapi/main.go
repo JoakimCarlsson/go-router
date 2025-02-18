@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/joakimcarlsson/go-router/pkg/http/openapi"
-	"github.com/joakimcarlsson/go-router/pkg/http/router"
+	"github.com/joakimcarlsson/go-router/openapi"
+	"github.com/joakimcarlsson/go-router/router"
 )
 
 type User struct {
