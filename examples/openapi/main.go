@@ -41,28 +41,27 @@ func main() {
 	})
 
 	r.Group("/admin", func(admin *router.Router) {
-		admin.WithTags("Admin").POST("/users", createUser,
-			openapi.WithSummary("Create a new user (Admin)"),
-			openapi.WithDescription("Creates a new user in the system (Admin only)"),
-			openapi.WithRequestBody("User information to create", true, User{}),
-			openapi.WithResponseType("201", "User created", User{}),
-			openapi.WithEmptyResponse("400", "Invalid request"),
-			openapi.WithEmptyResponse("403", "Forbidden"),
-			openapi.WithSecurity(
-				map[string][]string{"bearerAuth": {}},
-			),
-		)
+		admin.WithTags("Admin").
+			WithSecurity(map[string][]string{"bearerAuth": {}}).
+			POST("/users", createUser,
+				openapi.WithSummary("Create a new user (Admin)"),
+				openapi.WithDescription("Creates a new user in the system (Admin only)"),
+				openapi.WithRequestBody("User information to create", true, User{}),
+				openapi.WithResponseType("201", "User created", User{}),
+				openapi.WithEmptyResponse("400", "Invalid request"),
+				openapi.WithEmptyResponse("403", "Forbidden"),
+			)
 	})
 
 	r.Group("/users", func(users *router.Router) {
-		users.WithTags("Users")
+		users.WithTags("Users").
+			WithSecurity(map[string][]string{"bearerAuth": {}})
 
 		users.GET("", listUsers,
 			openapi.WithSummary("List all users"),
 			openapi.WithDescription("Returns a list of all users in the system"),
 			openapi.WithParameter("limit", "query", "integer", false, "Maximum number of users to return"),
 			openapi.WithArrayResponseType("200", "Successfully retrieved users", User{}),
-			openapi.WithSecurity(map[string][]string{"bearerAuth": {}}),
 		)
 
 		users.GET("/{id}", getUser,
@@ -71,7 +70,6 @@ func main() {
 			openapi.WithParameter("id", "path", "integer", true, "User ID"),
 			openapi.WithResponseType("200", "User found", User{}),
 			openapi.WithResponseType("404", "User not found", ErrorResponse{}),
-			openapi.WithSecurity(map[string][]string{"bearerAuth": {}}),
 		)
 
 		users.POST("", createUser,

@@ -27,22 +27,36 @@ type Router struct {
 	parent      *Router
 	routes      []route
 	mu          sync.RWMutex
-	tags        []string           // New field for group-level tags
-	generator   *openapi.Generator // Add generator field
+	tags        []string                      // Group-level tags
+	security    []openapi.SecurityRequirement // Group-level security
+	generator   *openapi.Generator
 }
 
 func New() *Router {
 	return &Router{
-		mux:    http.NewServeMux(),
-		prefix: "",
-		routes: make([]route, 0),
-		tags:   make([]string, 0),
+		mux:      http.NewServeMux(),
+		prefix:   "",
+		routes:   make([]route, 0),
+		tags:     make([]string, 0),
+		security: make([]openapi.SecurityRequirement, 0),
 	}
 }
 
 // WithTags adds tags to a router group
 func (r *Router) WithTags(tags ...string) *Router {
 	r.tags = append(r.tags, tags...)
+	return r
+}
+
+// WithSecurity adds security requirements to a router group
+func (r *Router) WithSecurity(requirements ...map[string][]string) *Router {
+	for _, req := range requirements {
+		secReq := make(openapi.SecurityRequirement)
+		for k, v := range req {
+			secReq[k] = v
+		}
+		r.security = append(r.security, secReq)
+	}
 	return r
 }
 
@@ -58,6 +72,7 @@ func (r *Router) Group(path string, fn func(*Router)) {
 		parent:      r,
 		routes:      make([]route, 0),
 		tags:        make([]string, 0), // Initialize tags slice
+		security:    make([]openapi.SecurityRequirement, 0),
 	}
 	fn(group)
 
@@ -93,15 +108,18 @@ func (r *Router) Handle(pattern string, handler HandlerFunc, opts ...openapi.Rou
 		Parameters:  make([]openapi.Parameter, 0),
 		Tags:        make([]string, 0),
 		Responses:   make(map[string]openapi.Response),
+		Security:    make([]openapi.SecurityRequirement, 0),
 		RequestBody: nil,
 	}
 
-	// Apply group tags first
 	if len(r.tags) > 0 {
 		metadata.Tags = append(metadata.Tags, r.tags...)
 	}
 
-	// Then apply route-specific tags
+	if len(r.security) > 0 {
+		metadata.Security = append(metadata.Security, r.security...)
+	}
+
 	for _, opt := range opts {
 		opt(metadata)
 	}
