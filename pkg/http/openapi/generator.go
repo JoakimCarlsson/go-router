@@ -80,6 +80,18 @@ func WithResponse(statusCode, description string, contentType string, schema Sch
 	}
 }
 
+// WithEmptyResponse adds a response without any content schema
+func WithEmptyResponse(statusCode, description string) RouteOption {
+	return func(m *RouteMetadata) {
+		if m.Responses == nil {
+			m.Responses = make(map[string]Response)
+		}
+		m.Responses[statusCode] = Response{
+			Description: description,
+		}
+	}
+}
+
 // WithResponseType adds a response with schema inferred from the provided type
 func WithResponseType[T any](statusCode, description string, _ T) RouteOption {
 	return func(m *RouteMetadata) {

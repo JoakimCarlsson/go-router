@@ -22,6 +22,20 @@ type ErrorResponse struct {
 func main() {
 	r := router.New()
 
+	// Admin group
+	r.Group("/admin", func(admin *router.Router) {
+		admin.POST("/users", createUser,
+			openapi.WithTags("Admin", "Users"),
+			openapi.WithSummary("Create a new user (Admin)"),
+			openapi.WithDescription("Creates a new user in the system (Admin only)"),
+			openapi.WithRequestBody("User information to create", true, User{}),
+			openapi.WithResponseType("201", "User created", User{}),
+			openapi.WithEmptyResponse("400", "Invalid request"),
+			openapi.WithEmptyResponse("403", "Forbidden"),
+		)
+	})
+
+	// Regular user routes
 	r.GET("/users", listUsers,
 		openapi.WithTags("Users"),
 		openapi.WithSummary("List all users"),
@@ -45,7 +59,7 @@ func main() {
 		openapi.WithDescription("Creates a new user in the system"),
 		openapi.WithRequestBody("User information to create", true, User{}),
 		openapi.WithResponseType("201", "User created", User{}),
-		openapi.WithResponseType("400", "Invalid request", ErrorResponse{}),
+		openapi.WithEmptyResponse("400", "Invalid request"),
 	)
 
 	// Serve the OpenAPI documentation at /swagger.json
@@ -58,11 +72,11 @@ func main() {
 			Email: "support@example.com",
 		},
 	}
-	r.GET("/swagger.json", r.ServeOpenAPI(info))
+	r.GET("/openapi.json", r.ServeOpenAPI(info))
 
 	// Start the server
 	fmt.Println("Server starting on http://localhost:8080")
-	fmt.Println("OpenAPI documentation available at http://localhost:8080/swagger.json")
+	fmt.Println("OpenAPI documentation available at http://localhost:8080/openapi.json")
 	log.Fatal(http.ListenAndServe(":8080", r))
 }
 

@@ -47,8 +47,14 @@ func (r *Router) Group(path string, fn func(*Router)) {
 		prefix:      r.prefix + path,
 		middlewares: slices.Clone(r.middlewares),
 		parent:      r,
+		routes:      make([]route, 0),
 	}
 	fn(group)
+
+	// Add group's routes to parent
+	r.mu.Lock()
+	r.routes = append(r.routes, group.routes...)
+	r.mu.Unlock()
 }
 
 func normalizePath(p string) string {
@@ -155,21 +161,29 @@ func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	r.mux.ServeHTTP(w, req)
 }
 
+// collectRoutesRecursively gathers all routes from this router and its groups
+func (r *Router) collectRoutesRecursively() []openapi.RouteMetadata {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	routes := make([]openapi.RouteMetadata, 0)
+
+	// Collect routes from current router
+	for _, route := range r.routes {
+		if route.metadata != nil {
+			metadata := *route.metadata
+			routes = append(routes, metadata)
+		}
+	}
+
+	return routes
+}
+
 // ServeOpenAPI serves the OpenAPI specification as JSON
 func (r *Router) ServeOpenAPI(info openapi.Info) HandlerFunc {
 	return func(c *Context) {
 		generator := openapi.NewGenerator(info)
-
-		r.mu.RLock()
-		routes := make([]openapi.RouteMetadata, 0, len(r.routes))
-		for _, route := range r.routes {
-			if route.metadata != nil {
-				metadata := *route.metadata
-				routes = append(routes, metadata)
-			}
-		}
-		r.mu.RUnlock()
-
+		routes := r.collectRoutesRecursively()
 		spec := generator.Generate(routes)
 		c.JSON(200, spec)
 	}
