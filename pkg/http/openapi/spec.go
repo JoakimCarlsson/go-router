@@ -42,13 +42,16 @@ type PathItem struct {
 }
 
 type Operation struct {
-	Summary     string              `json:"summary,omitempty"`
-	Description string              `json:"description,omitempty"`
-	Tags        []string            `json:"tags,omitempty"`
-	Parameters  []Parameter         `json:"parameters,omitempty"`
-	RequestBody *RequestBody        `json:"requestBody,omitempty"`
-	Responses   map[string]Response `json:"responses"`
+	Summary     string                `json:"summary,omitempty"`
+	Description string                `json:"description,omitempty"`
+	Tags        []string              `json:"tags,omitempty"`
+	Parameters  []Parameter           `json:"parameters,omitempty"`
+	RequestBody *RequestBody          `json:"requestBody,omitempty"`
+	Responses   map[string]Response   `json:"responses"`
+	Security    []SecurityRequirement `json:"security,omitempty"`
 }
+
+type SecurityRequirement map[string][]string
 
 type RequestBody struct {
 	Description string               `json:"description"`
@@ -82,7 +85,16 @@ type Response struct {
 }
 
 type Components struct {
-	Schemas map[string]Schema `json:"schemas,omitempty"`
+	Schemas         map[string]Schema         `json:"schemas,omitempty"`
+	SecuritySchemes map[string]SecurityScheme `json:"securitySchemes,omitempty"`
+}
+
+type SecurityScheme struct {
+	Type        string `json:"type"`
+	Scheme      string `json:"scheme,omitempty"` // Used for http type
+	Name        string `json:"name,omitempty"`   // Used for apiKey type
+	In          string `json:"in,omitempty"`     // Used for apiKey type
+	Description string `json:"description,omitempty"`
 }
 
 // SchemaFromType generates an OpenAPI schema from a Go type

@@ -22,6 +22,24 @@ type ErrorResponse struct {
 func main() {
 	r := router.New()
 
+	// Create OpenAPI generator with security schemes
+	info := openapi.Info{
+		Title:       "User Management API",
+		Description: "API for managing users in the system",
+		Version:     "1.0.0",
+		Contact: openapi.Contact{
+			Name:  "API Support",
+			Email: "support@example.com",
+		},
+	}
+	generator := openapi.NewGenerator(info)
+
+	generator.WithSecurityScheme("bearerAuth", openapi.SecurityScheme{
+		Type:        "http",
+		Scheme:      "bearer",
+		Description: "JWT Bearer token authentication",
+	})
+
 	r.Group("/admin", func(admin *router.Router) {
 		admin.WithTags("Admin").POST("/users", createUser,
 			openapi.WithSummary("Create a new user (Admin)"),
@@ -30,6 +48,9 @@ func main() {
 			openapi.WithResponseType("201", "User created", User{}),
 			openapi.WithEmptyResponse("400", "Invalid request"),
 			openapi.WithEmptyResponse("403", "Forbidden"),
+			openapi.WithSecurity(
+				map[string][]string{"bearerAuth": {}},
+			),
 		)
 	})
 
@@ -41,6 +62,7 @@ func main() {
 			openapi.WithDescription("Returns a list of all users in the system"),
 			openapi.WithParameter("limit", "query", "integer", false, "Maximum number of users to return"),
 			openapi.WithArrayResponseType("200", "Successfully retrieved users", User{}),
+			openapi.WithSecurity(map[string][]string{"bearerAuth": {}}),
 		)
 
 		users.GET("/{id}", getUser,
@@ -49,6 +71,7 @@ func main() {
 			openapi.WithParameter("id", "path", "integer", true, "User ID"),
 			openapi.WithResponseType("200", "User found", User{}),
 			openapi.WithResponseType("404", "User not found", ErrorResponse{}),
+			openapi.WithSecurity(map[string][]string{"bearerAuth": {}}),
 		)
 
 		users.POST("", createUser,
@@ -60,18 +83,8 @@ func main() {
 		)
 	})
 
-	info := openapi.Info{
-		Title:       "User Management API",
-		Description: "API for managing users in the system",
-		Version:     "1.0.0",
-		Contact: openapi.Contact{
-			Name:  "API Support",
-			Email: "support@example.com",
-		},
-	}
-	r.GET("/openapi.json", r.ServeOpenAPI(info))
+	r.GET("/openapi.json", r.ServeOpenAPI(generator))
 
-	// Start the server
 	fmt.Println("Server starting on http://localhost:8080")
 	fmt.Println("OpenAPI documentation available at http://localhost:8080/openapi.json")
 	log.Fatal(http.ListenAndServe(":8080", r))

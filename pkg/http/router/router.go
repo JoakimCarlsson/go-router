@@ -27,7 +27,8 @@ type Router struct {
 	parent      *Router
 	routes      []route
 	mu          sync.RWMutex
-	tags        []string // New field for group-level tags
+	tags        []string           // New field for group-level tags
+	generator   *openapi.Generator // Add generator field
 }
 
 func New() *Router {
@@ -195,11 +196,9 @@ func (r *Router) collectRoutesRecursively() []openapi.RouteMetadata {
 }
 
 // ServeOpenAPI serves the OpenAPI specification as JSON
-func (r *Router) ServeOpenAPI(info openapi.Info) HandlerFunc {
+func (r *Router) ServeOpenAPI(generator *openapi.Generator) HandlerFunc {
 	return func(c *Context) {
-		generator := openapi.NewGenerator(info)
-		routes := r.collectRoutesRecursively()
-		spec := generator.Generate(routes)
+		spec := generator.Generate(r.collectRoutesRecursively())
 		c.JSON(200, spec)
 	}
 }

@@ -4,26 +4,34 @@ import "reflect"
 
 // Generator handles OpenAPI specification generation
 type Generator struct {
-	info Info
+	info            Info
+	securitySchemes map[string]SecurityScheme
 }
 
 // NewGenerator creates a new OpenAPI generator
 func NewGenerator(info Info) *Generator {
 	return &Generator{
-		info: info,
+		info:            info,
+		securitySchemes: make(map[string]SecurityScheme),
 	}
+}
+
+// WithSecurityScheme adds a security scheme to the OpenAPI specification
+func (g *Generator) WithSecurityScheme(name string, scheme SecurityScheme) {
+	g.securitySchemes[name] = scheme
 }
 
 // RouteMetadata contains OpenAPI documentation for a route
 type RouteMetadata struct {
-	Method      string              `json:"-"` // Used internally, not part of OpenAPI spec
-	Path        string              `json:"-"` // Used internally, not part of OpenAPI spec
-	Summary     string              `json:"summary,omitempty"`
-	Description string              `json:"description,omitempty"`
-	Tags        []string            `json:"tags,omitempty"`
-	Parameters  []Parameter         `json:"parameters,omitempty"`
-	RequestBody *RequestBody        `json:"requestBody,omitempty"`
-	Responses   map[string]Response `json:"responses"`
+	Method      string                `json:"-"` // Used internally, not part of OpenAPI spec
+	Path        string                `json:"-"` // Used internally, not part of OpenAPI spec
+	Summary     string                `json:"summary,omitempty"`
+	Description string                `json:"description,omitempty"`
+	Tags        []string              `json:"tags,omitempty"`
+	Parameters  []Parameter           `json:"parameters,omitempty"`
+	RequestBody *RequestBody          `json:"requestBody,omitempty"`
+	Responses   map[string]Response   `json:"responses"`
+	Security    []SecurityRequirement `json:"security,omitempty"`
 }
 
 // RouteOption is a function that configures route metadata
@@ -153,12 +161,31 @@ func WithRequestBody[T any](description string, required bool, _ T) RouteOption 
 	}
 }
 
+// WithSecurity adds security requirements to a route
+func WithSecurity(requirements ...map[string][]string) RouteOption {
+	return func(m *RouteMetadata) {
+		if m.Security == nil {
+			m.Security = make([]SecurityRequirement, 0)
+		}
+		for _, req := range requirements {
+			secReq := make(SecurityRequirement)
+			for k, v := range req {
+				secReq[k] = v
+			}
+			m.Security = append(m.Security, secReq)
+		}
+	}
+}
+
 // Generate creates an OpenAPI specification from the collected route metadata
 func (g *Generator) Generate(routes []RouteMetadata) *Spec {
 	spec := &Spec{
 		OpenAPI: "3.0.0",
 		Info:    g.info,
 		Paths:   make(map[string]PathItem),
+		Components: &Components{
+			SecuritySchemes: g.securitySchemes,
+		},
 	}
 
 	for _, route := range routes {
@@ -174,6 +201,7 @@ func (g *Generator) Generate(routes []RouteMetadata) *Spec {
 			Parameters:  route.Parameters,
 			RequestBody: route.RequestBody,
 			Responses:   route.Responses,
+			Security:    route.Security,
 		}
 		switch route.Method {
 		case "GET":
