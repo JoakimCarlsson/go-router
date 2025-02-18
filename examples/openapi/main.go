@@ -22,10 +22,8 @@ type ErrorResponse struct {
 func main() {
 	r := router.New()
 
-	// Admin group
 	r.Group("/admin", func(admin *router.Router) {
-		admin.POST("/users", createUser,
-			openapi.WithTags("Admin", "Users"),
+		admin.WithTags("Admin").POST("/users", createUser,
 			openapi.WithSummary("Create a new user (Admin)"),
 			openapi.WithDescription("Creates a new user in the system (Admin only)"),
 			openapi.WithRequestBody("User information to create", true, User{}),
@@ -35,34 +33,33 @@ func main() {
 		)
 	})
 
-	// Regular user routes
-	r.GET("/users", listUsers,
-		openapi.WithTags("Users"),
-		openapi.WithSummary("List all users"),
-		openapi.WithDescription("Returns a list of all users in the system"),
-		openapi.WithParameter("limit", "query", "integer", false, "Maximum number of users to return"),
-		openapi.WithArrayResponseType("200", "Successfully retrieved users", User{}),
-	)
+	r.Group("/users", func(users *router.Router) {
+		users.WithTags("Users")
 
-	r.GET("/users/{id}", getUser,
-		openapi.WithTags("Users"),
-		openapi.WithSummary("Get a user by ID"),
-		openapi.WithDescription("Returns a single user by their ID"),
-		openapi.WithParameter("id", "path", "integer", true, "User ID"),
-		openapi.WithResponseType("200", "User found", User{}),
-		openapi.WithResponseType("404", "User not found", ErrorResponse{}),
-	)
+		users.GET("", listUsers,
+			openapi.WithSummary("List all users"),
+			openapi.WithDescription("Returns a list of all users in the system"),
+			openapi.WithParameter("limit", "query", "integer", false, "Maximum number of users to return"),
+			openapi.WithArrayResponseType("200", "Successfully retrieved users", User{}),
+		)
 
-	r.POST("/users", createUser,
-		openapi.WithTags("Users"),
-		openapi.WithSummary("Create a new user"),
-		openapi.WithDescription("Creates a new user in the system"),
-		openapi.WithRequestBody("User information to create", true, User{}),
-		openapi.WithResponseType("201", "User created", User{}),
-		openapi.WithEmptyResponse("400", "Invalid request"),
-	)
+		users.GET("/{id}", getUser,
+			openapi.WithSummary("Get a user by ID"),
+			openapi.WithDescription("Returns a single user by their ID"),
+			openapi.WithParameter("id", "path", "integer", true, "User ID"),
+			openapi.WithResponseType("200", "User found", User{}),
+			openapi.WithResponseType("404", "User not found", ErrorResponse{}),
+		)
 
-	// Serve the OpenAPI documentation at /swagger.json
+		users.POST("", createUser,
+			openapi.WithSummary("Create a new user"),
+			openapi.WithDescription("Creates a new user in the system"),
+			openapi.WithRequestBody("User information to create", true, User{}),
+			openapi.WithResponseType("201", "User created", User{}),
+			openapi.WithEmptyResponse("400", "Invalid request"),
+		)
+	})
+
 	info := openapi.Info{
 		Title:       "User Management API",
 		Description: "API for managing users in the system",

@@ -27,6 +27,7 @@ type Router struct {
 	parent      *Router
 	routes      []route
 	mu          sync.RWMutex
+	tags        []string // New field for group-level tags
 }
 
 func New() *Router {
@@ -34,7 +35,14 @@ func New() *Router {
 		mux:    http.NewServeMux(),
 		prefix: "",
 		routes: make([]route, 0),
+		tags:   make([]string, 0),
 	}
+}
+
+// WithTags adds tags to a router group
+func (r *Router) WithTags(tags ...string) *Router {
+	r.tags = append(r.tags, tags...)
+	return r
 }
 
 func (r *Router) Use(middlewares ...MiddlewareFunc) {
@@ -48,6 +56,7 @@ func (r *Router) Group(path string, fn func(*Router)) {
 		middlewares: slices.Clone(r.middlewares),
 		parent:      r,
 		routes:      make([]route, 0),
+		tags:        make([]string, 0), // Initialize tags slice
 	}
 	fn(group)
 
@@ -86,6 +95,12 @@ func (r *Router) Handle(pattern string, handler HandlerFunc, opts ...openapi.Rou
 		RequestBody: nil,
 	}
 
+	// Apply group tags first
+	if len(r.tags) > 0 {
+		metadata.Tags = append(metadata.Tags, r.tags...)
+	}
+
+	// Then apply route-specific tags
 	for _, opt := range opts {
 		opt(metadata)
 	}
