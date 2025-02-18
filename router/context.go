@@ -74,3 +74,7 @@ func (c *Context) GetHeader(key string) string {
 func (c *Context) SetHeader(key, value string) {
 	c.Writer.Header().Set(key, value)
 }
+
+func (c *Context) BindJSON(target interface{}) error {
+	return json.NewDecoder(c.Request.Body).Decode(target)
+}
