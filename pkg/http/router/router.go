@@ -6,15 +6,18 @@ import (
 	"slices"
 	"strings"
 	"sync"
+
+	"github.com/joakimcarlsson/go-router/pkg/http/openapi"
 )
 
 type HandlerFunc func(*Context)
 type MiddlewareFunc func(HandlerFunc) HandlerFunc
 
 type route struct {
-	method  string
-	path    string
-	handler HandlerFunc
+	method   string
+	path     string
+	handler  HandlerFunc
+	metadata *openapi.RouteMetadata
 }
 
 type Router struct {
@@ -58,19 +61,7 @@ func normalizePath(p string) string {
 	return path.Clean(p)
 }
 
-func (r *Router) findRoute(method, path string) (HandlerFunc, bool) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-
-	for _, route := range r.routes {
-		if route.method == method && route.path == path {
-			return route.handler, true
-		}
-	}
-	return nil, false
-}
-
-func (r *Router) Handle(pattern string, handler HandlerFunc) {
+func (r *Router) Handle(pattern string, handler HandlerFunc, opts ...openapi.RouteOption) {
 	parts := strings.SplitN(pattern, " ", 2)
 	if len(parts) != 2 {
 		panic("invalid route pattern format, expected 'METHOD /path'")
@@ -80,45 +71,54 @@ func (r *Router) Handle(pattern string, handler HandlerFunc) {
 	fullpath := normalizePath(path.Join(r.prefix, subpath))
 	finalHandler := r.buildMiddlewareChain(handler)
 
+	metadata := &openapi.RouteMetadata{
+		Method:      method,
+		Path:        fullpath,
+		Parameters:  make([]openapi.Parameter, 0),
+		Tags:        make([]string, 0),
+		Responses:   make(map[string]openapi.Response),
+		RequestBody: nil,
+	}
+
+	for _, opt := range opts {
+		opt(metadata)
+	}
+
 	r.mu.Lock()
 	r.routes = append(r.routes, route{
-		method:  method,
-		path:    fullpath,
-		handler: finalHandler,
+		method:   method,
+		path:     fullpath,
+		handler:  finalHandler,
+		metadata: metadata,
 	})
 	r.mu.Unlock()
 
 	r.mux.HandleFunc(method+" "+fullpath, func(w http.ResponseWriter, req *http.Request) {
 		ctx := acquireContext(w, req)
 		defer releaseContext(ctx)
-
-		if handler, ok := r.findRoute(req.Method, req.URL.Path); ok {
-			handler(ctx)
-			return
-		}
-
 		finalHandler(ctx)
 	})
 }
 
-func (r *Router) GET(path string, handler HandlerFunc) {
-	r.Handle("GET "+path, handler)
+// Modified HTTP method handlers to accept options
+func (r *Router) GET(path string, handler HandlerFunc, opts ...openapi.RouteOption) {
+	r.Handle("GET "+path, handler, opts...)
 }
 
-func (r *Router) POST(path string, handler HandlerFunc) {
-	r.Handle("POST "+path, handler)
+func (r *Router) POST(path string, handler HandlerFunc, opts ...openapi.RouteOption) {
+	r.Handle("POST "+path, handler, opts...)
 }
 
-func (r *Router) PUT(path string, handler HandlerFunc) {
-	r.Handle("PUT "+path, handler)
+func (r *Router) PUT(path string, handler HandlerFunc, opts ...openapi.RouteOption) {
+	r.Handle("PUT "+path, handler, opts...)
 }
 
-func (r *Router) DELETE(path string, handler HandlerFunc) {
-	r.Handle("DELETE "+path, handler)
+func (r *Router) DELETE(path string, handler HandlerFunc, opts ...openapi.RouteOption) {
+	r.Handle("DELETE "+path, handler, opts...)
 }
 
-func (r *Router) PATCH(path string, handler HandlerFunc) {
-	r.Handle("PATCH "+path, handler)
+func (r *Router) PATCH(path string, handler HandlerFunc, opts ...openapi.RouteOption) {
+	r.Handle("PATCH "+path, handler, opts...)
 }
 
 func (r *Router) buildMiddlewareChain(handler HandlerFunc) HandlerFunc {
@@ -153,4 +153,24 @@ func (r *Router) Static(urlPath string, root string) {
 
 func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	r.mux.ServeHTTP(w, req)
+}
+
+// ServeOpenAPI serves the OpenAPI specification as JSON
+func (r *Router) ServeOpenAPI(info openapi.Info) HandlerFunc {
+	return func(c *Context) {
+		generator := openapi.NewGenerator(info)
+
+		r.mu.RLock()
+		routes := make([]openapi.RouteMetadata, 0, len(r.routes))
+		for _, route := range r.routes {
+			if route.metadata != nil {
+				metadata := *route.metadata
+				routes = append(routes, metadata)
+			}
+		}
+		r.mu.RUnlock()
+
+		spec := generator.Generate(routes)
+		c.JSON(200, spec)
+	}
 }
