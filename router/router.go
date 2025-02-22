@@ -29,7 +29,6 @@ type Router struct {
 	mu          sync.RWMutex
 	tags        []string
 	security    []openapi.SecurityRequirement
-	generator   *openapi.Generator
 }
 
 func New() *Router {
