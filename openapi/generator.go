@@ -1,11 +1,17 @@
 package openapi
 
-import "reflect"
+import (
+	"reflect"
+	"strings"
+)
 
 // Generator handles OpenAPI specification generation
 type Generator struct {
 	info            Info
 	securitySchemes map[string]SecurityScheme
+	servers         []Server
+	schemas         map[string]Schema
+	routeMetadata   []RouteMetadata // Track routes for schema collection
 }
 
 // NewGenerator creates a new OpenAPI generator
@@ -13,6 +19,9 @@ func NewGenerator(info Info) *Generator {
 	return &Generator{
 		info:            info,
 		securitySchemes: make(map[string]SecurityScheme),
+		servers:         make([]Server, 0),
+		schemas:         make(map[string]Schema),
+		routeMetadata:   make([]RouteMetadata, 0),
 	}
 }
 
@@ -21,10 +30,92 @@ func (g *Generator) WithSecurityScheme(name string, scheme SecurityScheme) {
 	g.securitySchemes[name] = scheme
 }
 
+// WithServer adds a server to the OpenAPI specification
+func (g *Generator) WithServer(url string, description string) {
+	g.servers = append(g.servers, Server{
+		URL:         url,
+		Description: description,
+	})
+}
+
+// collectSchemas recursively collects schemas from route metadata
+func (g *Generator) collectSchemas() {
+	for _, route := range g.routeMetadata {
+		// Collect from request bodies
+		if route.RequestBody != nil {
+			for _, mediaType := range route.RequestBody.Content {
+				g.collectSchemaComponents(mediaType.Schema)
+			}
+		}
+
+		// Collect from responses
+		for _, response := range route.Responses {
+			if response.Content != nil {
+				for _, mediaType := range response.Content {
+					g.collectSchemaComponents(mediaType.Schema)
+				}
+			}
+		}
+	}
+}
+
+// collectSchemaComponents recursively collects component schemas
+func (g *Generator) collectSchemaComponents(schema Schema) {
+	// If it's a struct type, register it as a component
+	if schema.Type == "object" && schema.Properties != nil {
+		name := g.generateSchemaName(schema)
+		if name != "" {
+			g.schemas[name] = schema
+		}
+
+		// Recurse into properties
+		for _, prop := range schema.Properties {
+			g.collectSchemaComponents(prop)
+		}
+	}
+
+	// Recurse into array items
+	if schema.Items != nil {
+		g.collectSchemaComponents(*schema.Items)
+	}
+}
+
+// generateSchemaName generates a name for a schema based on its structure
+func (g *Generator) generateSchemaName(schema Schema) string {
+	if schema.TypeName != "" {
+		// For arrays, we only want the element type name
+		if strings.HasPrefix(schema.TypeName, "[]") {
+			return strings.TrimPrefix(schema.TypeName, "[]")
+		}
+		return schema.TypeName
+	}
+	return ""
+}
+
+// convertSchemaToRef converts a schema to a reference if it exists in components
+func (g *Generator) convertSchemaToRef(schema Schema) Schema {
+	if schema.Type == "object" && schema.Properties != nil {
+		name := g.generateSchemaName(schema)
+		if name != "" && g.schemas[name].Properties != nil {
+			return Schema{
+				Ref: "#/components/schemas/" + name,
+			}
+		}
+	}
+	if schema.Items != nil {
+		if schema.Type == "array" {
+			itemsRef := g.convertSchemaToRef(*schema.Items)
+			schema.Items = &itemsRef
+		}
+	}
+	return schema
+}
+
 // RouteMetadata contains OpenAPI documentation for a route
 type RouteMetadata struct {
-	Method      string                `json:"-"` // Used internally, not part of OpenAPI spec
-	Path        string                `json:"-"` // Used internally, not part of OpenAPI spec
+	Method      string                `json:"-"`
+	Path        string                `json:"-"`
+	OperationID string                `json:"operationId,omitempty"`
 	Summary     string                `json:"summary,omitempty"`
 	Description string                `json:"description,omitempty"`
 	Tags        []string              `json:"tags,omitempty"`
@@ -32,6 +123,14 @@ type RouteMetadata struct {
 	RequestBody *RequestBody          `json:"requestBody,omitempty"`
 	Responses   map[string]Response   `json:"responses"`
 	Security    []SecurityRequirement `json:"security,omitempty"`
+	Deprecated  bool                  `json:"deprecated,omitempty"`
+}
+
+// WithOperationID sets the operationId for the route
+func WithOperationID(operationId string) RouteOption {
+	return func(m *RouteMetadata) {
+		m.OperationID = operationId
+	}
 }
 
 // RouteOption is a function that configures route metadata
@@ -59,7 +158,7 @@ func WithTags(tags ...string) RouteOption {
 }
 
 // WithParameter adds a parameter to the route
-func WithParameter(name, in, typ string, required bool, description string) RouteOption {
+func WithParameter(name, in, typ string, required bool, description string, example interface{}) RouteOption {
 	return func(m *RouteMetadata) {
 		m.Parameters = append(m.Parameters, Parameter{
 			Name:        name,
@@ -67,10 +166,21 @@ func WithParameter(name, in, typ string, required bool, description string) Rout
 			Required:    required,
 			Description: description,
 			Schema: Schema{
-				Type: typ,
+				Type:    typ,
+				Example: example,
 			},
 		})
 	}
+}
+
+// WithQueryParam adds a query parameter to the route
+func WithQueryParam(name, typ string, required bool, description string, example interface{}) RouteOption {
+	return WithParameter(name, "query", typ, required, description, example)
+}
+
+// WithPathParam adds a path parameter to the route
+func WithPathParam(name, typ string, required bool, description string, example interface{}) RouteOption {
+	return WithParameter(name, "path", typ, required, description, example)
 }
 
 // WithResponse adds a response to the route
@@ -101,6 +211,7 @@ func WithEmptyResponse(statusCode, description string) RouteOption {
 }
 
 // WithResponseType adds a response with schema inferred from the provided type
+// It automatically detects if the type is a slice/array
 func WithResponseType[T any](statusCode, description string, _ T) RouteOption {
 	return func(m *RouteMetadata) {
 		if m.Responses == nil {
@@ -108,37 +219,28 @@ func WithResponseType[T any](statusCode, description string, _ T) RouteOption {
 		}
 
 		t := reflect.TypeOf((*T)(nil)).Elem()
-		schema := SchemaFromType(t)
 
-		m.Responses[statusCode] = Response{
-			Description: description,
-			Content: map[string]MediaType{
-				"application/json": {Schema: schema},
-			},
-		}
-	}
-}
-
-// WithArrayResponseType adds an array response with item schema inferred from the provided type
-func WithArrayResponseType[T any](statusCode, description string, _ T) RouteOption {
-	return func(m *RouteMetadata) {
-		if m.Responses == nil {
-			m.Responses = make(map[string]Response)
-		}
-
-		t := reflect.TypeOf((*T)(nil)).Elem()
-		itemSchema := SchemaFromType(t)
-
-		m.Responses[statusCode] = Response{
-			Description: description,
-			Content: map[string]MediaType{
-				"application/json": {
-					Schema: Schema{
-						Type:  "array",
-						Items: &itemSchema,
+		if t.Kind() == reflect.Slice || t.Kind() == reflect.Array {
+			itemSchema := SchemaFromType(t.Elem())
+			m.Responses[statusCode] = Response{
+				Description: description,
+				Content: map[string]MediaType{
+					"application/json": {
+						Schema: Schema{
+							Type:  "array",
+							Items: &itemSchema,
+						},
 					},
 				},
-			},
+			}
+		} else {
+			schema := SchemaFromType(t)
+			m.Responses[statusCode] = Response{
+				Description: description,
+				Content: map[string]MediaType{
+					"application/json": {Schema: schema},
+				},
+			}
 		}
 	}
 }
@@ -177,15 +279,75 @@ func WithSecurity(requirements ...map[string][]string) RouteOption {
 	}
 }
 
+// WithDeprecated marks an endpoint as deprecated
+func WithDeprecated(message string) RouteOption {
+	return func(m *RouteMetadata) {
+		m.Deprecated = true
+		if message != "" {
+			if m.Description != "" {
+				m.Description += "\n\n"
+			}
+			m.Description += "DEPRECATED: " + message
+		}
+	}
+}
+
+// WithResponseExample adds a response with a specific example
+func WithResponseExample[T any](statusCode, description string, example T) RouteOption {
+	return func(m *RouteMetadata) {
+		if m.Responses == nil {
+			m.Responses = make(map[string]Response)
+		}
+
+		t := reflect.TypeOf((*T)(nil)).Elem()
+		schema := SchemaFromType(t)
+		schema.Example = example
+
+		m.Responses[statusCode] = Response{
+			Description: description,
+			Content: map[string]MediaType{
+				"application/json": {Schema: schema},
+			},
+		}
+	}
+}
+
+// WithRequestBodyExample adds a request body schema with example to the route
+func WithRequestBodyExample[T any](description string, required bool, example T) RouteOption {
+	return func(m *RouteMetadata) {
+		t := reflect.TypeOf((*T)(nil)).Elem()
+		schema := SchemaFromType(t)
+		schema.Example = example
+
+		m.RequestBody = &RequestBody{
+			Description: description,
+			Required:    required,
+			Content: map[string]MediaType{
+				"application/json": {
+					Schema: schema,
+				},
+			},
+		}
+	}
+}
+
 // Generate creates an OpenAPI specification from the collected route metadata
 func (g *Generator) Generate(routes []RouteMetadata) *Spec {
+	g.routeMetadata = routes
+	g.collectSchemas()
+
 	spec := &Spec{
 		OpenAPI: "3.0.0",
 		Info:    g.info,
 		Paths:   make(map[string]PathItem),
 		Components: &Components{
 			SecuritySchemes: g.securitySchemes,
+			Schemas:         g.schemas,
 		},
+	}
+
+	if len(g.servers) > 0 {
+		spec.Servers = g.servers
 	}
 
 	for _, route := range routes {
@@ -194,7 +356,27 @@ func (g *Generator) Generate(routes []RouteMetadata) *Spec {
 			pathItem = PathItem{}
 		}
 
+		// Convert request body schema to ref if possible
+		if route.RequestBody != nil {
+			for contentType, mediaType := range route.RequestBody.Content {
+				refSchema := g.convertSchemaToRef(mediaType.Schema)
+				route.RequestBody.Content[contentType] = MediaType{Schema: refSchema}
+			}
+		}
+
+		// Convert response schemas to refs if possible
+		for statusCode, response := range route.Responses {
+			if response.Content != nil {
+				for contentType, mediaType := range response.Content {
+					refSchema := g.convertSchemaToRef(mediaType.Schema)
+					response.Content[contentType] = MediaType{Schema: refSchema}
+				}
+				route.Responses[statusCode] = response
+			}
+		}
+
 		operation := &Operation{
+			OperationID: route.OperationID,
 			Summary:     route.Summary,
 			Description: route.Description,
 			Tags:        route.Tags,
@@ -202,7 +384,9 @@ func (g *Generator) Generate(routes []RouteMetadata) *Spec {
 			RequestBody: route.RequestBody,
 			Responses:   route.Responses,
 			Security:    route.Security,
+			Deprecated:  route.Deprecated,
 		}
+
 		switch route.Method {
 		case "GET":
 			pathItem.Get = operation
@@ -219,7 +403,7 @@ func (g *Generator) Generate(routes []RouteMetadata) *Spec {
 		spec.Paths[route.Path] = pathItem
 	}
 
-	delete(spec.Paths, "/swagger.json")
+	delete(spec.Paths, "/openapi.json")
 
 	return spec
 }
