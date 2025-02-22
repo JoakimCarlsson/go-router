@@ -123,6 +123,7 @@ type RouteMetadata struct {
 	RequestBody *RequestBody          `json:"requestBody,omitempty"`
 	Responses   map[string]Response   `json:"responses"`
 	Security    []SecurityRequirement `json:"security,omitempty"`
+	Deprecated  bool                  `json:"deprecated,omitempty"`
 }
 
 // WithOperationID sets the operationId for the route
@@ -157,7 +158,7 @@ func WithTags(tags ...string) RouteOption {
 }
 
 // WithParameter adds a parameter to the route
-func WithParameter(name, in, typ string, required bool, description string) RouteOption {
+func WithParameter(name, in, typ string, required bool, description string, example interface{}) RouteOption {
 	return func(m *RouteMetadata) {
 		m.Parameters = append(m.Parameters, Parameter{
 			Name:        name,
@@ -165,20 +166,21 @@ func WithParameter(name, in, typ string, required bool, description string) Rout
 			Required:    required,
 			Description: description,
 			Schema: Schema{
-				Type: typ,
+				Type:    typ,
+				Example: example,
 			},
 		})
 	}
 }
 
 // WithQueryParam adds a query parameter to the route
-func WithQueryParam(name, typ string, required bool, description string) RouteOption {
-	return WithParameter(name, "query", typ, required, description)
+func WithQueryParam(name, typ string, required bool, description string, example interface{}) RouteOption {
+	return WithParameter(name, "query", typ, required, description, example)
 }
 
 // WithPathParam adds a path parameter to the route
-func WithPathParam(name, typ string, required bool, description string) RouteOption {
-	return WithParameter(name, "path", typ, required, description)
+func WithPathParam(name, typ string, required bool, description string, example interface{}) RouteOption {
+	return WithParameter(name, "path", typ, required, description, example)
 }
 
 // WithResponse adds a response to the route
@@ -277,6 +279,58 @@ func WithSecurity(requirements ...map[string][]string) RouteOption {
 	}
 }
 
+// WithDeprecated marks an endpoint as deprecated
+func WithDeprecated(message string) RouteOption {
+	return func(m *RouteMetadata) {
+		m.Deprecated = true
+		if message != "" {
+			if m.Description != "" {
+				m.Description += "\n\n"
+			}
+			m.Description += "DEPRECATED: " + message
+		}
+	}
+}
+
+// WithResponseExample adds a response with a specific example
+func WithResponseExample[T any](statusCode, description string, example T) RouteOption {
+	return func(m *RouteMetadata) {
+		if m.Responses == nil {
+			m.Responses = make(map[string]Response)
+		}
+
+		t := reflect.TypeOf((*T)(nil)).Elem()
+		schema := SchemaFromType(t)
+		schema.Example = example
+
+		m.Responses[statusCode] = Response{
+			Description: description,
+			Content: map[string]MediaType{
+				"application/json": {Schema: schema},
+			},
+		}
+	}
+}
+
+// WithRequestBodyExample adds a request body schema with example to the route
+func WithRequestBodyExample[T any](description string, required bool, example T) RouteOption {
+	return func(m *RouteMetadata) {
+		t := reflect.TypeOf((*T)(nil)).Elem()
+		schema := SchemaFromType(t)
+		schema.Example = example
+
+		m.RequestBody = &RequestBody{
+			Description: description,
+			Required:    required,
+			Content: map[string]MediaType{
+				"application/json": {
+					Schema: schema,
+				},
+			},
+		}
+	}
+}
+
 // Generate creates an OpenAPI specification from the collected route metadata
 func (g *Generator) Generate(routes []RouteMetadata) *Spec {
 	g.routeMetadata = routes
@@ -330,6 +384,7 @@ func (g *Generator) Generate(routes []RouteMetadata) *Spec {
 			RequestBody: route.RequestBody,
 			Responses:   route.Responses,
 			Security:    route.Security,
+			Deprecated:  route.Deprecated,
 		}
 
 		switch route.Method {

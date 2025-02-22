@@ -51,6 +51,7 @@ type Operation struct {
 	RequestBody *RequestBody          `json:"requestBody,omitempty"`
 	Responses   map[string]Response   `json:"responses"`
 	Security    []SecurityRequirement `json:"security,omitempty"`
+	Deprecated  bool                  `json:"deprecated,omitempty"`
 }
 
 type SecurityRequirement map[string][]string
@@ -66,11 +67,12 @@ type MediaType struct {
 }
 
 type Parameter struct {
-	Name        string `json:"name"`
-	In          string `json:"in"` // query, path, header, cookie
-	Required    bool   `json:"required,omitempty"`
-	Description string `json:"description,omitempty"`
-	Schema      Schema `json:"schema"`
+	Name        string      `json:"name"`
+	In          string      `json:"in"` // query, path, header, cookie
+	Required    bool        `json:"required,omitempty"`
+	Description string      `json:"description,omitempty"`
+	Schema      Schema      `json:"schema"`
+	Example     interface{} `json:"example,omitempty"`
 }
 
 // Schema represents an OpenAPI schema

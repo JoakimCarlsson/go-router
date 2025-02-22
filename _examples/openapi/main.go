@@ -57,12 +57,20 @@ func main() {
 			todos.WithTags("Todos").
 				WithSecurity(map[string][]string{"bearerAuth": {}})
 
+			todos.GET("/all", listAllTodos,
+				openapi.WithOperationID("listAllTodos"),
+				openapi.WithSummary("List all todos without pagination"),
+				openapi.WithDescription("Returns all todos without pagination"),
+				openapi.WithDeprecated("Use GET /v1/todos instead, which supports pagination"),
+				openapi.WithResponseType("200", "Successfully retrieved todos", []Todo{}),
+			)
+
 			todos.GET("", listTodos,
 				openapi.WithOperationID("listTodos"),
 				openapi.WithSummary("List all todos"),
 				openapi.WithDescription("Returns a paginated list of todos"),
-				openapi.WithQueryParam("skip", "integer", false, "Number of items to skip"),
-				openapi.WithQueryParam("take", "integer", false, "Number of items to skip"),
+				openapi.WithQueryParam("skip", "integer", false, "Number of items to skip", nil),
+				openapi.WithQueryParam("take", "integer", false, "Number of items to skip", nil),
 				openapi.WithResponseType("200", "Successfully retrieved todos", PaginatedResponse{}),
 			)
 
@@ -70,7 +78,7 @@ func main() {
 				openapi.WithOperationID("getTodoById"),
 				openapi.WithSummary("Get a todo by ID"),
 				openapi.WithDescription("Returns a single todo by its ID"),
-				openapi.WithPathParam("id", "integer", true, "Todo ID"),
+				openapi.WithPathParam("id", "integer", true, "Todo ID", nil),
 				openapi.WithResponseType("200", "Todo found", Todo{}),
 				openapi.WithResponseType("404", "Todo not found", ErrorResponse{}),
 			)
@@ -97,7 +105,7 @@ func main() {
 				openapi.WithOperationID("updateTodo"),
 				openapi.WithSummary("Update a todo"),
 				openapi.WithDescription("Updates an existing todo"),
-				openapi.WithPathParam("id", "integer", true, "Todo ID"),
+				openapi.WithPathParam("id", "integer", true, "Todo ID", nil),
 				openapi.WithRequestBody("Todo information to update", true, Todo{}),
 				openapi.WithResponseType("200", "Todo updated", Todo{}),
 				openapi.WithResponseType("404", "Todo not found", ErrorResponse{}),
@@ -107,7 +115,7 @@ func main() {
 				openapi.WithOperationID("deleteTodo"),
 				openapi.WithSummary("Delete a todo"),
 				openapi.WithDescription("Deletes a todo by its ID"),
-				openapi.WithPathParam("id", "integer", true, "Todo ID"),
+				openapi.WithPathParam("id", "integer", true, "Todo ID", nil),
 				openapi.WithEmptyResponse("204", "Todo deleted"),
 				openapi.WithResponseType("404", "Todo not found", ErrorResponse{}),
 			)
@@ -228,12 +236,11 @@ func createBulkTodos(c *router.Context) {
 	c.JSON(201, newTodos)
 }
 
-func echoTodos(c *router.Context) {
-	var todos []Todo
-	if err := c.BindJSON(&todos); err != nil {
-		c.JSON(400, ErrorResponse{Error: "invalid request body"})
-		return
+func listAllTodos(c *router.Context) {
+	todos := []Todo{
+		{ID: 1, Title: "Learn Go", Description: "Study Go programming language", Completed: true, CreatedAt: time.Now()},
+		{ID: 2, Title: "Build API", Description: "Create REST API with go-router", Completed: false, CreatedAt: time.Now()},
+		{ID: 3, Title: "Write Tests", Description: "Add unit tests for the API", Completed: false, CreatedAt: time.Now()},
 	}
-
 	c.JSON(200, todos)
 }
