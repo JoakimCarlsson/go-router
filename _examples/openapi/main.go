@@ -5,27 +5,37 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/joakimcarlsson/go-router/openapi"
 	"github.com/joakimcarlsson/go-router/router"
 )
 
-type User struct {
-	ID   int    `json:"id"`
-	Name string `json:"name"`
+type Todo struct {
+	ID          int       `json:"id"`
+	Title       string    `json:"title"`
+	Description string    `json:"description"`
+	Completed   bool      `json:"completed"`
+	CreatedAt   time.Time `json:"createdAt"`
 }
 
 type ErrorResponse struct {
 	Error string `json:"error"`
 }
 
+type PaginatedResponse struct {
+	Items      []Todo `json:"items"`
+	TotalCount int    `json:"totalCount"`
+	Skip       int    `json:"skip"`
+	Take       int    `json:"take"`
+}
+
 func main() {
 	r := router.New()
 
-	// Create OpenAPI generator with security schemes
 	info := openapi.Info{
-		Title:       "User Management API",
-		Description: "API for managing users in the system",
+		Title:       "Todo API",
+		Description: "API for managing todos in the system",
 		Version:     "1.0.0",
 		Contact: openapi.Contact{
 			Name:  "API Support",
@@ -40,45 +50,52 @@ func main() {
 		Description: "JWT Bearer token authentication",
 	})
 
-	r.Group("/admin", func(admin *router.Router) {
-		admin.WithTags("Admin").
-			WithSecurity(map[string][]string{"bearerAuth": {}}).
-			POST("/users", createUser,
-				openapi.WithSummary("Create a new user (Admin)"),
-				openapi.WithDescription("Creates a new user in the system (Admin only)"),
-				openapi.WithRequestBody("User information to create", true, User{}),
-				openapi.WithResponseType("201", "User created", User{}),
-				openapi.WithEmptyResponse("400", "Invalid request"),
-				openapi.WithEmptyResponse("403", "Forbidden"),
+	r.Group("/v1", func(v1 *router.Router) {
+		v1.Group("/todos", func(todos *router.Router) {
+			todos.WithTags("Todos").
+				WithSecurity(map[string][]string{"bearerAuth": {}})
+
+			todos.GET("", listTodos,
+				openapi.WithSummary("List all todos"),
+				openapi.WithDescription("Returns a paginated list of todos"),
+				openapi.WithParameter("skip", "query", "integer", false, "Number of items to skip"),
+				openapi.WithParameter("take", "query", "integer", false, "Number of items to take"),
+				openapi.WithResponseType("200", "Successfully retrieved todos", PaginatedResponse{}),
 			)
-	})
 
-	r.Group("/users", func(users *router.Router) {
-		users.WithTags("Users").
-			WithSecurity(map[string][]string{"bearerAuth": {}})
+			todos.GET("/{id}", getTodo,
+				openapi.WithSummary("Get a todo by ID"),
+				openapi.WithDescription("Returns a single todo by its ID"),
+				openapi.WithParameter("id", "path", "integer", true, "Todo ID"),
+				openapi.WithResponseType("200", "Todo found", Todo{}),
+				openapi.WithResponseType("404", "Todo not found", ErrorResponse{}),
+			)
 
-		users.GET("", listUsers,
-			openapi.WithSummary("List all users"),
-			openapi.WithDescription("Returns a list of all users in the system"),
-			openapi.WithParameter("limit", "query", "integer", false, "Maximum number of users to return"),
-			openapi.WithArrayResponseType("200", "Successfully retrieved users", User{}),
-		)
+			todos.POST("", createTodo,
+				openapi.WithSummary("Create a new todo"),
+				openapi.WithDescription("Creates a new todo in the system"),
+				openapi.WithRequestBody("Todo information to create", true, Todo{}),
+				openapi.WithResponseType("201", "Todo created", Todo{}),
+				openapi.WithEmptyResponse("400", "Invalid request"),
+			)
 
-		users.GET("/{id}", getUser,
-			openapi.WithSummary("Get a user by ID"),
-			openapi.WithDescription("Returns a single user by their ID"),
-			openapi.WithParameter("id", "path", "integer", true, "User ID"),
-			openapi.WithResponseType("200", "User found", User{}),
-			openapi.WithResponseType("404", "User not found", ErrorResponse{}),
-		)
+			todos.PUT("/{id}", updateTodo,
+				openapi.WithSummary("Update a todo"),
+				openapi.WithDescription("Updates an existing todo"),
+				openapi.WithParameter("id", "path", "integer", true, "Todo ID"),
+				openapi.WithRequestBody("Todo information to update", true, Todo{}),
+				openapi.WithResponseType("200", "Todo updated", Todo{}),
+				openapi.WithResponseType("404", "Todo not found", ErrorResponse{}),
+			)
 
-		users.POST("", createUser,
-			openapi.WithSummary("Create a new user"),
-			openapi.WithDescription("Creates a new user in the system"),
-			openapi.WithRequestBody("User information to create", true, User{}),
-			openapi.WithResponseType("201", "User created", User{}),
-			openapi.WithEmptyResponse("400", "Invalid request"),
-		)
+			todos.DELETE("/{id}", deleteTodo,
+				openapi.WithSummary("Delete a todo"),
+				openapi.WithDescription("Deletes a todo by its ID"),
+				openapi.WithParameter("id", "path", "integer", true, "Todo ID"),
+				openapi.WithEmptyResponse("204", "Todo deleted"),
+				openapi.WithResponseType("404", "Todo not found", ErrorResponse{}),
+			)
+		})
 	})
 
 	r.GET("/openapi.json", r.ServeOpenAPI(generator))
@@ -88,34 +105,93 @@ func main() {
 	log.Fatal(http.ListenAndServe(":8080", r))
 }
 
-func listUsers(c *router.Context) {
-	users := []User{
-		{ID: 1, Name: "Alice"},
-		{ID: 2, Name: "Bob"},
+func listTodos(c *router.Context) {
+	skip, _ := strconv.Atoi(c.QueryDefault("skip", "0"))
+	take, _ := strconv.Atoi(c.QueryDefault("take", "10"))
+
+	todos := []Todo{
+		{ID: 1, Title: "Learn Go", Description: "Study Go programming language", Completed: true, CreatedAt: time.Now()},
+		{ID: 2, Title: "Build API", Description: "Create REST API with go-router", Completed: false, CreatedAt: time.Now()},
+		{ID: 3, Title: "Write Tests", Description: "Add unit tests for the API", Completed: false, CreatedAt: time.Now()},
 	}
-	c.JSON(200, users)
+
+	totalCount := len(todos)
+
+	end := skip + take
+	if end > len(todos) {
+		end = len(todos)
+	}
+	if skip >= len(todos) {
+		skip = 0
+		end = 0
+	}
+
+	paginatedTodos := todos[skip:end]
+
+	response := PaginatedResponse{
+		Items:      paginatedTodos,
+		TotalCount: totalCount,
+		Skip:       skip,
+		Take:       take,
+	}
+
+	c.JSON(200, response)
 }
 
-func getUser(c *router.Context) {
-	// Get user ID from path parameter
-	userID := c.Param("id")
-	id, err := strconv.Atoi(userID)
+func getTodo(c *router.Context) {
+	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		c.JSON(400, ErrorResponse{Error: "invalid user ID"})
+		c.JSON(400, ErrorResponse{Error: "invalid todo ID"})
 		return
 	}
-	// In a real application, you would fetch the user from a database
-	user := User{ID: id, Name: "Alice"}
-	c.JSON(200, user)
+
+	todo := Todo{
+		ID:          id,
+		Title:       "Sample Todo",
+		Description: "This is a sample todo",
+		Completed:   false,
+		CreatedAt:   time.Now(),
+	}
+
+	c.JSON(200, todo)
 }
 
-func createUser(c *router.Context) {
-	var newUser User
-	if err := c.BindJSON(&newUser); err != nil {
+func createTodo(c *router.Context) {
+	var newTodo Todo
+	if err := c.BindJSON(&newTodo); err != nil {
 		c.JSON(400, ErrorResponse{Error: "invalid request body"})
 		return
 	}
 
-	// In a real application, you would save the user to a database
-	c.JSON(201, newUser)
+	newTodo.ID = 1
+	newTodo.CreatedAt = time.Now()
+
+	c.JSON(201, newTodo)
+}
+
+func updateTodo(c *router.Context) {
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(400, ErrorResponse{Error: "invalid todo ID"})
+		return
+	}
+
+	var updatedTodo Todo
+	if err := c.BindJSON(&updatedTodo); err != nil {
+		c.JSON(400, ErrorResponse{Error: "invalid request body"})
+		return
+	}
+
+	updatedTodo.ID = id
+
+	c.JSON(200, updatedTodo)
+}
+
+func deleteTodo(c *router.Context) {
+	_, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(400, ErrorResponse{Error: "invalid todo ID"})
+		return
+	}
+	c.Status(204)
 }
