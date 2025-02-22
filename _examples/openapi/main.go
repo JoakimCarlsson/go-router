@@ -61,8 +61,8 @@ func main() {
 				openapi.WithOperationID("listTodos"),
 				openapi.WithSummary("List all todos"),
 				openapi.WithDescription("Returns a paginated list of todos"),
-				openapi.WithParameter("skip", "query", "integer", false, "Number of items to skip"),
-				openapi.WithParameter("take", "query", "integer", false, "Number of items to take"),
+				openapi.WithQueryParam("skip", "integer", false, "Number of items to skip"),
+				openapi.WithQueryParam("take", "integer", false, "Number of items to skip"),
 				openapi.WithResponseType("200", "Successfully retrieved todos", PaginatedResponse{}),
 			)
 
@@ -70,7 +70,7 @@ func main() {
 				openapi.WithOperationID("getTodoById"),
 				openapi.WithSummary("Get a todo by ID"),
 				openapi.WithDescription("Returns a single todo by its ID"),
-				openapi.WithParameter("id", "path", "integer", true, "Todo ID"),
+				openapi.WithPathParam("id", "integer", true, "Todo ID"),
 				openapi.WithResponseType("200", "Todo found", Todo{}),
 				openapi.WithResponseType("404", "Todo not found", ErrorResponse{}),
 			)
@@ -97,7 +97,7 @@ func main() {
 				openapi.WithOperationID("updateTodo"),
 				openapi.WithSummary("Update a todo"),
 				openapi.WithDescription("Updates an existing todo"),
-				openapi.WithParameter("id", "path", "integer", true, "Todo ID"),
+				openapi.WithPathParam("id", "integer", true, "Todo ID"),
 				openapi.WithRequestBody("Todo information to update", true, Todo{}),
 				openapi.WithResponseType("200", "Todo updated", Todo{}),
 				openapi.WithResponseType("404", "Todo not found", ErrorResponse{}),
@@ -107,7 +107,7 @@ func main() {
 				openapi.WithOperationID("deleteTodo"),
 				openapi.WithSummary("Delete a todo"),
 				openapi.WithDescription("Deletes a todo by its ID"),
-				openapi.WithParameter("id", "path", "integer", true, "Todo ID"),
+				openapi.WithPathParam("id", "integer", true, "Todo ID"),
 				openapi.WithEmptyResponse("204", "Todo deleted"),
 				openapi.WithResponseType("404", "Todo not found", ErrorResponse{}),
 			)

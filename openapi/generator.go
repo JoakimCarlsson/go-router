@@ -152,6 +152,16 @@ func WithParameter(name, in, typ string, required bool, description string) Rout
 	}
 }
 
+// WithQueryParam adds a query parameter to the route
+func WithQueryParam(name, typ string, required bool, description string) RouteOption {
+	return WithParameter(name, "query", typ, required, description)
+}
+
+// WithPathParam adds a path parameter to the route
+func WithPathParam(name, typ string, required bool, description string) RouteOption {
+	return WithParameter(name, "path", typ, required, description)
+}
+
 // WithResponse adds a response to the route
 func WithResponse(statusCode, description string, contentType string, schema Schema) RouteOption {
 	return func(m *RouteMetadata) {
