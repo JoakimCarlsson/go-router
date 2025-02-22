@@ -298,7 +298,7 @@ func (g *Generator) Generate(routes []RouteMetadata) *Spec {
 
 	for _, route := range routes {
 		pathItem, ok := spec.Paths[route.Path]
-		if (!ok) {
+		if !ok {
 			pathItem = PathItem{}
 		}
 
