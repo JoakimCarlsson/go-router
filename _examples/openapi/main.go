@@ -44,6 +44,8 @@ func main() {
 	}
 	generator := openapi.NewGenerator(info)
 
+	generator.WithServer("http://localhost:8080", "Local development")
+
 	generator.WithSecurityScheme("bearerAuth", openapi.SecurityScheme{
 		Type:        "http",
 		Scheme:      "bearer",

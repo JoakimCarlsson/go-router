@@ -6,6 +6,7 @@ import "reflect"
 type Generator struct {
 	info            Info
 	securitySchemes map[string]SecurityScheme
+	servers         []Server
 }
 
 // NewGenerator creates a new OpenAPI generator
@@ -13,12 +14,21 @@ func NewGenerator(info Info) *Generator {
 	return &Generator{
 		info:            info,
 		securitySchemes: make(map[string]SecurityScheme),
+		servers:         make([]Server, 0),
 	}
 }
 
 // WithSecurityScheme adds a security scheme to the OpenAPI specification
 func (g *Generator) WithSecurityScheme(name string, scheme SecurityScheme) {
 	g.securitySchemes[name] = scheme
+}
+
+// WithServer adds a server to the OpenAPI specification
+func (g *Generator) WithServer(url string, description string) {
+	g.servers = append(g.servers, Server{
+		URL:         url,
+		Description: description,
+	})
 }
 
 // RouteMetadata contains OpenAPI documentation for a route
@@ -186,6 +196,10 @@ func (g *Generator) Generate(routes []RouteMetadata) *Spec {
 		Components: &Components{
 			SecuritySchemes: g.securitySchemes,
 		},
+	}
+
+	if len(g.servers) > 0 {
+		spec.Servers = g.servers
 	}
 
 	for _, route := range routes {
