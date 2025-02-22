@@ -2,6 +2,7 @@ package openapi
 
 import (
 	"reflect"
+	"strconv"
 	"strings"
 )
 
@@ -42,6 +43,7 @@ type PathItem struct {
 }
 
 type Operation struct {
+	OperationID string                `json:"operationId,omitempty"`
 	Summary     string                `json:"summary,omitempty"`
 	Description string                `json:"description,omitempty"`
 	Tags        []string              `json:"tags,omitempty"`
@@ -79,6 +81,11 @@ type Schema struct {
 	Items       *Schema           `json:"items,omitempty"`
 	Properties  map[string]Schema `json:"properties,omitempty"`
 	Example     interface{}       `json:"example,omitempty"`
+	Required    []string          `json:"required,omitempty"`
+	MinLength   *int              `json:"minLength,omitempty"`
+	MaxLength   *int              `json:"maxLength,omitempty"`
+	Minimum     *float64          `json:"minimum,omitempty"`
+	TypeName    string            `json:"-"` // Used internally to track Go type names
 }
 
 type Response struct {
@@ -104,9 +111,10 @@ func SchemaFromType(t reflect.Type) Schema {
 	// Special handling for time.Time
 	if t.String() == "time.Time" {
 		return Schema{
-			Type:    "string",
-			Format:  "date-time",
-			Example: "2025-02-22T08:36:06.224266+01:00",
+			Type:     "string",
+			Format:   "date-time",
+			Example:  "2025-02-22T08:36:06.224266+01:00",
+			TypeName: "time.Time",
 		}
 	}
 
@@ -114,45 +122,81 @@ func SchemaFromType(t reflect.Type) Schema {
 	case reflect.Ptr:
 		return SchemaFromType(t.Elem())
 	case reflect.Struct:
+		properties, required := getStructProperties(t)
 		schema := Schema{
 			Type:       "object",
-			Properties: getStructProperties(t),
+			Properties: properties,
+			TypeName:   t.Name(), // Store the struct name
 		}
-
-		// Generate example data for the struct
+		if len(required) > 0 {
+			schema.Required = required
+		}
 		if example := generateExample(t); example != nil {
 			schema.Example = example
 		}
-
 		return schema
 	case reflect.Slice, reflect.Array:
 		itemSchema := SchemaFromType(t.Elem())
 		return Schema{
-			Type:  "array",
-			Items: &itemSchema,
+			Type:     "array",
+			Items:    &itemSchema,
+			TypeName: "[]" + itemSchema.TypeName,
 		}
 	default:
 		schema := Schema{
-			Type: getGoTypeSchema(t),
+			Type:     getGoTypeSchema(t),
+			TypeName: t.Name(),
 		}
-
-		// Add example value based on type
 		schema.Example = getExampleValue(t)
 		return schema
 	}
 }
 
-func getStructProperties(t reflect.Type) map[string]Schema {
-	props := make(map[string]Schema)
+func getValidationRules(field reflect.StructField) (required bool, minLen, maxLen *int, min *float64) {
+	tag := field.Tag.Get("validate")
+	if tag == "" {
+		return
+	}
+
+	rules := strings.Split(tag, ",")
+	for _, rule := range rules {
+		if rule == "required" {
+			required = true
+			continue
+		}
+
+		if strings.HasPrefix(rule, "min=") {
+			val, err := strconv.Atoi(strings.TrimPrefix(rule, "min="))
+			if err == nil {
+				if field.Type.Kind() == reflect.String {
+					minLen = &val
+				} else {
+					floatVal := float64(val)
+					min = &floatVal
+				}
+			}
+		}
+
+		if strings.HasPrefix(rule, "max=") {
+			val, err := strconv.Atoi(strings.TrimPrefix(rule, "max="))
+			if err == nil && field.Type.Kind() == reflect.String {
+				maxLen = &val
+			}
+		}
+	}
+	return
+}
+
+func getStructProperties(t reflect.Type) (map[string]Schema, []string) {
+	properties := make(map[string]Schema)
+	var required []string
+
 	for i := 0; i < t.NumField(); i++ {
 		field := t.Field(i)
-
-		// Skip unexported fields
 		if !field.IsExported() {
 			continue
 		}
 
-		// Get JSON tag name or field name
 		name := field.Tag.Get("json")
 		if idx := strings.Index(name, ","); idx != -1 {
 			name = name[:idx]
@@ -164,9 +208,19 @@ func getStructProperties(t reflect.Type) map[string]Schema {
 			name = field.Name
 		}
 
-		props[name] = SchemaFromType(field.Type)
+		isRequired, minLen, maxLen, min := getValidationRules(field)
+		if isRequired {
+			required = append(required, name)
+		}
+
+		schema := SchemaFromType(field.Type)
+		schema.MinLength = minLen
+		schema.MaxLength = maxLen
+		schema.Minimum = min
+		properties[name] = schema
 	}
-	return props
+
+	return properties, required
 }
 
 func getGoTypeSchema(t reflect.Type) string {

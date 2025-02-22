@@ -12,11 +12,11 @@ import (
 )
 
 type Todo struct {
-	ID          int       `json:"id"`
-	Title       string    `json:"title"`
-	Description string    `json:"description"`
-	Completed   bool      `json:"completed"`
-	CreatedAt   time.Time `json:"createdAt"`
+	ID          int       `json:"id" validate:"required,min=1"`
+	Title       string    `json:"title" validate:"required,min=1,max=100"`
+	Description string    `json:"description" validate:"required,max=500"`
+	Completed   bool      `json:"completed" validate:"required"`
+	CreatedAt   time.Time `json:"createdAt" validate:"required"`
 }
 
 type ErrorResponse struct {
@@ -58,6 +58,7 @@ func main() {
 				WithSecurity(map[string][]string{"bearerAuth": {}})
 
 			todos.GET("", listTodos,
+				openapi.WithOperationID("listTodos"),
 				openapi.WithSummary("List all todos"),
 				openapi.WithDescription("Returns a paginated list of todos"),
 				openapi.WithParameter("skip", "query", "integer", false, "Number of items to skip"),
@@ -66,6 +67,7 @@ func main() {
 			)
 
 			todos.GET("/{id}", getTodo,
+				openapi.WithOperationID("getTodoById"),
 				openapi.WithSummary("Get a todo by ID"),
 				openapi.WithDescription("Returns a single todo by its ID"),
 				openapi.WithParameter("id", "path", "integer", true, "Todo ID"),
@@ -74,6 +76,7 @@ func main() {
 			)
 
 			todos.POST("", createTodo,
+				openapi.WithOperationID("createTodo"),
 				openapi.WithSummary("Create a new todo"),
 				openapi.WithDescription("Creates a new todo in the system"),
 				openapi.WithRequestBody("Todo information to create", true, Todo{}),
@@ -82,6 +85,7 @@ func main() {
 			)
 
 			todos.POST("/bulk", createBulkTodos,
+				openapi.WithOperationID("createBulkTodos"),
 				openapi.WithSummary("Create multiple todos"),
 				openapi.WithDescription("Creates multiple todos in one request"),
 				openapi.WithRequestBody("Array of todos to create", true, []Todo{}),
@@ -90,6 +94,7 @@ func main() {
 			)
 
 			todos.PUT("/{id}", updateTodo,
+				openapi.WithOperationID("updateTodo"),
 				openapi.WithSummary("Update a todo"),
 				openapi.WithDescription("Updates an existing todo"),
 				openapi.WithParameter("id", "path", "integer", true, "Todo ID"),
@@ -99,6 +104,7 @@ func main() {
 			)
 
 			todos.DELETE("/{id}", deleteTodo,
+				openapi.WithOperationID("deleteTodo"),
 				openapi.WithSummary("Delete a todo"),
 				openapi.WithDescription("Deletes a todo by its ID"),
 				openapi.WithParameter("id", "path", "integer", true, "Todo ID"),

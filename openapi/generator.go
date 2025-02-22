@@ -1,12 +1,17 @@
 package openapi
 
-import "reflect"
+import (
+	"reflect"
+	"strings"
+)
 
 // Generator handles OpenAPI specification generation
 type Generator struct {
 	info            Info
 	securitySchemes map[string]SecurityScheme
 	servers         []Server
+	schemas         map[string]Schema
+	routeMetadata   []RouteMetadata // Track routes for schema collection
 }
 
 // NewGenerator creates a new OpenAPI generator
@@ -15,6 +20,8 @@ func NewGenerator(info Info) *Generator {
 		info:            info,
 		securitySchemes: make(map[string]SecurityScheme),
 		servers:         make([]Server, 0),
+		schemas:         make(map[string]Schema),
+		routeMetadata:   make([]RouteMetadata, 0),
 	}
 }
 
@@ -31,10 +38,65 @@ func (g *Generator) WithServer(url string, description string) {
 	})
 }
 
+// collectSchemas recursively collects schemas from route metadata
+func (g *Generator) collectSchemas() {
+	for _, route := range g.routeMetadata {
+		// Collect from request bodies
+		if route.RequestBody != nil {
+			for _, mediaType := range route.RequestBody.Content {
+				g.collectSchemaComponents(mediaType.Schema)
+			}
+		}
+
+		// Collect from responses
+		for _, response := range route.Responses {
+			if response.Content != nil {
+				for _, mediaType := range response.Content {
+					g.collectSchemaComponents(mediaType.Schema)
+				}
+			}
+		}
+	}
+}
+
+// collectSchemaComponents recursively collects component schemas
+func (g *Generator) collectSchemaComponents(schema Schema) {
+	// If it's a struct type, register it as a component
+	if schema.Type == "object" && schema.Properties != nil {
+		name := g.generateSchemaName(schema)
+		if name != "" {
+			g.schemas[name] = schema
+		}
+
+		// Recurse into properties
+		for _, prop := range schema.Properties {
+			g.collectSchemaComponents(prop)
+		}
+	}
+
+	// Recurse into array items
+	if schema.Items != nil {
+		g.collectSchemaComponents(*schema.Items)
+	}
+}
+
+// generateSchemaName generates a name for a schema based on its structure
+func (g *Generator) generateSchemaName(schema Schema) string {
+	if schema.TypeName != "" {
+		// For arrays, we only want the element type name
+		if strings.HasPrefix(schema.TypeName, "[]") {
+			return strings.TrimPrefix(schema.TypeName, "[]")
+		}
+		return schema.TypeName
+	}
+	return ""
+}
+
 // RouteMetadata contains OpenAPI documentation for a route
 type RouteMetadata struct {
-	Method      string                `json:"-"` // Used internally, not part of OpenAPI spec
-	Path        string                `json:"-"` // Used internally, not part of OpenAPI spec
+	Method      string                `json:"-"`
+	Path        string                `json:"-"`
+	OperationID string                `json:"operationId,omitempty"`
 	Summary     string                `json:"summary,omitempty"`
 	Description string                `json:"description,omitempty"`
 	Tags        []string              `json:"tags,omitempty"`
@@ -42,6 +104,13 @@ type RouteMetadata struct {
 	RequestBody *RequestBody          `json:"requestBody,omitempty"`
 	Responses   map[string]Response   `json:"responses"`
 	Security    []SecurityRequirement `json:"security,omitempty"`
+}
+
+// WithOperationID sets the operationId for the route
+func WithOperationID(operationId string) RouteOption {
+	return func(m *RouteMetadata) {
+		m.OperationID = operationId
+	}
 }
 
 // RouteOption is a function that configures route metadata
@@ -181,12 +250,16 @@ func WithSecurity(requirements ...map[string][]string) RouteOption {
 
 // Generate creates an OpenAPI specification from the collected route metadata
 func (g *Generator) Generate(routes []RouteMetadata) *Spec {
+	g.routeMetadata = routes
+	g.collectSchemas()
+
 	spec := &Spec{
 		OpenAPI: "3.0.0",
 		Info:    g.info,
 		Paths:   make(map[string]PathItem),
 		Components: &Components{
 			SecuritySchemes: g.securitySchemes,
+			Schemas:         g.schemas,
 		},
 	}
 
@@ -201,6 +274,7 @@ func (g *Generator) Generate(routes []RouteMetadata) *Spec {
 		}
 
 		operation := &Operation{
+			OperationID: route.OperationID,
 			Summary:     route.Summary,
 			Description: route.Description,
 			Tags:        route.Tags,
@@ -209,6 +283,7 @@ func (g *Generator) Generate(routes []RouteMetadata) *Spec {
 			Responses:   route.Responses,
 			Security:    route.Security,
 		}
+
 		switch route.Method {
 		case "GET":
 			pathItem.Get = operation
