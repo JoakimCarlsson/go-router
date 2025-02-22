@@ -71,12 +71,14 @@ type Parameter struct {
 	Schema      Schema `json:"schema"`
 }
 
+// Schema represents an OpenAPI schema
 type Schema struct {
 	Type        string            `json:"type,omitempty"`
 	Format      string            `json:"format,omitempty"`
 	Description string            `json:"description,omitempty"`
 	Items       *Schema           `json:"items,omitempty"`
 	Properties  map[string]Schema `json:"properties,omitempty"`
+	Example     interface{}       `json:"example,omitempty"`
 }
 
 type Response struct {
@@ -91,33 +93,52 @@ type Components struct {
 
 type SecurityScheme struct {
 	Type        string `json:"type"`
-	Scheme      string `json:"scheme,omitempty"` // Used for http type
-	Name        string `json:"name,omitempty"`   // Used for apiKey type
-	In          string `json:"in,omitempty"`     // Used for apiKey type
+	Scheme      string `json:"scheme,omitempty"`
+	Name        string `json:"name,omitempty"`
+	In          string `json:"in,omitempty"`
 	Description string `json:"description,omitempty"`
 }
 
 // SchemaFromType generates an OpenAPI schema from a Go type
 func SchemaFromType(t reflect.Type) Schema {
+	// Special handling for time.Time
+	if t.String() == "time.Time" {
+		return Schema{
+			Type:    "string",
+			Format:  "date-time",
+			Example: "2025-02-22T08:36:06.224266+01:00",
+		}
+	}
+
 	switch t.Kind() {
 	case reflect.Ptr:
 		return SchemaFromType(t.Elem())
 	case reflect.Struct:
-		return Schema{
+		schema := Schema{
 			Type:       "object",
 			Properties: getStructProperties(t),
 		}
+
+		// Generate example data for the struct
+		if example := generateExample(t); example != nil {
+			schema.Example = example
+		}
+
+		return schema
 	case reflect.Slice, reflect.Array:
+		itemSchema := SchemaFromType(t.Elem())
 		return Schema{
-			Type: "array",
-			Items: &Schema{
-				Type: getGoTypeSchema(t.Elem()),
-			},
+			Type:  "array",
+			Items: &itemSchema,
 		}
 	default:
-		return Schema{
+		schema := Schema{
 			Type: getGoTypeSchema(t),
 		}
+
+		// Add example value based on type
+		schema.Example = getExampleValue(t)
+		return schema
 	}
 }
 
@@ -162,4 +183,71 @@ func getGoTypeSchema(t reflect.Type) string {
 	default:
 		return "object"
 	}
+}
+
+func getExampleValue(t reflect.Type) interface{} {
+	switch t.Kind() {
+	case reflect.Bool:
+		return true
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
+		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		return 42
+	case reflect.Float32, reflect.Float64:
+		return 3.14
+	case reflect.String:
+		return "example"
+	default:
+		return nil
+	}
+}
+
+func generateExample(t reflect.Type) interface{} {
+	if t.Kind() != reflect.Struct {
+		return nil
+	}
+
+	example := make(map[string]interface{})
+	for i := 0; i < t.NumField(); i++ {
+		field := t.Field(i)
+
+		// Skip unexported fields
+		if !field.IsExported() {
+			continue
+		}
+
+		// Get JSON tag name or field name
+		name := field.Tag.Get("json")
+		if idx := strings.Index(name, ","); idx != -1 {
+			name = name[:idx]
+		}
+		if name == "-" {
+			continue
+		}
+		if name == "" {
+			name = field.Name
+		}
+
+		// Generate example value for the field
+		var value interface{}
+		switch field.Type.Kind() {
+		case reflect.Struct:
+			if field.Type.String() == "time.Time" {
+				value = "2025-02-22T08:36:06.224266+01:00"
+			} else {
+				value = generateExample(field.Type)
+			}
+		case reflect.Slice, reflect.Array:
+			if elemExample := generateExample(field.Type.Elem()); elemExample != nil {
+				value = []interface{}{elemExample}
+			}
+		default:
+			value = getExampleValue(field.Type)
+		}
+
+		if value != nil {
+			example[name] = value
+		}
+	}
+
+	return example
 }
