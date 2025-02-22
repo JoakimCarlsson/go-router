@@ -81,6 +81,14 @@ func main() {
 				openapi.WithEmptyResponse("400", "Invalid request"),
 			)
 
+			todos.POST("/bulk", createBulkTodos,
+				openapi.WithSummary("Create multiple todos"),
+				openapi.WithDescription("Creates multiple todos in one request"),
+				openapi.WithRequestBody("Array of todos to create", true, []Todo{}),
+				openapi.WithResponseType("201", "Todos created", []Todo{}),
+				openapi.WithEmptyResponse("400", "Invalid request"),
+			)
+
 			todos.PUT("/{id}", updateTodo,
 				openapi.WithSummary("Update a todo"),
 				openapi.WithDescription("Updates an existing todo"),
@@ -196,4 +204,30 @@ func deleteTodo(c *router.Context) {
 		return
 	}
 	c.Status(204)
+}
+
+func createBulkTodos(c *router.Context) {
+	var newTodos []Todo
+	if err := c.BindJSON(&newTodos); err != nil {
+		c.JSON(400, ErrorResponse{Error: "invalid request body"})
+		return
+	}
+
+	// Simulate creating todos by assigning IDs and timestamps
+	for i := range newTodos {
+		newTodos[i].ID = i + 1
+		newTodos[i].CreatedAt = time.Now()
+	}
+
+	c.JSON(201, newTodos)
+}
+
+func echoTodos(c *router.Context) {
+	var todos []Todo
+	if err := c.BindJSON(&todos); err != nil {
+		c.JSON(400, ErrorResponse{Error: "invalid request body"})
+		return
+	}
+
+	c.JSON(200, todos)
 }

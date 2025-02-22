@@ -111,6 +111,7 @@ func WithEmptyResponse(statusCode, description string) RouteOption {
 }
 
 // WithResponseType adds a response with schema inferred from the provided type
+// It automatically detects if the type is a slice/array
 func WithResponseType[T any](statusCode, description string, _ T) RouteOption {
 	return func(m *RouteMetadata) {
 		if m.Responses == nil {
@@ -118,37 +119,28 @@ func WithResponseType[T any](statusCode, description string, _ T) RouteOption {
 		}
 
 		t := reflect.TypeOf((*T)(nil)).Elem()
-		schema := SchemaFromType(t)
 
-		m.Responses[statusCode] = Response{
-			Description: description,
-			Content: map[string]MediaType{
-				"application/json": {Schema: schema},
-			},
-		}
-	}
-}
-
-// WithArrayResponseType adds an array response with item schema inferred from the provided type
-func WithArrayResponseType[T any](statusCode, description string, _ T) RouteOption {
-	return func(m *RouteMetadata) {
-		if m.Responses == nil {
-			m.Responses = make(map[string]Response)
-		}
-
-		t := reflect.TypeOf((*T)(nil)).Elem()
-		itemSchema := SchemaFromType(t)
-
-		m.Responses[statusCode] = Response{
-			Description: description,
-			Content: map[string]MediaType{
-				"application/json": {
-					Schema: Schema{
-						Type:  "array",
-						Items: &itemSchema,
+		if t.Kind() == reflect.Slice || t.Kind() == reflect.Array {
+			itemSchema := SchemaFromType(t.Elem())
+			m.Responses[statusCode] = Response{
+				Description: description,
+				Content: map[string]MediaType{
+					"application/json": {
+						Schema: Schema{
+							Type:  "array",
+							Items: &itemSchema,
+						},
 					},
 				},
-			},
+			}
+		} else {
+			schema := SchemaFromType(t)
+			m.Responses[statusCode] = Response{
+				Description: description,
+				Content: map[string]MediaType{
+					"application/json": {Schema: schema},
+				},
+			}
 		}
 	}
 }
