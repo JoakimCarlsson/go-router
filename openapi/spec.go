@@ -76,6 +76,7 @@ type Parameter struct {
 // Schema represents an OpenAPI schema
 type Schema struct {
 	Type        string            `json:"type,omitempty"`
+	Ref         string            `json:"$ref,omitempty"`
 	Format      string            `json:"format,omitempty"`
 	Description string            `json:"description,omitempty"`
 	Items       *Schema           `json:"items,omitempty"`
@@ -85,7 +86,7 @@ type Schema struct {
 	MinLength   *int              `json:"minLength,omitempty"`
 	MaxLength   *int              `json:"maxLength,omitempty"`
 	Minimum     *float64          `json:"minimum,omitempty"`
-	TypeName    string            `json:"-"` // Used internally to track Go type names
+	TypeName    string            `json:"-"`
 }
 
 type Response struct {

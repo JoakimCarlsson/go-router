@@ -92,6 +92,25 @@ func (g *Generator) generateSchemaName(schema Schema) string {
 	return ""
 }
 
+// convertSchemaToRef converts a schema to a reference if it exists in components
+func (g *Generator) convertSchemaToRef(schema Schema) Schema {
+	if schema.Type == "object" && schema.Properties != nil {
+		name := g.generateSchemaName(schema)
+		if name != "" && g.schemas[name].Properties != nil {
+			return Schema{
+				Ref: "#/components/schemas/" + name,
+			}
+		}
+	}
+	if schema.Items != nil {
+		if schema.Type == "array" {
+			itemsRef := g.convertSchemaToRef(*schema.Items)
+			schema.Items = &itemsRef
+		}
+	}
+	return schema
+}
+
 // RouteMetadata contains OpenAPI documentation for a route
 type RouteMetadata struct {
 	Method      string                `json:"-"`
@@ -279,8 +298,27 @@ func (g *Generator) Generate(routes []RouteMetadata) *Spec {
 
 	for _, route := range routes {
 		pathItem, ok := spec.Paths[route.Path]
-		if !ok {
+		if (!ok) {
 			pathItem = PathItem{}
+		}
+
+		// Convert request body schema to ref if possible
+		if route.RequestBody != nil {
+			for contentType, mediaType := range route.RequestBody.Content {
+				refSchema := g.convertSchemaToRef(mediaType.Schema)
+				route.RequestBody.Content[contentType] = MediaType{Schema: refSchema}
+			}
+		}
+
+		// Convert response schemas to refs if possible
+		for statusCode, response := range route.Responses {
+			if response.Content != nil {
+				for contentType, mediaType := range response.Content {
+					refSchema := g.convertSchemaToRef(mediaType.Schema)
+					response.Content[contentType] = MediaType{Schema: refSchema}
+				}
+				route.Responses[statusCode] = response
+			}
 		}
 
 		operation := &Operation{
@@ -310,7 +348,7 @@ func (g *Generator) Generate(routes []RouteMetadata) *Spec {
 		spec.Paths[route.Path] = pathItem
 	}
 
-	delete(spec.Paths, "/swagger.json")
+	delete(spec.Paths, "/openapi.json")
 
 	return spec
 }
