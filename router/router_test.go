@@ -298,7 +298,7 @@ func BenchmarkRouter_DeeplyNestedGroup(b *testing.B) {
 
 func BenchmarkRouter_MultipleMiddlewares(b *testing.B) {
 	r := New()
-	
+
 	// Add multiple middlewares
 	for i := 0; i < 5; i++ {
 		r.Use(func(next HandlerFunc) HandlerFunc {
@@ -361,7 +361,7 @@ func BenchmarkRouter_ComplexSetup(b *testing.B) {
 
 		api.Group("/v1", func(v1 *Router) {
 			v1.WithTags("v1")
-			
+
 			v1.Group("/users", func(users *Router) {
 				users.WithTags("users")
 				users.Use(func(next HandlerFunc) HandlerFunc {
@@ -405,8 +405,8 @@ func BenchmarkRouter_ParallelRequests(b *testing.B) {
 
 func BenchmarkRouter_StaticRoute(b *testing.B) {
 	r := New()
-	tempDir := b.TempDir() // Create a temporary directory for the test
-	
+	tempDir := b.TempDir()
+
 	r.Static("/static/*filepath", tempDir)
 
 	w := httptest.NewRecorder()
@@ -419,26 +419,11 @@ func BenchmarkRouter_StaticRoute(b *testing.B) {
 	}
 }
 
-func BenchmarkRouter_ConcurrentRouteRegistration(b *testing.B) {
-	b.RunParallel(func(pb *testing.PB) {
-		for pb.Next() {
-			r := New()
-			for i := 0; i < 100; i++ {
-				path := fmt.Sprintf("/path%d", i)
-				r.GET(path, func(c *Context) {
-					c.Status(http.StatusOK)
-				})
-			}
-		}
-	})
-}
-
 func BenchmarkRouter_DynamicRoutes(b *testing.B) {
 	r := New()
-	// Add routes with path parameters
-	r.GET("/users/:id", func(c *Context) { c.Status(http.StatusOK) })
-	r.GET("/users/:id/posts/:postId", func(c *Context) { c.Status(http.StatusOK) })
-	r.GET("/articles/:category/:id/:slug", func(c *Context) { c.Status(http.StatusOK) })
+	r.GET("/users/{id}", func(c *Context) { c.Status(http.StatusOK) })
+	r.GET("/users/{id}/posts/{postId}", func(c *Context) { c.Status(http.StatusOK) })
+	r.GET("/articles/{category}/{id}/{slug}", func(c *Context) { c.Status(http.StatusOK) })
 
 	paths := []string{
 		"/users/123",
@@ -461,7 +446,7 @@ func BenchmarkRouter_DynamicRoutes(b *testing.B) {
 
 func BenchmarkRouter_ComplexMiddlewareChain(b *testing.B) {
 	r := New()
-	
+
 	// Add 10 middleware functions that simulate real-world scenarios
 	for i := 0; i < 10; i++ {
 		i := i // Capture loop variable
