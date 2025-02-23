@@ -340,7 +340,7 @@ func BenchmarkContext_QueryParamsLarge(b *testing.B) {
 		params[i] = fmt.Sprintf("param%d=value%d", i, i)
 	}
 	url := "/?" + strings.Join(params, "&")
-	
+
 	w := httptest.NewRecorder()
 	req := httptest.NewRequest("GET", url, nil)
 	ctx := acquireContext(w, req)
@@ -382,7 +382,7 @@ func BenchmarkContext_NestedJSON(b *testing.B) {
 		Field1 string `json:"field1"`
 		Field2 int    `json:"field2"`
 	}
-	
+
 	type nested struct {
 		ID        string   `json:"id"`
 		Names     []string `json:"names"`
@@ -416,5 +416,127 @@ func BenchmarkContext_NestedJSON(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		w.Body.Reset()
 		ctx.JSON(http.StatusOK, data)
+	}
+}
+
+func TestContext_SetGet(t *testing.T) {
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/", nil)
+	ctx := acquireContext(w, req)
+	defer releaseContext(ctx)
+
+	ctx.Set("string-key", "test-value")
+	if val := ctx.Get("string-key"); val != "test-value" {
+		t.Errorf("expected 'test-value', got %v", val)
+	}
+
+	ctx.Set("int-key", 42)
+	if val := ctx.Get("int-key"); val != 42 {
+		t.Errorf("expected 42, got %v", val)
+	}
+
+	type key string
+	testKey := key("test-key")
+	ctx.Set(testKey, "typed-value")
+	if val := ctx.Get(testKey); val != "typed-value" {
+		t.Errorf("expected 'typed-value', got %v", val)
+	}
+}
+
+func TestContext_GetString(t *testing.T) {
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/", nil)
+	ctx := acquireContext(w, req)
+	defer releaseContext(ctx)
+
+	ctx.Set("string-key", "test-value")
+	if val, exists := ctx.GetString("string-key"); !exists || val != "test-value" {
+		t.Errorf("GetString failed: exists=%v, val=%s", exists, val)
+	}
+
+	if _, exists := ctx.GetString("nonexistent"); exists {
+		t.Error("GetString should return false for nonexistent key")
+	}
+
+	ctx.Set("int-key", 42)
+	if _, exists := ctx.GetString("int-key"); exists {
+		t.Error("GetString should return false for non-string value")
+	}
+}
+
+func TestContext_GetInt(t *testing.T) {
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/", nil)
+	ctx := acquireContext(w, req)
+	defer releaseContext(ctx)
+
+	ctx.Set("int-key", 42)
+	if val, exists := ctx.GetInt("int-key"); !exists || val != 42 {
+		t.Errorf("GetInt failed: exists=%v, val=%d", exists, val)
+	}
+
+	if _, exists := ctx.GetInt("nonexistent"); exists {
+		t.Error("GetInt should return false for nonexistent key")
+	}
+
+	ctx.Set("string-key", "not-an-int")
+	if _, exists := ctx.GetInt("string-key"); exists {
+		t.Error("GetInt should return false for non-int value")
+	}
+}
+
+func BenchmarkContext_SetGet(b *testing.B) {
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/", nil)
+	ctx := acquireContext(w, req)
+	defer releaseContext(ctx)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		ctx.Set("key", "value")
+		_ = ctx.Get("key")
+	}
+}
+
+func BenchmarkContext_GetString(b *testing.B) {
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/", nil)
+	ctx := acquireContext(w, req)
+	defer releaseContext(ctx)
+	ctx.Set("key", "value")
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, _ = ctx.GetString("key")
+	}
+}
+
+func BenchmarkContext_GetInt(b *testing.B) {
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/", nil)
+	ctx := acquireContext(w, req)
+	defer releaseContext(ctx)
+	ctx.Set("key", 42)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, _ = ctx.GetInt("key")
+	}
+}
+
+func TestContext_ValuePropagation(t *testing.T) {
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/", nil)
+	ctx := acquireContext(w, req)
+	defer releaseContext(ctx)
+
+	ctx.Set("key", "value")
+
+	if val := ctx.Request.Context().Value("key"); val != "value" {
+		t.Errorf("Value not propagated to request context: expected 'value', got %v", val)
+	}
+
+	if val := ctx.Context().Value("key"); val != "value" {
+		t.Errorf("Value not accessible through Context(): expected 'value', got %v", val)
 	}
 }

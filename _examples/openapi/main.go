@@ -5,10 +5,18 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/joakimcarlsson/go-router/openapi"
 	"github.com/joakimcarlsson/go-router/router"
+)
+
+// Define typed context keys for better type safety
+type contextKey string
+
+const (
+	userIDKey contextKey = "userID"
 )
 
 type Todo struct {
@@ -30,8 +38,27 @@ type PaginatedResponse struct {
 	Take       int    `json:"take"`
 }
 
+func authMiddleware(next router.HandlerFunc) router.HandlerFunc {
+	return func(c *router.Context) {
+		authHeader := c.GetHeader("Authorization")
+		if authHeader == "" {
+			next(c)
+			return
+		}
+
+		parts := strings.Split(authHeader, " ")
+		if len(parts) == 2 && parts[0] == "Bearer" {
+			c.Set(userIDKey, "user_123")
+		}
+
+		next(c)
+	}
+}
+
 func main() {
 	r := router.New()
+
+	r.Use(authMiddleware)
 
 	info := openapi.Info{
 		Title:       "Todo API",
@@ -187,6 +214,10 @@ func createTodo(c *router.Context) {
 		return
 	}
 
+	if userID, exists := c.GetString(userIDKey); exists {
+		fmt.Printf("Creating todo for user: %s\n", userID)
+	}
+
 	newTodo.ID = 1
 	newTodo.CreatedAt = time.Now()
 
@@ -227,7 +258,6 @@ func createBulkTodos(c *router.Context) {
 		return
 	}
 
-	// Simulate creating todos by assigning IDs and timestamps
 	for i := range newTodos {
 		newTodos[i].ID = i + 1
 		newTodos[i].CreatedAt = time.Now()
