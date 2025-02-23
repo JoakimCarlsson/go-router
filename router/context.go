@@ -53,6 +53,46 @@ func (c *Context) QueryInt(key string) (int, error) {
 	return strconv.Atoi(c.Query().Get(key))
 }
 
+func (c *Context) QueryIntDefault(key string, defaultValue int) int {
+	if value, err := strconv.Atoi(c.Query().Get(key)); err == nil {
+		return value
+	}
+	return defaultValue
+}
+
+func (c *Context) QueryBool(key string) (bool, error) {
+	return strconv.ParseBool(c.Query().Get(key))
+}
+
+func (c *Context) QueryBoolDefault(key string, defaultValue bool) bool {
+	if value, err := strconv.ParseBool(c.Query().Get(key)); err == nil {
+		return value
+	}
+	return defaultValue
+}
+
+func (c *Context) ParamInt(key string) (int, error) {
+	return strconv.Atoi(c.Param(key))
+}
+
+func (c *Context) ParamIntDefault(key string, defaultValue int) int {
+	if value, err := strconv.Atoi(c.Param(key)); err == nil {
+		return value
+	}
+	return defaultValue
+}
+
+func (c *Context) ParamBool(key string) (bool, error) {
+	return strconv.ParseBool(c.Param(key))
+}
+
+func (c *Context) ParamBoolDefault(key string, defaultValue bool) bool {
+	if value, err := strconv.ParseBool(c.Param(key)); err == nil {
+		return value
+	}
+	return defaultValue
+}
+
 func (c *Context) Param(key string) string {
 	return c.Request.PathValue(key)
 }
