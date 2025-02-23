@@ -10,6 +10,11 @@ import (
 	"github.com/joakimcarlsson/go-router/openapi"
 )
 
+// HandlerFunc defines a function to process HTTP requests in the context of the router
+// MiddlewareFunc defines a function to wrap HandlerFunc for middleware processing
+// route represents a single route with its method, path, handler, and metadata
+// Router represents the main router with its configuration and routes
+
 type HandlerFunc func(*Context)
 type MiddlewareFunc func(HandlerFunc) HandlerFunc
 
@@ -31,6 +36,7 @@ type Router struct {
 	security    []openapi.SecurityRequirement
 }
 
+// New creates a new Router instance
 func New() *Router {
 	return &Router{
 		mux:      http.NewServeMux(),
@@ -59,10 +65,12 @@ func (r *Router) WithSecurity(requirements ...map[string][]string) *Router {
 	return r
 }
 
+// Use adds middleware functions to the router
 func (r *Router) Use(middlewares ...MiddlewareFunc) {
 	r.middlewares = append(r.middlewares, middlewares...)
 }
 
+// Group creates a new router group with a specific path prefix and applies the provided function to it
 func (r *Router) Group(path string, fn func(*Router)) {
 	group := &Router{
 		mux:         r.mux,
@@ -70,17 +78,17 @@ func (r *Router) Group(path string, fn func(*Router)) {
 		middlewares: slices.Clone(r.middlewares),
 		parent:      r,
 		routes:      make([]route, 0),
-		tags:        make([]string, 0), // Initialize tags slice
+		tags:        make([]string, 0),
 		security:    make([]openapi.SecurityRequirement, 0),
 	}
 	fn(group)
 
-	// Add group's routes to parent
 	r.mu.Lock()
 	r.routes = append(r.routes, group.routes...)
 	r.mu.Unlock()
 }
 
+// normalizePath cleans and normalizes the given path
 func normalizePath(p string) string {
 	if p == "" {
 		return "/"
@@ -91,6 +99,7 @@ func normalizePath(p string) string {
 	return path.Clean(p)
 }
 
+// Handle registers a new route with the given pattern, handler, and options
 func (r *Router) Handle(pattern string, handler HandlerFunc, opts ...openapi.RouteOption) {
 	parts := strings.SplitN(pattern, " ", 2)
 	if len(parts) != 2 {
@@ -139,26 +148,32 @@ func (r *Router) Handle(pattern string, handler HandlerFunc, opts ...openapi.Rou
 	})
 }
 
+// GET registers a new GET route
 func (r *Router) GET(path string, handler HandlerFunc, opts ...openapi.RouteOption) {
 	r.Handle("GET "+path, handler, opts...)
 }
 
+// POST registers a new POST route
 func (r *Router) POST(path string, handler HandlerFunc, opts ...openapi.RouteOption) {
 	r.Handle("POST "+path, handler, opts...)
 }
 
+// PUT registers a new PUT route
 func (r *Router) PUT(path string, handler HandlerFunc, opts ...openapi.RouteOption) {
 	r.Handle("PUT "+path, handler, opts...)
 }
 
+// DELETE registers a new DELETE route
 func (r *Router) DELETE(path string, handler HandlerFunc, opts ...openapi.RouteOption) {
 	r.Handle("DELETE "+path, handler, opts...)
 }
 
+// PATCH registers a new PATCH route
 func (r *Router) PATCH(path string, handler HandlerFunc, opts ...openapi.RouteOption) {
 	r.Handle("PATCH "+path, handler, opts...)
 }
 
+// buildMiddlewareChain builds the middleware chain for a handler
 func (r *Router) buildMiddlewareChain(handler HandlerFunc) HandlerFunc {
 	if len(r.middlewares) == 0 {
 		return handler
@@ -171,6 +186,7 @@ func (r *Router) buildMiddlewareChain(handler HandlerFunc) HandlerFunc {
 	return h
 }
 
+// ServeHTTP implements the http.Handler interface for the router
 func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	r.mux.ServeHTTP(w, req)
 }
