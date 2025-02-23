@@ -159,16 +159,6 @@ func TestRouter_Security(t *testing.T) {
 	}
 }
 
-func TestRouter_Static(t *testing.T) {
-	r := New()
-	defer func() {
-		if r := recover(); r == nil {
-			t.Error("expected panic for invalid static path")
-		}
-	}()
-	r.Static("/static", "./testdata") // Should panic without /*filepath suffix
-}
-
 func TestRouter_WithTagsAndSecurity(t *testing.T) {
 	r := New()
 	r.WithTags("test-tag")
@@ -403,22 +393,6 @@ func BenchmarkRouter_ParallelRequests(b *testing.B) {
 	})
 }
 
-func BenchmarkRouter_StaticRoute(b *testing.B) {
-	r := New()
-	tempDir := b.TempDir()
-
-	r.Static("/static/*filepath", tempDir)
-
-	w := httptest.NewRecorder()
-	req := httptest.NewRequest("GET", "/static/test.txt", nil)
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		w.Body.Reset()
-		r.ServeHTTP(w, req)
-	}
-}
-
 func BenchmarkRouter_DynamicRoutes(b *testing.B) {
 	r := New()
 	r.GET("/users/{id}", func(c *Context) { c.Status(http.StatusOK) })
@@ -447,9 +421,8 @@ func BenchmarkRouter_DynamicRoutes(b *testing.B) {
 func BenchmarkRouter_ComplexMiddlewareChain(b *testing.B) {
 	r := New()
 
-	// Add 10 middleware functions that simulate real-world scenarios
 	for i := 0; i < 10; i++ {
-		i := i // Capture loop variable
+		i := i
 		r.Use(func(next HandlerFunc) HandlerFunc {
 			return func(c *Context) {
 				c.SetHeader(fmt.Sprintf("X-Middleware-%d", i), "processed")
@@ -461,7 +434,7 @@ func BenchmarkRouter_ComplexMiddlewareChain(b *testing.B) {
 	r.GET("/test", func(c *Context) {
 		c.JSON(http.StatusOK, map[string]interface{}{
 			"status": "ok",
-			"data":   make([]int, 100), // Simulate payload
+			"data":   make([]int, 100),
 		})
 	})
 
@@ -479,7 +452,6 @@ func BenchmarkRouter_GroupInheritance(b *testing.B) {
 	b.ReportAllocs()
 	r := New()
 
-	// Create a deep group hierarchy with inherited middleware and metadata
 	setupGroup := func() {
 		r.WithTags("api")
 		r.WithSecurity(map[string][]string{"bearerAuth": {"read"}})
@@ -517,31 +489,4 @@ func BenchmarkRouter_GroupInheritance(b *testing.B) {
 		w.Body.Reset()
 		r.ServeHTTP(w, req)
 	}
-}
-
-func BenchmarkRouter_WildcardRoutes(b *testing.B) {
-	r := New()
-	r.Static("/assets/*filepath", b.TempDir())
-	r.GET("/api/*path", func(c *Context) {
-		c.Status(http.StatusOK)
-	})
-
-	paths := []string{
-		"/assets/css/style.css",
-		"/assets/js/app.js",
-		"/api/v1/users",
-		"/api/v2/posts/123",
-	}
-
-	b.ResetTimer()
-	b.RunParallel(func(pb *testing.PB) {
-		w := httptest.NewRecorder()
-		for pb.Next() {
-			for _, path := range paths {
-				req := httptest.NewRequest("GET", path, nil)
-				r.ServeHTTP(w, req)
-				w.Body.Reset()
-			}
-		}
-	})
 }

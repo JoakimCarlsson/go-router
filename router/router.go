@@ -171,24 +171,6 @@ func (r *Router) buildMiddlewareChain(handler HandlerFunc) HandlerFunc {
 	return h
 }
 
-// Static serves files from the given file system root.
-// The path must end with "/*filepath" where the matched path will be used to serve files.
-func (r *Router) Static(urlPath string, root string) {
-	if !strings.HasSuffix(urlPath, "/*filepath") {
-		panic("static path must end with /*filepath")
-	}
-
-	handler := http.StripPrefix(
-		strings.TrimSuffix(urlPath, "/*filepath"),
-		http.FileServer(http.Dir(root)),
-	)
-
-	pattern := "GET " + urlPath
-	r.Handle(pattern, func(c *Context) {
-		handler.ServeHTTP(c.Writer, c.Request)
-	})
-}
-
 func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	r.mux.ServeHTTP(w, req)
 }
