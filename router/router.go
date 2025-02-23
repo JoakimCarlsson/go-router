@@ -139,7 +139,6 @@ func (r *Router) Handle(pattern string, handler HandlerFunc, opts ...openapi.Rou
 	})
 }
 
-// Modified HTTP method handlers to accept options
 func (r *Router) GET(path string, handler HandlerFunc, opts ...openapi.RouteOption) {
 	r.Handle("GET "+path, handler, opts...)
 }

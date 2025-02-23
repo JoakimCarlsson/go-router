@@ -1,6 +1,7 @@
 package router
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/url"
@@ -12,18 +13,22 @@ import (
 type Context struct {
 	Writer     http.ResponseWriter
 	Request    *http.Request
+	ctx        context.Context
 	StartTime  time.Time
 	StatusCode int
 }
 
 var contextPool = sync.Pool{
-	New: func() interface{} { return new(Context) },
+	New: func() interface{} {
+		return &Context{}
+	},
 }
 
 func acquireContext(w http.ResponseWriter, r *http.Request) *Context {
 	ctx := contextPool.Get().(*Context)
 	ctx.Writer = w
 	ctx.Request = r
+	ctx.ctx = r.Context()
 	ctx.StartTime = time.Now()
 	ctx.StatusCode = http.StatusOK
 	return ctx
@@ -77,4 +82,40 @@ func (c *Context) SetHeader(key, value string) {
 
 func (c *Context) BindJSON(target interface{}) error {
 	return json.NewDecoder(c.Request.Body).Decode(target)
+}
+
+// Set stores a value in the context
+func (c *Context) Set(key interface{}, value interface{}) {
+	c.ctx = context.WithValue(c.ctx, key, value)
+	c.Request = c.Request.WithContext(c.ctx)
+}
+
+// Get retrieves a value from the context
+func (c *Context) Get(key interface{}) interface{} {
+	return c.ctx.Value(key)
+}
+
+// GetString retrieves a string value from the context
+func (c *Context) GetString(key interface{}) (string, bool) {
+	if val := c.ctx.Value(key); val != nil {
+		if str, ok := val.(string); ok {
+			return str, true
+		}
+	}
+	return "", false
+}
+
+// GetInt retrieves an int value from the context
+func (c *Context) GetInt(key interface{}) (int, bool) {
+	if val := c.ctx.Value(key); val != nil {
+		if i, ok := val.(int); ok {
+			return i, true
+		}
+	}
+	return 0, false
+}
+
+// Context returns the underlying context.Context
+func (c *Context) Context() context.Context {
+	return c.ctx
 }
