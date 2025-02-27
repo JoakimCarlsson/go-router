@@ -155,6 +155,7 @@ func main() {
 	// Serve Swagger UI documentation
 	swaggerConfig := router.DefaultSwaggerUIConfig()
 	swaggerConfig.Title = "Todo API Documentation"
+	swaggerConfig.DarkMode = false
 	r.GET("/docs", r.ServeSwaggerUI(swaggerConfig))
 
 	fmt.Println("Server starting on http://localhost:8080")
