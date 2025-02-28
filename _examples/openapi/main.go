@@ -149,10 +149,27 @@ func main() {
 		})
 	})
 
+	// Serve OpenAPI specification as JSON
 	r.GET("/openapi.json", r.ServeOpenAPI(generator))
 
+	// Serve Swagger UI documentation with enhanced configuration
+	swaggerConfig := router.DefaultSwaggerUIConfig()
+	swaggerConfig.Title = "Todo API Documentation"
+	swaggerConfig.DocExpansion = "list"
+	swaggerConfig.DefaultModelsExpandDepth = 2
+	swaggerConfig.PersistAuthorization = true
+	swaggerConfig.AdditionalQueryParams = map[string]string{
+		"version": "1.0.0",
+	}
+	swaggerConfig.TryItOutEnabled = true
+	swaggerConfig.RequestSnippetsEnabled = true
+
+	r.GET("/docs", r.ServeSwaggerUI(swaggerConfig))
+
 	fmt.Println("Server starting on http://localhost:8080")
-	fmt.Println("OpenAPI documentation available at http://localhost:8080/openapi.json")
+	fmt.Println("OpenAPI specification available at http://localhost:8080/openapi.json")
+	fmt.Println("Swagger UI documentation available at:")
+	fmt.Println("  - http://localhost:8080/docs")
 	log.Fatal(http.ListenAndServe(":8080", r))
 }
 

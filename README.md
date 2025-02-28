@@ -53,6 +53,31 @@ r.GET("/users", listUsers,
 
 // Serve OpenAPI specification
 r.GET("/openapi.json", r.ServeOpenAPI(generator))
+
+// Serve Swagger UI documentation
+swaggerConfig := router.DefaultSwaggerUIConfig()
+swaggerConfig.Title = "API Documentation"
+swaggerConfig.DarkMode = true  // Enable dark mode
+r.GET("/docs", r.ServeSwaggerUI(swaggerConfig))
+```
+
+### Swagger UI Configuration Options
+
+The router includes built-in Swagger UI support with many configuration options:
+
+```go
+config := router.DefaultSwaggerUIConfig()
+config.Title = "My API Documentation"           // Page title
+config.DarkMode = true                          // Enable dark mode
+config.SpecURL = "/openapi.json"                // Path to OpenAPI spec
+config.DocExpansion = "list"                    // "list", "full", or "none"
+config.TryItOutEnabled = true                   // Enable "Try it out" by default
+config.PersistAuthorization = true              // Save auth between page reloads
+config.DefaultModelsExpandDepth = 2             // Expand nested models
+config.RequestSnippetsEnabled = true            // Show code snippets for requests
+config.CustomCSS = "/* Add your custom CSS */"  // Customize styling
+
+r.GET("/docs", r.ServeSwaggerUI(config))
 ```
 
 For more examples, see the [_examples](_examples) directory.
