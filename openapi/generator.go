@@ -4,6 +4,8 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+
+	"github.com/joakimcarlsson/go-router/metadata"
 )
 
 // Generator handles OpenAPI specification generation
@@ -12,7 +14,7 @@ type Generator struct {
 	securitySchemes map[string]SecurityScheme
 	servers         []Server
 	schemas         map[string]Schema
-	routeMetadata   []RouteMetadata // Track routes for schema collection
+	routeInfo       []RouteInfo
 }
 
 // NewGenerator creates a new OpenAPI generator
@@ -22,7 +24,7 @@ func NewGenerator(info Info) *Generator {
 		securitySchemes: make(map[string]SecurityScheme),
 		servers:         make([]Server, 0),
 		schemas:         make(map[string]Schema),
-		routeMetadata:   make([]RouteMetadata, 0),
+		routeInfo:       make([]RouteInfo, 0),
 	}
 }
 
@@ -133,21 +135,25 @@ func (g *Generator) WithServer(url string, description string) {
 	})
 }
 
-// collectSchemas recursively collects schemas from route metadata
+// collectSchemas recursively collects schemas from route info
 func (g *Generator) collectSchemas() {
-	for _, route := range g.routeMetadata {
+	for _, route := range g.routeInfo {
 		// Collect from request bodies
-		if route.RequestBody != nil {
-			for _, mediaType := range route.RequestBody.Content {
-				g.collectSchemaComponents(mediaType.Schema)
+		if reqBody := route.RequestBody(); reqBody != nil {
+			for _, mediaType := range reqBody.Content {
+				// Convert metadata.Schema to openapi.Schema before collecting
+				schema := SchemaFromMetadataSchema(mediaType.Schema)
+				g.collectSchemaComponents(schema)
 			}
 		}
 
 		// Collect from responses
-		for _, response := range route.Responses {
+		for _, response := range route.Responses() {
 			if response.Content != nil {
 				for _, mediaType := range response.Content {
-					g.collectSchemaComponents(mediaType.Schema)
+					// Convert metadata.Schema to openapi.Schema before collecting
+					schema := SchemaFromMetadataSchema(mediaType.Schema)
+					g.collectSchemaComponents(schema)
 				}
 			}
 		}
@@ -207,6 +213,7 @@ func (g *Generator) convertSchemaToRef(schema Schema) Schema {
 }
 
 // RouteMetadata contains OpenAPI documentation for a route
+// This structure remains for backward compatibility
 type RouteMetadata struct {
 	Method      string                `json:"-"`
 	Path        string                `json:"-"`
@@ -361,7 +368,7 @@ func WithRequestBody[T any](description string, required bool, _ T) RouteOption 
 // WithSecurity adds security requirements to a route
 func WithSecurity(requirements ...map[string][]string) RouteOption {
 	return func(m *RouteMetadata) {
-		if (m.Security) == nil {
+		if m.Security == nil {
 			m.Security = make([]SecurityRequirement, 0)
 		}
 		for _, req := range requirements {
@@ -426,9 +433,9 @@ func WithRequestBodyExample[T any](description string, required bool, example T)
 	}
 }
 
-// Generate creates an OpenAPI specification from the collected route metadata
-func (g *Generator) Generate(routes []RouteMetadata) *Spec {
-	g.routeMetadata = routes
+// Generate creates an OpenAPI specification from the collected route information
+func (g *Generator) Generate(routes []RouteInfo) *Spec {
+	g.routeInfo = routes
 	g.collectSchemas()
 
 	spec := &Spec{
@@ -446,43 +453,52 @@ func (g *Generator) Generate(routes []RouteMetadata) *Spec {
 	}
 
 	for _, route := range routes {
-		pathItem, ok := spec.Paths[route.Path]
+		pathItem, ok := spec.Paths[route.Path()]
 		if !ok {
 			pathItem = PathItem{}
 		}
 
-		// Convert request body schema to ref if possible
-		if route.RequestBody != nil {
-			for contentType, mediaType := range route.RequestBody.Content {
-				refSchema := g.convertSchemaToRef(mediaType.Schema)
-				route.RequestBody.Content[contentType] = MediaType{Schema: refSchema}
-			}
+		// Convert request body
+		var requestBody *RequestBody
+		if rb := route.RequestBody(); rb != nil {
+			requestBody = RequestBodyFromMetadataRequestBody(rb)
 		}
 
-		// Convert response schemas to refs if possible
-		for statusCode, response := range route.Responses {
-			if response.Content != nil {
-				for contentType, mediaType := range response.Content {
-					refSchema := g.convertSchemaToRef(mediaType.Schema)
-					response.Content[contentType] = MediaType{Schema: refSchema}
-				}
-				route.Responses[statusCode] = response
+		// Convert responses
+		responses := make(map[string]Response)
+		for statusCode, response := range route.Responses() {
+			responses[statusCode] = ResponseFromMetadataResponse(response)
+		}
+
+		// Convert parameters
+		parameters := make([]Parameter, len(route.Parameters()))
+		for i, param := range route.Parameters() {
+			parameters[i] = ParameterFromMetadataParameter(param)
+		}
+
+		// Convert security requirements
+		security := make([]SecurityRequirement, len(route.Security()))
+		for i, sec := range route.Security() {
+			secReq := make(SecurityRequirement)
+			for k, v := range sec {
+				secReq[k] = v
 			}
+			security[i] = secReq
 		}
 
 		operation := &Operation{
-			OperationID: route.OperationID,
-			Summary:     route.Summary,
-			Description: route.Description,
-			Tags:        route.Tags,
-			Parameters:  route.Parameters,
-			RequestBody: route.RequestBody,
-			Responses:   route.Responses,
-			Security:    route.Security,
-			Deprecated:  route.Deprecated,
+			OperationID: route.OperationID(),
+			Summary:     route.Summary(),
+			Description: route.Description(),
+			Tags:        route.Tags(),
+			Parameters:  parameters,
+			RequestBody: requestBody,
+			Responses:   responses,
+			Security:    security,
+			Deprecated:  route.IsDeprecated(),
 		}
 
-		switch route.Method {
+		switch route.Method() {
 		case "GET":
 			pathItem.Get = operation
 		case "POST":
@@ -495,10 +511,36 @@ func (g *Generator) Generate(routes []RouteMetadata) *Spec {
 			pathItem.Patch = operation
 		}
 
-		spec.Paths[route.Path] = pathItem
+		spec.Paths[route.Path()] = pathItem
 	}
 
 	delete(spec.Paths, "/openapi.json")
 
 	return spec
 }
+
+// AddMetadata adds route metadata to generate from
+// This method converts the old metadata format to the new interface
+func (g *Generator) AddMetadata(metadataList []metadata.RouteMetadata) {
+	for _, m := range metadataList {
+		metadata := m // Create a new variable to avoid closure problems
+		g.routeInfo = append(g.routeInfo, RouteInfoFromMetadata(&metadata))
+	}
+}
+
+// routeMetadataAdapter adapts RouteMetadata to the RouteInfo interface
+type routeMetadataAdapter struct {
+	metadata *metadata.RouteMetadata
+}
+
+func (a *routeMetadataAdapter) Method() string                           { return a.metadata.Method }
+func (a *routeMetadataAdapter) Path() string                             { return a.metadata.Path }
+func (a *routeMetadataAdapter) OperationID() string                      { return a.metadata.OperationID }
+func (a *routeMetadataAdapter) Summary() string                          { return a.metadata.Summary }
+func (a *routeMetadataAdapter) Description() string                      { return a.metadata.Description }
+func (a *routeMetadataAdapter) Tags() []string                           { return a.metadata.Tags }
+func (a *routeMetadataAdapter) Parameters() []metadata.Parameter         { return a.metadata.Parameters }
+func (a *routeMetadataAdapter) RequestBody() *metadata.RequestBody       { return a.metadata.RequestBody }
+func (a *routeMetadataAdapter) Responses() map[string]metadata.Response  { return a.metadata.Responses }
+func (a *routeMetadataAdapter) Security() []metadata.SecurityRequirement { return a.metadata.Security }
+func (a *routeMetadataAdapter) IsDeprecated() bool                       { return a.metadata.Deprecated }

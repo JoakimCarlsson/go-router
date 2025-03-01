@@ -1,12 +1,14 @@
-package router
+package swagger
 
 import (
 	"html/template"
 	"net/http"
+
+	"github.com/joakimcarlsson/go-router/metadata"
 )
 
-// SwaggerUIConfig holds configuration options for serving Swagger UI
-type SwaggerUIConfig struct {
+// UIConfig holds configuration options for serving Swagger UI
+type UIConfig struct {
 	// Title is the page title for the Swagger UI page
 	Title string
 	// SpecURL is the URL to the OpenAPI specification JSON
@@ -46,34 +48,12 @@ type SwaggerUIConfig struct {
 	// CustomJS allows injecting custom JavaScript
 	CustomJS string
 	// OAuth2Config contains OAuth2 configuration for Swagger UI
-	OAuth2Config *OAuth2Config
+	OAuth2Config *metadata.OAuth2Config
 }
 
-// OAuth2Config holds OAuth2 configuration for Swagger UI
-type OAuth2Config struct {
-	// ClientId is the OAuth2 client ID
-	ClientID string
-	// ClientSecret is the OAuth2 client secret (typically only used in password, implicit, or access code flows)
-	ClientSecret string
-	// Realm is the realm query parameter
-	Realm string
-	// AppName is the application name for OAuth2 authorization
-	AppName string
-	// ScopeSeparator is the separator used when passing multiple scopes
-	ScopeSeparator string
-	// Scopes is a predefined list of scopes to be used
-	Scopes []string
-	// AdditionalQueryParams allows adding query params to the OAuth2 flow
-	AdditionalQueryParams map[string]string
-	// UseBasicAuthenticationWithAccessCodeGrant requires sending client credentials via header
-	UseBasicAuthenticationWithAccessCodeGrant bool
-	// UsePkceWithAuthorizationCodeGrant uses PKCE when available
-	UsePkceWithAuthorizationCodeGrant bool
-}
-
-// DefaultSwaggerUIConfig returns a default configuration for Swagger UI
-func DefaultSwaggerUIConfig() SwaggerUIConfig {
-	return SwaggerUIConfig{
+// DefaultUIConfig returns a default configuration for Swagger UI
+func DefaultUIConfig() UIConfig {
+	return UIConfig{
 		Title:                    "API Documentation",
 		SpecURL:                  "/openapi.json",
 		SwaggerVersion:           "5.20.0",
@@ -96,8 +76,8 @@ func DefaultSwaggerUIConfig() SwaggerUIConfig {
 	}
 }
 
-// ServeSwaggerUI returns a handler for serving Swagger UI using CDN-hosted resources
-func (r *Router) ServeSwaggerUI(config SwaggerUIConfig) HandlerFunc {
+// Handler returns an http.HandlerFunc that serves the Swagger UI
+func Handler(config UIConfig) http.HandlerFunc {
 	const swaggerTemplate = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -211,7 +191,7 @@ func (r *Router) ServeSwaggerUI(config SwaggerUIConfig) HandlerFunc {
 		panic(err)
 	}
 
-	return func(c *Context) {
+	return func(w http.ResponseWriter, r *http.Request) {
 		data := struct {
 			Title                    string
 			SpecURL                  string
@@ -231,7 +211,7 @@ func (r *Router) ServeSwaggerUI(config SwaggerUIConfig) HandlerFunc {
 			DefaultModelRendering    string
 			CustomCSS                string
 			CustomJS                 string
-			OAuth2Config             *OAuth2Config
+			OAuth2Config             *metadata.OAuth2Config
 		}{
 			Title:                    config.Title,
 			SpecURL:                  config.SpecURL,
@@ -254,8 +234,8 @@ func (r *Router) ServeSwaggerUI(config SwaggerUIConfig) HandlerFunc {
 			OAuth2Config:             config.OAuth2Config,
 		}
 
-		c.SetHeader("Content-Type", "text/html; charset=utf-8")
-		c.Status(http.StatusOK)
-		tmpl.Execute(c.Writer, data)
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.WriteHeader(http.StatusOK)
+		tmpl.Execute(w, data)
 	}
 }

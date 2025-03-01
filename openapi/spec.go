@@ -1,6 +1,8 @@
 package openapi
 
 import (
+	"encoding/json"
+	"io"
 	"reflect"
 	"strconv"
 	"strings"
@@ -8,19 +10,22 @@ import (
 
 // Spec represents the OpenAPI 3.0.0 specification
 type Spec struct {
-	OpenAPI    string              `json:"openapi"`
-	Info       Info                `json:"info"`
-	Servers    []Server            `json:"servers,omitempty"`
-	Paths      map[string]PathItem `json:"paths"`
-	Components *Components         `json:"components,omitempty"`
+	OpenAPI      string              `json:"openapi"`
+	Info         Info                `json:"info"`
+	Servers      []Server            `json:"servers,omitempty"`
+	Paths        map[string]PathItem `json:"paths"`
+	Components   *Components         `json:"components,omitempty"`
+	Tags         []Tag               `json:"tags,omitempty"`
+	ExternalDocs map[string]string   `json:"externalDocs,omitempty"`
 }
 
 type Info struct {
-	Title          string  `json:"title"`
-	Description    string  `json:"description,omitempty"`
-	Version        string  `json:"version"`
-	TermsOfService string  `json:"termsOfService,omitempty"`
-	Contact        Contact `json:"contact,omitempty"`
+	Title          string   `json:"title"`
+	Description    string   `json:"description,omitempty"`
+	Version        string   `json:"version"`
+	TermsOfService string   `json:"termsOfService,omitempty"`
+	Contact        *Contact `json:"contact,omitempty"`
+	License        *License `json:"license,omitempty"`
 }
 
 type Contact struct {
@@ -29,17 +34,34 @@ type Contact struct {
 	Email string `json:"email,omitempty"`
 }
 
+type License struct {
+	Name string `json:"name"`
+	URL  string `json:"url,omitempty"`
+}
+
 type Server struct {
-	URL         string `json:"url"`
-	Description string `json:"description,omitempty"`
+	URL         string                    `json:"url"`
+	Description string                    `json:"description,omitempty"`
+	Variables   map[string]ServerVariable `json:"variables,omitempty"`
+}
+
+type ServerVariable struct {
+	Enum        []string `json:"enum,omitempty"`
+	Default     string   `json:"default"`
+	Description string   `json:"description,omitempty"`
 }
 
 type PathItem struct {
-	Get    *Operation `json:"get,omitempty"`
-	Post   *Operation `json:"post,omitempty"`
-	Put    *Operation `json:"put,omitempty"`
-	Delete *Operation `json:"delete,omitempty"`
-	Patch  *Operation `json:"patch,omitempty"`
+	Summary     string     `json:"summary,omitempty"`
+	Description string     `json:"description,omitempty"`
+	Get         *Operation `json:"get,omitempty"`
+	Post        *Operation `json:"post,omitempty"`
+	Put         *Operation `json:"put,omitempty"`
+	Delete      *Operation `json:"delete,omitempty"`
+	Patch       *Operation `json:"patch,omitempty"`
+	Options     *Operation `json:"options,omitempty"`
+	Head        *Operation `json:"head,omitempty"`
+	Trace       *Operation `json:"trace,omitempty"`
 }
 
 type Operation struct {
@@ -57,13 +79,14 @@ type Operation struct {
 type SecurityRequirement map[string][]string
 
 type RequestBody struct {
-	Description string               `json:"description"`
-	Required    bool                 `json:"required"`
+	Description string               `json:"description,omitempty"`
+	Required    bool                 `json:"required,omitempty"`
 	Content     map[string]MediaType `json:"content"`
 }
 
 type MediaType struct {
-	Schema Schema `json:"schema"`
+	Schema  Schema      `json:"schema"`
+	Example interface{} `json:"example,omitempty"`
 }
 
 type Parameter struct {
@@ -77,23 +100,36 @@ type Parameter struct {
 
 // Schema represents an OpenAPI schema
 type Schema struct {
-	Type        string            `json:"type,omitempty"`
-	Ref         string            `json:"$ref,omitempty"`
-	Format      string            `json:"format,omitempty"`
-	Description string            `json:"description,omitempty"`
-	Items       *Schema           `json:"items,omitempty"`
-	Properties  map[string]Schema `json:"properties,omitempty"`
-	Example     interface{}       `json:"example,omitempty"`
-	Required    []string          `json:"required,omitempty"`
-	MinLength   *int              `json:"minLength,omitempty"`
-	MaxLength   *int              `json:"maxLength,omitempty"`
-	Minimum     *float64          `json:"minimum,omitempty"`
-	TypeName    string            `json:"-"`
+	Type                 string            `json:"type,omitempty"`
+	Ref                  string            `json:"$ref,omitempty"`
+	Format               string            `json:"format,omitempty"`
+	Description          string            `json:"description,omitempty"`
+	Items                *Schema           `json:"items,omitempty"`
+	Properties           map[string]Schema `json:"properties,omitempty"`
+	Example              interface{}       `json:"example,omitempty"`
+	Required             []string          `json:"required,omitempty"`
+	MinLength            *int              `json:"minLength,omitempty"`
+	MaxLength            *int              `json:"maxLength,omitempty"`
+	Minimum              *float64          `json:"minimum,omitempty"`
+	Maximum              *float64          `json:"maximum,omitempty"`
+	Enum                 []interface{}     `json:"enum,omitempty"`
+	AllOf                []Schema          `json:"allOf,omitempty"`
+	OneOf                []Schema          `json:"oneOf,omitempty"`
+	AnyOf                []Schema          `json:"anyOf,omitempty"`
+	Nullable             bool              `json:"nullable,omitempty"`
+	AdditionalProperties *Schema           `json:"additionalProperties,omitempty"`
+	TypeName             string            `json:"-"`
 }
 
 type Response struct {
 	Description string               `json:"description"`
 	Content     map[string]MediaType `json:"content,omitempty"`
+	Headers     map[string]Header    `json:"headers,omitempty"`
+}
+
+type Header struct {
+	Description string `json:"description,omitempty"`
+	Schema      Schema `json:"schema"`
 }
 
 type Components struct {
@@ -125,6 +161,12 @@ type OAuthFlow struct {
 	TokenURL         string            `json:"tokenUrl,omitempty"`
 	RefreshURL       string            `json:"refreshUrl,omitempty"`
 	Scopes           map[string]string `json:"scopes"`
+}
+
+// Tag represents a tag
+type Tag struct {
+	Name        string `json:"name"`
+	Description string `json:"description,omitempty"`
 }
 
 // SchemaFromType generates an OpenAPI schema from a Go type
@@ -325,4 +367,12 @@ func generateExample(t reflect.Type) interface{} {
 	}
 
 	return example
+}
+
+// WriteJSON writes a JSON representation of the value to the writer
+func WriteJSON(w io.Writer, value interface{}) error {
+	encoder := json.NewEncoder(w)
+	encoder.SetIndent("", "  ")
+	encoder.SetEscapeHTML(false)
+	return encoder.Encode(value)
 }
