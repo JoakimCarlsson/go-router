@@ -30,6 +30,100 @@ func (g *Generator) WithSecurityScheme(name string, scheme SecurityScheme) {
 	g.securitySchemes[name] = scheme
 }
 
+// WithBasicAuth adds a basic authentication security scheme
+func (g *Generator) WithBasicAuth(name, description string) {
+	g.WithSecurityScheme(name, SecurityScheme{
+		Type:        "http",
+		Scheme:      "basic",
+		Description: description,
+	})
+}
+
+// WithBearerAuth adds a bearer token authentication security scheme
+func (g *Generator) WithBearerAuth(name, description string) {
+	g.WithSecurityScheme(name, SecurityScheme{
+		Type:        "http",
+		Scheme:      "bearer",
+		Description: description,
+	})
+}
+
+// WithAPIKey adds an API key authentication security scheme
+func (g *Generator) WithAPIKey(name, description, in, paramName string) {
+	g.WithSecurityScheme(name, SecurityScheme{
+		Type:        "apiKey",
+		Description: description,
+		Name:        paramName,
+		In:          in,
+	})
+}
+
+// WithOAuth2ImplicitFlow adds an OAuth2 security scheme with implicit flow
+func (g *Generator) WithOAuth2ImplicitFlow(name, description, authorizationURL string, scopes map[string]string) {
+	g.WithSecurityScheme(name, SecurityScheme{
+		Type:        "oauth2",
+		Description: description,
+		Flows: &OAuthFlows{
+			Implicit: &OAuthFlow{
+				AuthorizationURL: authorizationURL,
+				Scopes:           scopes,
+			},
+		},
+	})
+}
+
+// WithOAuth2PasswordFlow adds an OAuth2 security scheme with password flow
+func (g *Generator) WithOAuth2PasswordFlow(name, description, tokenURL string, scopes map[string]string) {
+	g.WithSecurityScheme(name, SecurityScheme{
+		Type:        "oauth2",
+		Description: description,
+		Flows: &OAuthFlows{
+			Password: &OAuthFlow{
+				TokenURL: tokenURL,
+				Scopes:   scopes,
+			},
+		},
+	})
+}
+
+// WithOAuth2ClientCredentialsFlow adds an OAuth2 security scheme with client credentials flow
+func (g *Generator) WithOAuth2ClientCredentialsFlow(name, description, tokenURL string, scopes map[string]string) {
+	g.WithSecurityScheme(name, SecurityScheme{
+		Type:        "oauth2",
+		Description: description,
+		Flows: &OAuthFlows{
+			ClientCredentials: &OAuthFlow{
+				TokenURL: tokenURL,
+				Scopes:   scopes,
+			},
+		},
+	})
+}
+
+// WithOAuth2AuthorizationCodeFlow adds an OAuth2 security scheme with authorization code flow
+func (g *Generator) WithOAuth2AuthorizationCodeFlow(name, description, authorizationURL, tokenURL string, scopes map[string]string) {
+	g.WithSecurityScheme(name, SecurityScheme{
+		Type:        "oauth2",
+		Description: description,
+		Flows: &OAuthFlows{
+			AuthorizationCode: &OAuthFlow{
+				AuthorizationURL: authorizationURL,
+				TokenURL:         tokenURL,
+				Scopes:           scopes,
+			},
+		},
+	})
+}
+
+// WithOpenIDConnect adds an OpenID Connect security scheme
+func (g *Generator) WithOpenIDConnect(name, description, openIDConnectURL string) {
+	g.WithSecurityScheme(name, SecurityScheme{
+		Type:             "openIdConnect",
+		Description:      description,
+		OpenIDConnectURL: openIDConnectURL,
+	})
+}
+
 // WithServer adds a server to the OpenAPI specification
 func (g *Generator) WithServer(url string, description string) {
 	g.servers = append(g.servers, Server{

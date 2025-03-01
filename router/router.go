@@ -22,7 +22,7 @@ type route struct {
 	method   string
 	path     string
 	handler  HandlerFunc
-	metadata *openapi.RouteMetadata
+	metadata *RouteMetadata
 }
 
 type Router struct {
@@ -33,7 +33,7 @@ type Router struct {
 	routes      []route
 	mu          sync.RWMutex
 	tags        []string
-	security    []openapi.SecurityRequirement
+	security    []SecurityRequirement
 }
 
 // New creates a new Router instance
@@ -43,7 +43,7 @@ func New() *Router {
 		prefix:   "",
 		routes:   make([]route, 0),
 		tags:     make([]string, 0),
-		security: make([]openapi.SecurityRequirement, 0),
+		security: make([]SecurityRequirement, 0),
 	}
 }
 
@@ -56,7 +56,7 @@ func (r *Router) WithTags(tags ...string) *Router {
 // WithSecurity adds security requirements to a router group
 func (r *Router) WithSecurity(requirements ...map[string][]string) *Router {
 	for _, req := range requirements {
-		secReq := make(openapi.SecurityRequirement)
+		secReq := make(SecurityRequirement)
 		for k, v := range req {
 			secReq[k] = v
 		}
@@ -79,7 +79,7 @@ func (r *Router) Group(path string, fn func(*Router)) {
 		parent:      r,
 		routes:      make([]route, 0),
 		tags:        make([]string, 0),
-		security:    make([]openapi.SecurityRequirement, 0),
+		security:    make([]SecurityRequirement, 0),
 	}
 	fn(group)
 
@@ -100,7 +100,7 @@ func normalizePath(p string) string {
 }
 
 // Handle registers a new route with the given pattern, handler, and options
-func (r *Router) Handle(pattern string, handler HandlerFunc, opts ...openapi.RouteOption) {
+func (r *Router) Handle(pattern string, handler HandlerFunc, opts ...RouteOption) {
 	parts := strings.SplitN(pattern, " ", 2)
 	if len(parts) != 2 {
 		panic("invalid route pattern format, expected 'METHOD /path'")
@@ -110,13 +110,13 @@ func (r *Router) Handle(pattern string, handler HandlerFunc, opts ...openapi.Rou
 	fullpath := normalizePath(path.Join(r.prefix, subpath))
 	finalHandler := r.buildMiddlewareChain(handler)
 
-	metadata := &openapi.RouteMetadata{
+	metadata := &RouteMetadata{
 		Method:      method,
 		Path:        fullpath,
-		Parameters:  make([]openapi.Parameter, 0),
+		Parameters:  make([]Parameter, 0),
 		Tags:        make([]string, 0),
-		Responses:   make(map[string]openapi.Response),
-		Security:    make([]openapi.SecurityRequirement, 0),
+		Responses:   make(map[string]Response),
+		Security:    make([]SecurityRequirement, 0),
 		RequestBody: nil,
 	}
 
@@ -149,27 +149,27 @@ func (r *Router) Handle(pattern string, handler HandlerFunc, opts ...openapi.Rou
 }
 
 // GET registers a new GET route
-func (r *Router) GET(path string, handler HandlerFunc, opts ...openapi.RouteOption) {
+func (r *Router) GET(path string, handler HandlerFunc, opts ...RouteOption) {
 	r.Handle("GET "+path, handler, opts...)
 }
 
 // POST registers a new POST route
-func (r *Router) POST(path string, handler HandlerFunc, opts ...openapi.RouteOption) {
+func (r *Router) POST(path string, handler HandlerFunc, opts ...RouteOption) {
 	r.Handle("POST "+path, handler, opts...)
 }
 
 // PUT registers a new PUT route
-func (r *Router) PUT(path string, handler HandlerFunc, opts ...openapi.RouteOption) {
+func (r *Router) PUT(path string, handler HandlerFunc, opts ...RouteOption) {
 	r.Handle("PUT "+path, handler, opts...)
 }
 
 // DELETE registers a new DELETE route
-func (r *Router) DELETE(path string, handler HandlerFunc, opts ...openapi.RouteOption) {
+func (r *Router) DELETE(path string, handler HandlerFunc, opts ...RouteOption) {
 	r.Handle("DELETE "+path, handler, opts...)
 }
 
 // PATCH registers a new PATCH route
-func (r *Router) PATCH(path string, handler HandlerFunc, opts ...openapi.RouteOption) {
+func (r *Router) PATCH(path string, handler HandlerFunc, opts ...RouteOption) {
 	r.Handle("PATCH "+path, handler, opts...)
 }
 
@@ -192,11 +192,11 @@ func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 }
 
 // collectRoutesRecursively gathers all routes from this router and its groups
-func (r *Router) collectRoutesRecursively() []openapi.RouteMetadata {
+func (r *Router) collectRoutesRecursively() []RouteMetadata {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	routes := make([]openapi.RouteMetadata, 0)
+	routes := make([]RouteMetadata, 0)
 
 	// Collect routes from current router
 	for _, route := range r.routes {
@@ -212,7 +212,8 @@ func (r *Router) collectRoutesRecursively() []openapi.RouteMetadata {
 // ServeOpenAPI serves the OpenAPI specification as JSON
 func (r *Router) ServeOpenAPI(generator *openapi.Generator) HandlerFunc {
 	return func(c *Context) {
-		spec := generator.Generate(r.collectRoutesRecursively())
+		routes := r.collectRoutesRecursively()
+		spec := generator.Generate(routes)
 		c.JSON(200, spec)
 	}
 }
