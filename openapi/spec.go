@@ -102,11 +102,29 @@ type Components struct {
 }
 
 type SecurityScheme struct {
-	Type        string `json:"type"`
-	Scheme      string `json:"scheme,omitempty"`
-	Name        string `json:"name,omitempty"`
-	In          string `json:"in,omitempty"`
-	Description string `json:"description,omitempty"`
+	Type             string      `json:"type"`
+	Scheme           string      `json:"scheme,omitempty"`
+	Name             string      `json:"name,omitempty"`
+	In               string      `json:"in,omitempty"`
+	Description      string      `json:"description,omitempty"`
+	Flows            *OAuthFlows `json:"flows,omitempty"`
+	OpenIDConnectURL string      `json:"openIdConnectUrl,omitempty"`
+}
+
+// OAuthFlows is the configuration container for the supported OAuth Flows
+type OAuthFlows struct {
+	Implicit          *OAuthFlow `json:"implicit,omitempty"`
+	Password          *OAuthFlow `json:"password,omitempty"`
+	ClientCredentials *OAuthFlow `json:"clientCredentials,omitempty"`
+	AuthorizationCode *OAuthFlow `json:"authorizationCode,omitempty"`
+}
+
+// OAuthFlow configuration details for a specific OAuth Flow
+type OAuthFlow struct {
+	AuthorizationURL string            `json:"authorizationUrl,omitempty"`
+	TokenURL         string            `json:"tokenUrl,omitempty"`
+	RefreshURL       string            `json:"refreshUrl,omitempty"`
+	Scopes           map[string]string `json:"scopes"`
 }
 
 // SchemaFromType generates an OpenAPI schema from a Go type

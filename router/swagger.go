@@ -45,6 +45,30 @@ type SwaggerUIConfig struct {
 	CustomCSS string
 	// CustomJS allows injecting custom JavaScript
 	CustomJS string
+	// OAuth2Config contains OAuth2 configuration for Swagger UI
+	OAuth2Config *OAuth2Config
+}
+
+// OAuth2Config holds OAuth2 configuration for Swagger UI
+type OAuth2Config struct {
+	// ClientId is the OAuth2 client ID
+	ClientID string
+	// ClientSecret is the OAuth2 client secret (typically only used in password, implicit, or access code flows)
+	ClientSecret string
+	// Realm is the realm query parameter
+	Realm string
+	// AppName is the application name for OAuth2 authorization
+	AppName string
+	// ScopeSeparator is the separator used when passing multiple scopes
+	ScopeSeparator string
+	// Scopes is a predefined list of scopes to be used
+	Scopes []string
+	// AdditionalQueryParams allows adding query params to the OAuth2 flow
+	AdditionalQueryParams map[string]string
+	// UseBasicAuthenticationWithAccessCodeGrant requires sending client credentials via header
+	UseBasicAuthenticationWithAccessCodeGrant bool
+	// UsePkceWithAuthorizationCodeGrant uses PKCE when available
+	UsePkceWithAuthorizationCodeGrant bool
 }
 
 // DefaultSwaggerUIConfig returns a default configuration for Swagger UI
@@ -68,6 +92,7 @@ func DefaultSwaggerUIConfig() SwaggerUIConfig {
 		DefaultModelRendering:    "model",
 		CustomCSS:                "",
 		CustomJS:                 "",
+		OAuth2Config:             nil,
 	}
 }
 
@@ -144,6 +169,25 @@ func (r *Router) ServeSwaggerUI(config SwaggerUIConfig) HandlerFunc {
         tryItOutEnabled: {{.TryItOutEnabled}},
         requestSnippetsEnabled: {{.RequestSnippetsEnabled}},
         defaultModelRendering: "{{.DefaultModelRendering}}"
+        {{if .OAuth2Config}},
+        initOAuth: {
+          clientId: "{{.OAuth2Config.ClientID}}",
+          {{if .OAuth2Config.ClientSecret}}clientSecret: "{{.OAuth2Config.ClientSecret}}",{{end}}
+          {{if .OAuth2Config.Realm}}realm: "{{.OAuth2Config.Realm}}",{{end}}
+          {{if .OAuth2Config.AppName}}appName: "{{.OAuth2Config.AppName}}",{{end}}
+          {{if .OAuth2Config.ScopeSeparator}}scopeSeparator: "{{.OAuth2Config.ScopeSeparator}}",{{end}}
+          {{if .OAuth2Config.Scopes}}scopes: {{.OAuth2Config.Scopes}},{{end}}
+          {{if .OAuth2Config.AdditionalQueryParams}}
+          additionalQueryStringParams: {
+            {{range $key, $value := .OAuth2Config.AdditionalQueryParams}}
+            "{{$key}}": "{{$value}}"{{if not (last $key $.OAuth2Config.AdditionalQueryParams)}},{{end}}
+            {{end}}
+          },
+          {{end}}
+          usePkceWithAuthorizationCodeGrant: {{.OAuth2Config.UsePkceWithAuthorizationCodeGrant}},
+          useBasicAuthenticationWithAccessCodeGrant: {{.OAuth2Config.UseBasicAuthenticationWithAccessCodeGrant}}
+        }
+        {{end}}
       });
       window.ui = ui;
       
@@ -153,7 +197,16 @@ func (r *Router) ServeSwaggerUI(config SwaggerUIConfig) HandlerFunc {
 </body>
 </html>`
 
-	tmpl, err := template.New("swagger-ui").Parse(swaggerTemplate)
+	tmpl, err := template.New("swagger-ui").Funcs(template.FuncMap{
+		"last": func(key string, m map[string]string) bool {
+			// Get all keys and find if this is the last one
+			keys := make([]string, 0, len(m))
+			for k := range m {
+				keys = append(keys, k)
+			}
+			return len(keys) > 0 && keys[len(keys)-1] == key
+		},
+	}).Parse(swaggerTemplate)
 	if err != nil {
 		panic(err)
 	}
@@ -178,6 +231,7 @@ func (r *Router) ServeSwaggerUI(config SwaggerUIConfig) HandlerFunc {
 			DefaultModelRendering    string
 			CustomCSS                string
 			CustomJS                 string
+			OAuth2Config             *OAuth2Config
 		}{
 			Title:                    config.Title,
 			SpecURL:                  config.SpecURL,
@@ -197,6 +251,7 @@ func (r *Router) ServeSwaggerUI(config SwaggerUIConfig) HandlerFunc {
 			DefaultModelRendering:    config.DefaultModelRendering,
 			CustomCSS:                config.CustomCSS,
 			CustomJS:                 config.CustomJS,
+			OAuth2Config:             config.OAuth2Config,
 		}
 
 		c.SetHeader("Content-Type", "text/html; charset=utf-8")
