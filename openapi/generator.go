@@ -193,25 +193,6 @@ func (g *Generator) generateSchemaName(schema Schema) string {
 	return ""
 }
 
-// convertSchemaToRef converts a schema to a reference if it exists in components
-func (g *Generator) convertSchemaToRef(schema Schema) Schema {
-	if schema.Type == "object" && schema.Properties != nil {
-		name := g.generateSchemaName(schema)
-		if name != "" && g.schemas[name].Properties != nil {
-			return Schema{
-				Ref: "#/components/schemas/" + name,
-			}
-		}
-	}
-	if schema.Items != nil {
-		if schema.Type == "array" {
-			itemsRef := g.convertSchemaToRef(*schema.Items)
-			schema.Items = &itemsRef
-		}
-	}
-	return schema
-}
-
 // RouteMetadata contains OpenAPI documentation for a route
 // This structure remains for backward compatibility
 type RouteMetadata struct {
@@ -520,17 +501,15 @@ func (g *Generator) Generate(routes []RouteInfo) *Spec {
 }
 
 // AddMetadata adds route metadata to generate from
-// This method converts the old metadata format to the new interface
 func (g *Generator) AddMetadata(metadataList []metadata.RouteMetadata) {
 	for _, m := range metadataList {
-		metadata := m // Create a new variable to avoid closure problems
-		g.routeInfo = append(g.routeInfo, RouteInfoFromMetadata(&metadata))
+		g.routeInfo = append(g.routeInfo, RouteInfoFromMetadata(m))
 	}
 }
 
 // routeMetadataAdapter adapts RouteMetadata to the RouteInfo interface
 type routeMetadataAdapter struct {
-	metadata *metadata.RouteMetadata
+	metadata metadata.RouteMetadata
 }
 
 func (a *routeMetadataAdapter) Method() string                           { return a.metadata.Method }

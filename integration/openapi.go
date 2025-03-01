@@ -7,16 +7,16 @@ import (
 	"github.com/joakimcarlsson/go-router/router"
 )
 
-// RouterOpenAPIAdapter connects a router to OpenAPI generation
+// RouterOpenAPIAdapter combines Router with OpenAPI generation
 type RouterOpenAPIAdapter struct {
 	Router    *router.Router
 	Generator *openapi.Generator
 }
 
-// NewRouterOpenAPIAdapter creates a new adapter to connect a router with OpenAPI generation
-func NewRouterOpenAPIAdapter(router *router.Router, generator *openapi.Generator) *RouterOpenAPIAdapter {
+// NewRouterOpenAPIAdapter creates a new adapter
+func NewRouterOpenAPIAdapter(r *router.Router, generator *openapi.Generator) *RouterOpenAPIAdapter {
 	return &RouterOpenAPIAdapter{
-		Router:    router,
+		Router:    r,
 		Generator: generator,
 	}
 }
@@ -42,14 +42,12 @@ func (a *RouterOpenAPIAdapter) GenerateOpenAPISpec() *openapi.Spec {
 	return a.Generator.Generate(routeInfos)
 }
 
-// OpenAPIHandler returns an HTTP handler that serves the OpenAPI specification as JSON
-func (a *RouterOpenAPIAdapter) OpenAPIHandler() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		spec := a.GenerateOpenAPISpec()
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		if err := openapi.WriteJSON(w, spec); err != nil {
-			http.Error(w, "Failed to write OpenAPI spec", http.StatusInternalServerError)
-		}
+// ServeHTTP implements http.Handler interface
+func (a *RouterOpenAPIAdapter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	spec := a.GenerateOpenAPISpec()
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	if err := openapi.WriteJSON(w, spec); err != nil {
+		http.Error(w, "Failed to write OpenAPI spec", http.StatusInternalServerError)
 	}
 }
