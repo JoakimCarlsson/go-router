@@ -1,6 +1,8 @@
 package integration
 
 import (
+	"fmt"
+
 	"github.com/joakimcarlsson/go-router/openapi"
 	"github.com/joakimcarlsson/go-router/router"
 	"github.com/joakimcarlsson/go-router/swagger"
@@ -52,6 +54,19 @@ func DefaultSetupOptions() SetupOptions {
 //	    log.Fatal(err)
 //	}
 func Setup(r *router.Router, opts SetupOptions) error {
+	// Validate paths to ensure we don't have duplicate routes
+	if opts.SpecPath == "" {
+		opts.SpecPath = "/openapi.json"
+	}
+	if opts.DocsPath == "" {
+		opts.DocsPath = "/docs"
+	}
+
+	// Check for path conflicts
+	if opts.SpecPath == opts.DocsPath {
+		return fmt.Errorf("spec path and docs path cannot be the same: %s", opts.SpecPath)
+	}
+
 	// Create OpenAPI generator
 	generator := openapi.NewGenerator(openapi.Info{
 		Title:       opts.Title,

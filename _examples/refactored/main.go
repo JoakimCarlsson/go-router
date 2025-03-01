@@ -20,10 +20,8 @@ type User struct {
 }
 
 func main() {
-	// Create a new router
 	r := router.New()
 
-	// Set up routes with documentation using the docs package
 	r.GET("/users", listUsers,
 		docs.WithTags("Users"),
 		docs.WithSummary("List all users"),
@@ -39,10 +37,10 @@ func main() {
 		docs.WithJSONRequestBody[User](true, "User information"),
 		docs.WithResponse(201, "User created successfully"),
 		docs.WithResponse(400, "Invalid user data"),
-		docs.WithBearerAuth(), // Require bearer token authentication
+		docs.WithBearerAuth(),
 	)
 
-	r.GET("/users/:id", getUser,
+	r.GET("/users/{id}", getUser,
 		docs.WithTags("Users"),
 		docs.WithSummary("Get user by ID"),
 		docs.WithDescription("Retrieves a user's details by their unique identifier"),
@@ -50,22 +48,19 @@ func main() {
 		docs.WithResponse(200, "User found"),
 		docs.WithJSONResponse[User](200, "User details"),
 		docs.WithResponse(404, "User not found"),
-		docs.WithBearerAuth(), // Require bearer token authentication
+		docs.WithBearerAuth(),
 	)
 
-	// Set up OpenAPI and Swagger UI with a single call
 	err := integration.Setup(r, integration.SetupOptions{
 		Title:         "User Management API",
 		Version:       "1.0.0",
 		Description:   "An example API demonstrating the refactored router components",
-		DarkMode:      true,
-		UseBearerAuth: true, // Enable bearer token authentication
+		UseBearerAuth: true,
 	})
 	if err != nil {
 		log.Fatal("Failed to set up API documentation:", err)
 	}
 
-	// Start the server
 	fmt.Println("Server starting on http://localhost:8080")
 	fmt.Println("API documentation available at http://localhost:8080/docs")
 	log.Fatal(http.ListenAndServe(":8080", r))
