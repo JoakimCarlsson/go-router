@@ -2,6 +2,7 @@ package openapi
 
 import (
 	"reflect"
+	"strconv"
 	"strings"
 )
 
@@ -278,12 +279,12 @@ func WithPathParam(name, typ string, required bool, description string, example 
 }
 
 // WithResponse adds a response to the route
-func WithResponse(statusCode, description string, contentType string, schema Schema) RouteOption {
+func WithResponse(statusCode int, description string, contentType string, schema Schema) RouteOption {
 	return func(m *RouteMetadata) {
 		if m.Responses == nil {
 			m.Responses = make(map[string]Response)
 		}
-		m.Responses[statusCode] = Response{
+		m.Responses[strconv.Itoa(statusCode)] = Response{
 			Description: description,
 			Content: map[string]MediaType{
 				contentType: {Schema: schema},
@@ -293,12 +294,12 @@ func WithResponse(statusCode, description string, contentType string, schema Sch
 }
 
 // WithEmptyResponse adds a response without any content schema
-func WithEmptyResponse(statusCode, description string) RouteOption {
+func WithEmptyResponse(statusCode int, description string) RouteOption {
 	return func(m *RouteMetadata) {
 		if m.Responses == nil {
 			m.Responses = make(map[string]Response)
 		}
-		m.Responses[statusCode] = Response{
+		m.Responses[strconv.Itoa(statusCode)] = Response{
 			Description: description,
 		}
 	}
@@ -306,7 +307,7 @@ func WithEmptyResponse(statusCode, description string) RouteOption {
 
 // WithResponseType adds a response with schema inferred from the provided type
 // It automatically detects if the type is a slice/array
-func WithResponseType[T any](statusCode, description string, _ T) RouteOption {
+func WithResponseType[T any](statusCode int, description string, _ T) RouteOption {
 	return func(m *RouteMetadata) {
 		if m.Responses == nil {
 			m.Responses = make(map[string]Response)
@@ -316,7 +317,7 @@ func WithResponseType[T any](statusCode, description string, _ T) RouteOption {
 
 		if t.Kind() == reflect.Slice || t.Kind() == reflect.Array {
 			itemSchema := SchemaFromType(t.Elem())
-			m.Responses[statusCode] = Response{
+			m.Responses[strconv.Itoa(statusCode)] = Response{
 				Description: description,
 				Content: map[string]MediaType{
 					"application/json": {
@@ -329,7 +330,7 @@ func WithResponseType[T any](statusCode, description string, _ T) RouteOption {
 			}
 		} else {
 			schema := SchemaFromType(t)
-			m.Responses[statusCode] = Response{
+			m.Responses[strconv.Itoa(statusCode)] = Response{
 				Description: description,
 				Content: map[string]MediaType{
 					"application/json": {Schema: schema},
@@ -360,7 +361,7 @@ func WithRequestBody[T any](description string, required bool, _ T) RouteOption 
 // WithSecurity adds security requirements to a route
 func WithSecurity(requirements ...map[string][]string) RouteOption {
 	return func(m *RouteMetadata) {
-		if m.Security == nil {
+		if (m.Security) == nil {
 			m.Security = make([]SecurityRequirement, 0)
 		}
 		for _, req := range requirements {
@@ -387,7 +388,7 @@ func WithDeprecated(message string) RouteOption {
 }
 
 // WithResponseExample adds a response with a specific example
-func WithResponseExample[T any](statusCode, description string, example T) RouteOption {
+func WithResponseExample[T any](statusCode int, description string, example T) RouteOption {
 	return func(m *RouteMetadata) {
 		if m.Responses == nil {
 			m.Responses = make(map[string]Response)
@@ -397,7 +398,7 @@ func WithResponseExample[T any](statusCode, description string, example T) Route
 		schema := SchemaFromType(t)
 		schema.Example = example
 
-		m.Responses[statusCode] = Response{
+		m.Responses[strconv.Itoa(statusCode)] = Response{
 			Description: description,
 			Content: map[string]MediaType{
 				"application/json": {Schema: schema},

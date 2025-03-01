@@ -89,7 +89,7 @@ func main() {
 				openapi.WithSummary("List all todos without pagination"),
 				openapi.WithDescription("Returns all todos without pagination"),
 				openapi.WithDeprecated("Use GET /v1/todos instead, which supports pagination"),
-				openapi.WithResponseType("200", "Successfully retrieved todos", []Todo{}),
+				openapi.WithResponseType(http.StatusOK, "Successfully retrieved todos", []Todo{}),
 			)
 
 			todos.GET("", listTodos,
@@ -98,7 +98,7 @@ func main() {
 				openapi.WithDescription("Returns a paginated list of todos"),
 				openapi.WithQueryParam("skip", "integer", false, "Number of items to skip", nil),
 				openapi.WithQueryParam("take", "integer", false, "Number of items to skip", nil),
-				openapi.WithResponseType("200", "Successfully retrieved todos", PaginatedResponse{}),
+				openapi.WithResponseType(http.StatusOK, "Successfully retrieved todos", PaginatedResponse{}),
 			)
 
 			todos.GET("/{id}", getTodo,
@@ -106,8 +106,8 @@ func main() {
 				openapi.WithSummary("Get a todo by ID"),
 				openapi.WithDescription("Returns a single todo by its ID"),
 				openapi.WithPathParam("id", "integer", true, "Todo ID", nil),
-				openapi.WithResponseType("200", "Todo found", Todo{}),
-				openapi.WithResponseType("404", "Todo not found", ErrorResponse{}),
+				openapi.WithResponseType(http.StatusOK, "Todo found", Todo{}),
+				openapi.WithResponseType(http.StatusNotFound, "Todo not found", ErrorResponse{}),
 			)
 
 			todos.POST("", createTodo,
@@ -115,8 +115,8 @@ func main() {
 				openapi.WithSummary("Create a new todo"),
 				openapi.WithDescription("Creates a new todo in the system"),
 				openapi.WithRequestBody("Todo information to create", true, Todo{}),
-				openapi.WithResponseType("201", "Todo created", Todo{}),
-				openapi.WithEmptyResponse("400", "Invalid request"),
+				openapi.WithResponseType(http.StatusCreated, "Todo created", Todo{}),
+				openapi.WithEmptyResponse(http.StatusBadRequest, "Invalid request"),
 			)
 
 			todos.POST("/bulk", createBulkTodos,
@@ -124,8 +124,8 @@ func main() {
 				openapi.WithSummary("Create multiple todos"),
 				openapi.WithDescription("Creates multiple todos in one request"),
 				openapi.WithRequestBody("Array of todos to create", true, []Todo{}),
-				openapi.WithResponseType("201", "Todos created", []Todo{}),
-				openapi.WithEmptyResponse("400", "Invalid request"),
+				openapi.WithResponseType(http.StatusCreated, "Todos created", []Todo{}),
+				openapi.WithEmptyResponse(http.StatusBadRequest, "Invalid request"),
 			)
 
 			todos.PUT("/{id}", updateTodo,
@@ -134,8 +134,8 @@ func main() {
 				openapi.WithDescription("Updates an existing todo"),
 				openapi.WithPathParam("id", "integer", true, "Todo ID", nil),
 				openapi.WithRequestBody("Todo information to update", true, Todo{}),
-				openapi.WithResponseType("200", "Todo updated", Todo{}),
-				openapi.WithResponseType("404", "Todo not found", ErrorResponse{}),
+				openapi.WithResponseType(http.StatusOK, "Todo updated", Todo{}),
+				openapi.WithResponseType(http.StatusNotFound, "Todo not found", ErrorResponse{}),
 			)
 
 			todos.DELETE("/{id}", deleteTodo,
@@ -143,8 +143,8 @@ func main() {
 				openapi.WithSummary("Delete a todo"),
 				openapi.WithDescription("Deletes a todo by its ID"),
 				openapi.WithPathParam("id", "integer", true, "Todo ID", nil),
-				openapi.WithEmptyResponse("204", "Todo deleted"),
-				openapi.WithResponseType("404", "Todo not found", ErrorResponse{}),
+				openapi.WithEmptyResponse(http.StatusNoContent, "Todo deleted"),
+				openapi.WithResponseType(http.StatusNotFound, "Todo not found", ErrorResponse{}),
 			)
 		})
 	})

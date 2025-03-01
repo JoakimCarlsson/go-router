@@ -33,19 +33,19 @@ func oauthMiddleware(next router.HandlerFunc) router.HandlerFunc {
 	return func(c *router.Context) {
 		authHeader := c.GetHeader("Authorization")
 		if authHeader == "" {
-			c.JSON(401, ErrorResponse{Error: "unauthorized - missing token"})
+			c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized - missing token"})
 			return
 		}
 
 		parts := strings.Split(authHeader, " ")
 		if len(parts) != 2 || parts[0] != "Bearer" {
-			c.JSON(401, ErrorResponse{Error: "unauthorized - invalid token format"})
+			c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized - invalid token format"})
 			return
 		}
 
 		token := parts[1]
 		if token == "" {
-			c.JSON(401, ErrorResponse{Error: "unauthorized - empty token"})
+			c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized - empty token"})
 			return
 		}
 
@@ -117,8 +117,8 @@ func main() {
 			openapi.WithOperationID("getProfile"),
 			openapi.WithSummary("Get user profile"),
 			openapi.WithDescription("Returns the authenticated user's profile information"),
-			openapi.WithResponseType("200", "User profile", UserProfile{}),
-			openapi.WithResponseType("401", "Unauthorized", ErrorResponse{}),
+			openapi.WithResponseType(http.StatusOK, "User profile", UserProfile{}),
+			openapi.WithResponseType(http.StatusUnauthorized, "Unauthorized", ErrorResponse{}),
 			openapi.WithSecurity(map[string][]string{"oauth2-authcode": {"read:profile"}}),
 		)
 
@@ -127,8 +127,8 @@ func main() {
 			openapi.WithSummary("Update user profile"),
 			openapi.WithDescription("Updates the authenticated user's profile information"),
 			openapi.WithRequestBody("Updated profile information", true, UserProfile{}),
-			openapi.WithResponseType("200", "Updated profile", UserProfile{}),
-			openapi.WithResponseType("401", "Unauthorized", ErrorResponse{}),
+			openapi.WithResponseType(http.StatusOK, "Updated profile", UserProfile{}),
+			openapi.WithResponseType(http.StatusUnauthorized, "Unauthorized", ErrorResponse{}),
 			openapi.WithSecurity(map[string][]string{"oauth2-authcode": {"write:profile"}}),
 		)
 
@@ -136,9 +136,9 @@ func main() {
 			openapi.WithOperationID("listUsers"),
 			openapi.WithSummary("List all users"),
 			openapi.WithDescription("Returns a list of all users in the system (admin only)"),
-			openapi.WithResponseType("200", "List of users", []UserProfile{}),
-			openapi.WithResponseType("401", "Unauthorized", ErrorResponse{}),
-			openapi.WithResponseType("403", "Forbidden", ErrorResponse{}),
+			openapi.WithResponseType(http.StatusOK, "List of users", []UserProfile{}),
+			openapi.WithResponseType(http.StatusUnauthorized, "Unauthorized", ErrorResponse{}),
+			openapi.WithResponseType(http.StatusForbidden, "Forbidden", ErrorResponse{}),
 			openapi.WithSecurity(map[string][]string{"oauth2-authcode": {"admin"}}),
 		)
 
@@ -146,8 +146,8 @@ func main() {
 			openapi.WithOperationID("getStats"),
 			openapi.WithSummary("Get API statistics"),
 			openapi.WithDescription("Returns statistics about API usage (service accounts only)"),
-			openapi.WithResponseType("200", "API statistics", map[string]interface{}{}),
-			openapi.WithResponseType("401", "Unauthorized", ErrorResponse{}),
+			openapi.WithResponseType(http.StatusOK, "API statistics", map[string]interface{}{}),
+			openapi.WithResponseType(http.StatusUnauthorized, "Unauthorized", ErrorResponse{}),
 			openapi.WithSecurity(map[string][]string{"oauth2-client-credentials": {"api:read"}}),
 		)
 	})
@@ -156,7 +156,7 @@ func main() {
 		openapi.WithOperationID("healthCheck"),
 		openapi.WithSummary("Health check"),
 		openapi.WithDescription("Check if the API is functioning properly"),
-		openapi.WithResponseType("200", "Health status", map[string]interface{}{}),
+		openapi.WithResponseType(http.StatusOK, "Health status", map[string]interface{}{}),
 	)
 
 	r.GET("/openapi.json", r.ServeOpenAPI(generator))
@@ -188,20 +188,20 @@ func getProfile(c *router.Context) {
 		Roles:    []string{"user"},
 		IsActive: true,
 	}
-	c.JSON(200, profile)
+	c.JSON(http.StatusOK, profile)
 }
 
 func updateProfile(c *router.Context) {
 	var profile UserProfile
 	if err := c.BindJSON(&profile); err != nil {
-		c.JSON(400, ErrorResponse{Error: "invalid request body"})
+		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid request body"})
 		return
 	}
 
 	userID, _ := c.GetString(userIDKey)
 	profile.ID = userID // Ensure ID is not changed
 
-	c.JSON(200, profile)
+	c.JSON(http.StatusOK, profile)
 }
 
 func listUsers(c *router.Context) {
@@ -210,7 +210,7 @@ func listUsers(c *router.Context) {
 		{ID: "user_456", Name: "Jane Smith", Email: "jane@example.com", Roles: []string{"admin"}, IsActive: true},
 		{ID: "user_789", Name: "Bob Johnson", Email: "bob@example.com", Roles: []string{"user"}, IsActive: false},
 	}
-	c.JSON(200, users)
+	c.JSON(http.StatusOK, users)
 }
 
 func getStats(c *router.Context) {
@@ -220,7 +220,7 @@ func getStats(c *router.Context) {
 		"apiVersion":    "1.0.0",
 		"serverTime":    "2023-05-10T15:04:05Z",
 	}
-	c.JSON(200, stats)
+	c.JSON(http.StatusOK, stats)
 }
 
 func healthCheck(c *router.Context) {
@@ -229,5 +229,5 @@ func healthCheck(c *router.Context) {
 		"version": "1.0.0",
 		"uptime":  "2d 4h 32m",
 	}
-	c.JSON(200, status)
+	c.JSON(http.StatusOK, status)
 }
