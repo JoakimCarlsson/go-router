@@ -7,7 +7,8 @@ import (
 	"github.com/joakimcarlsson/go-router/metadata"
 )
 
-// UIConfig holds configuration options for serving Swagger UI
+// UIConfig holds configuration options for serving Swagger UI.
+// It allows customization of the UI appearance, behavior, and features.
 type UIConfig struct {
 	// Title is the page title for the Swagger UI page
 	Title string
@@ -51,7 +52,8 @@ type UIConfig struct {
 	OAuth2Config *metadata.OAuth2Config
 }
 
-// DefaultUIConfig returns a default configuration for Swagger UI
+// DefaultUIConfig returns a default configuration for Swagger UI.
+// This provides sensible defaults for all UI options.
 func DefaultUIConfig() UIConfig {
 	return UIConfig{
 		Title:                    "API Documentation",
@@ -76,7 +78,8 @@ func DefaultUIConfig() UIConfig {
 	}
 }
 
-// Handler returns an http.HandlerFunc that serves the Swagger UI
+// Handler returns an http.HandlerFunc that serves the Swagger UI.
+// It generates an HTML page with Swagger UI configured based on the provided options.
 func Handler(config UIConfig) http.HandlerFunc {
 	const swaggerTemplate = `<!DOCTYPE html>
 <html lang="en">

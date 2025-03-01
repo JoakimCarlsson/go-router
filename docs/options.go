@@ -6,38 +6,54 @@ import (
 	"github.com/joakimcarlsson/go-router/metadata"
 )
 
-// RouteOption configures route metadata for API documentation
+// RouteOption configures route metadata for API documentation.
+// Route options are functions that modify a RouteMetadata object
+// to add documentation details like parameters, responses, etc.
 type RouteOption func(*metadata.RouteMetadata)
 
-// WithOperationID sets the operationId for the route
+// WithOperationID sets the operationId for the route.
+// The operationId is a unique identifier for the operation and is used in
+// generated client libraries as the function name.
 func WithOperationID(operationId string) RouteOption {
 	return func(m *metadata.RouteMetadata) {
 		m.OperationID = operationId
 	}
 }
 
-// WithSummary sets the route summary
+// WithSummary sets the route summary.
+// The summary is a short description of what the operation does.
 func WithSummary(summary string) RouteOption {
 	return func(m *metadata.RouteMetadata) {
 		m.Summary = summary
 	}
 }
 
-// WithDescription sets the route description
+// WithDescription sets the route description.
+// The description provides more detailed information about the operation.
 func WithDescription(description string) RouteOption {
 	return func(m *metadata.RouteMetadata) {
 		m.Description = description
 	}
 }
 
-// WithTags adds tags to the route
+// WithTags adds tags to the route.
+// Tags are used to group operations by logical groups in the API documentation.
 func WithTags(tags ...string) RouteOption {
 	return func(m *metadata.RouteMetadata) {
 		m.Tags = append(m.Tags, tags...)
 	}
 }
 
-// WithParameter adds a parameter to the route
+// WithParameter adds a parameter to the route.
+// This is a generic function that can add any type of parameter (path, query, header, etc.).
+//
+// Parameters:
+//   - name: The parameter name
+//   - in: The parameter location (path, query, header, cookie)
+//   - typ: The parameter type (string, integer, boolean, etc.)
+//   - required: Whether the parameter is required
+//   - description: A description of the parameter
+//   - example: An example value for the parameter
 func WithParameter(name, in, typ string, required bool, description string, example interface{}) RouteOption {
 	return func(m *metadata.RouteMetadata) {
 		m.Parameters = append(m.Parameters, metadata.Parameter{
@@ -53,22 +69,52 @@ func WithParameter(name, in, typ string, required bool, description string, exam
 	}
 }
 
-// WithQueryParam adds a query parameter to the route
+// WithQueryParam adds a query parameter to the route.
+// Query parameters are appended to the URL after a question mark.
+//
+// Parameters:
+//   - name: The parameter name
+//   - typ: The parameter type (string, integer, boolean, etc.)
+//   - required: Whether the parameter is required
+//   - description: A description of the parameter
+//   - example: An example value for the parameter
 func WithQueryParam(name, typ string, required bool, description string, example interface{}) RouteOption {
 	return WithParameter(name, "query", typ, required, description, example)
 }
 
-// WithPathParam adds a path parameter to the route
+// WithPathParam adds a path parameter to the route.
+// Path parameters are part of the URL path and are denoted by a colon prefix in the route pattern.
+//
+// Parameters:
+//   - name: The parameter name (without the colon)
+//   - typ: The parameter type (string, integer, boolean, etc.)
+//   - required: Whether the parameter is required (typically true for path parameters)
+//   - description: A description of the parameter
+//   - example: An example value for the parameter
 func WithPathParam(name, typ string, required bool, description string, example interface{}) RouteOption {
 	return WithParameter(name, "path", typ, required, description, example)
 }
 
-// WithHeaderParam adds a header parameter to the route
+// WithHeaderParam adds a header parameter to the route.
+// Header parameters are sent in the HTTP request headers.
+//
+// Parameters:
+//   - name: The header name
+//   - required: Whether the header is required
+//   - description: A description of the header
+//   - example: An example value for the header
 func WithHeaderParam(name string, required bool, description string, example interface{}) RouteOption {
 	return WithParameter(name, "header", "string", required, description, example)
 }
 
-// WithRequestBody adds a request body with a specific content type
+// WithRequestBody adds a request body with a specific content type.
+// This defines the schema and requirements for the request body.
+//
+// Parameters:
+//   - contentType: The media type of the request body (e.g., "application/json")
+//   - schema: The schema describing the request body structure
+//   - required: Whether the request body is required
+//   - description: A description of the request body
 func WithRequestBody(contentType string, schema metadata.Schema, required bool, description string) RouteOption {
 	return func(m *metadata.RouteMetadata) {
 		m.RequestBody = &metadata.RequestBody{
@@ -81,7 +127,15 @@ func WithRequestBody(contentType string, schema metadata.Schema, required bool, 
 	}
 }
 
-// WithJSONRequestBody adds a JSON request body
+// WithJSONRequestBody adds a JSON request body with schema inferred from the provided type.
+// This uses Go's reflect package to generate a schema from the type parameter T.
+//
+// Type Parameters:
+//   - T: The Go type to use for the request body schema
+//
+// Parameters:
+//   - required: Whether the request body is required
+//   - description: A description of the request body
 func WithJSONRequestBody[T any](required bool, description string) RouteOption {
 	return func(m *metadata.RouteMetadata) {
 		t := reflect.TypeOf((*T)(nil)).Elem()
@@ -97,7 +151,12 @@ func WithJSONRequestBody[T any](required bool, description string) RouteOption {
 	}
 }
 
-// WithResponse adds a response to the route
+// WithResponse adds a response to the route.
+// This defines a response without any content schema.
+//
+// Parameters:
+//   - statusCode: The HTTP status code for the response
+//   - description: A description of the response
 func WithResponse(statusCode int, description string) RouteOption {
 	return func(m *metadata.RouteMetadata) {
 		code := metadata.StatusCodeToString(statusCode)
@@ -110,7 +169,15 @@ func WithResponse(statusCode int, description string) RouteOption {
 	}
 }
 
-// WithJSONResponse adds a JSON response with schema
+// WithJSONResponse adds a JSON response with schema inferred from the provided type.
+// This uses Go's reflect package to generate a schema from the type parameter T.
+//
+// Type Parameters:
+//   - T: The Go type to use for the response schema
+//
+// Parameters:
+//   - statusCode: The HTTP status code for the response
+//   - description: A description of the response
 func WithJSONResponse[T any](statusCode int, description string) RouteOption {
 	return func(m *metadata.RouteMetadata) {
 		t := reflect.TypeOf((*T)(nil)).Elem()
@@ -129,7 +196,12 @@ func WithJSONResponse[T any](statusCode int, description string) RouteOption {
 	}
 }
 
-// WithDeprecated marks a route as deprecated
+// WithDeprecated marks a route as deprecated.
+// Deprecated routes will be clearly marked in the API documentation.
+//
+// Parameters:
+//   - message: An optional message explaining why the route is deprecated and
+//     what to use instead
 func WithDeprecated(message string) RouteOption {
 	return func(m *metadata.RouteMetadata) {
 		m.Deprecated = true
@@ -142,7 +214,12 @@ func WithDeprecated(message string) RouteOption {
 	}
 }
 
-// WithSecurity adds security requirements to a route
+// WithSecurity adds security requirements to a route.
+// Security requirements define the authentication methods that can be used
+// to access the route.
+//
+// Parameters:
+//   - requirements: Maps of security scheme names to required scopes
 func WithSecurity(requirements ...map[string][]string) RouteOption {
 	return func(m *metadata.RouteMetadata) {
 		if m.Security == nil {
@@ -158,22 +235,29 @@ func WithSecurity(requirements ...map[string][]string) RouteOption {
 	}
 }
 
-// WithBasicAuth adds basic authentication requirement to a route
+// WithBasicAuth adds basic authentication requirement to a route.
+// This adds a security requirement for HTTP Basic authentication.
 func WithBasicAuth() RouteOption {
 	return WithSecurity(map[string][]string{"basicAuth": {}})
 }
 
-// WithBearerAuth adds bearer token authentication requirement to a route
+// WithBearerAuth adds bearer token authentication requirement to a route.
+// This adds a security requirement for HTTP Bearer token authentication.
 func WithBearerAuth() RouteOption {
 	return WithSecurity(map[string][]string{"bearerAuth": {}})
 }
 
-// WithAPIKey adds API key authentication requirement to a route
+// WithAPIKey adds API key authentication requirement to a route.
+// This adds a security requirement for API key authentication.
 func WithAPIKey() RouteOption {
 	return WithSecurity(map[string][]string{"apiKey": {}})
 }
 
-// WithOAuth2Scopes adds OAuth2 authentication requirement with specific scopes
+// WithOAuth2Scopes adds OAuth2 authentication requirement with specific scopes.
+// This adds a security requirement for OAuth2 authentication with the specified scopes.
+//
+// Parameters:
+//   - scopes: The OAuth2 scopes required for the operation
 func WithOAuth2Scopes(scopes ...string) RouteOption {
 	return WithSecurity(map[string][]string{"oauth2": scopes})
 }

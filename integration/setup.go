@@ -6,12 +6,13 @@ import (
 	"github.com/joakimcarlsson/go-router/swagger"
 )
 
-// SetupOptions holds configuration for setting up API documentation
+// SetupOptions holds configuration for setting up API documentation.
+// It provides a single place to configure both OpenAPI and Swagger UI.
 type SetupOptions struct {
 	// OpenAPI configuration
-	Title       string
-	Version     string
-	Description string
+	Title       string // API title for OpenAPI info section
+	Version     string // API version for OpenAPI info section
+	Description string // API description for OpenAPI info section
 
 	// Route paths
 	SpecPath string // Path to serve OpenAPI JSON (default: /openapi.json)
@@ -19,7 +20,7 @@ type SetupOptions struct {
 
 	// UI customization
 	DarkMode bool   // Enable dark mode in Swagger UI
-	UITitle  string // Custom title for Swagger UI page
+	UITitle  string // Custom title for Swagger UI page (defaults to Title if not set)
 
 	// Security schemes
 	UseBasicAuth  bool // Add basic auth security scheme
@@ -27,7 +28,8 @@ type SetupOptions struct {
 	UseAPIKey     bool // Add API key security scheme
 }
 
-// DefaultSetupOptions returns default setup options
+// DefaultSetupOptions returns default setup options for API documentation.
+// It sets sensible defaults for title, version, paths, and UI options.
 func DefaultSetupOptions() SetupOptions {
 	return SetupOptions{
 		Title:       "API Documentation",
@@ -39,7 +41,16 @@ func DefaultSetupOptions() SetupOptions {
 	}
 }
 
-// Setup configures OpenAPI generation and Swagger UI for a router
+// Setup configures OpenAPI generation and Swagger UI for a router.
+// It's a convenience function that handles the integration between
+// the router, OpenAPI generator, and Swagger UI components.
+//
+// Example:
+//
+//	err := integration.Setup(router, integration.DefaultSetupOptions())
+//	if err != nil {
+//	    log.Fatal(err)
+//	}
 func Setup(r *router.Router, opts SetupOptions) error {
 	// Create OpenAPI generator
 	generator := openapi.NewGenerator(openapi.Info{

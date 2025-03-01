@@ -10,12 +10,17 @@ import (
 	"github.com/joakimcarlsson/go-router/metadata"
 )
 
-// HandlerFunc defines a function to process HTTP requests in the context of the router
+// HandlerFunc defines a function to process HTTP requests in the context of the router.
+// It receives a Context which encapsulates the HTTP request and response writer.
 type HandlerFunc func(*Context)
 
-// MiddlewareFunc defines a function to wrap HandlerFunc for middleware processing
+// MiddlewareFunc defines a function that wraps a HandlerFunc for middleware processing.
+// Middleware functions can perform pre-processing before calling the next handler,
+// or post-processing after the handler returns.
 type MiddlewareFunc func(HandlerFunc) HandlerFunc
 
+// route represents an internal route definition with its HTTP method, path pattern,
+// handler function and metadata for documentation.
 type route struct {
 	method   string
 	path     string
@@ -23,6 +28,8 @@ type route struct {
 	metadata *metadata.RouteMetadata
 }
 
+// Router is the main HTTP router that registers routes and dispatches requests to handlers.
+// It supports middleware, route groups, and OpenAPI documentation generation.
 type Router struct {
 	mux         *http.ServeMux
 	prefix      string
@@ -34,7 +41,8 @@ type Router struct {
 	security    []metadata.SecurityRequirement
 }
 
-// New creates a new Router instance
+// New creates a new Router instance with default configuration.
+// The returned router is ready to register routes and handle HTTP requests.
 func New() *Router {
 	return &Router{
 		mux:      http.NewServeMux(),
@@ -45,13 +53,17 @@ func New() *Router {
 	}
 }
 
-// WithTags adds tags to a router group
+// WithTags adds OpenAPI tags to a router group.
+// Tags are used to group operations in the OpenAPI documentation.
+// Returns the router for method chaining.
 func (r *Router) WithTags(tags ...string) *Router {
 	r.tags = append(r.tags, tags...)
 	return r
 }
 
-// WithSecurity adds security requirements to a router group
+// WithSecurity adds security requirements to a router group.
+// All routes registered with this router will inherit these security requirements.
+// Returns the router for method chaining.
 func (r *Router) WithSecurity(requirements ...map[string][]string) *Router {
 	for _, req := range requirements {
 		secReq := make(metadata.SecurityRequirement)
@@ -63,12 +75,16 @@ func (r *Router) WithSecurity(requirements ...map[string][]string) *Router {
 	return r
 }
 
-// Use adds middleware functions to the router
+// Use adds middleware functions to the router.
+// Middleware functions are executed in the order they are added,
+// and apply to all routes registered after this call.
 func (r *Router) Use(middlewares ...MiddlewareFunc) {
 	r.middlewares = append(r.middlewares, middlewares...)
 }
 
-// Group creates a new router group with a specific path prefix
+// Group creates a new router group with a specific path prefix.
+// The provided function is called with the new group as an argument,
+// allowing routes to be registered within the group.
 func (r *Router) Group(path string, fn func(*Router)) {
 	group := &Router{
 		mux:         r.mux,
@@ -86,7 +102,9 @@ func (r *Router) Group(path string, fn func(*Router)) {
 	r.mu.Unlock()
 }
 
-// Handle registers a new route with the given pattern and handler
+// Handle registers a new route with the given pattern and handler.
+// The pattern must be in the format "METHOD /path".
+// Route options can be provided to add OpenAPI documentation to the route.
 func (r *Router) Handle(pattern string, handler HandlerFunc, opts ...RouteOption) {
 	parts := strings.SplitN(pattern, " ", 2)
 	if len(parts) != 2 {
@@ -134,32 +152,39 @@ func (r *Router) Handle(pattern string, handler HandlerFunc, opts ...RouteOption
 	})
 }
 
-// GET registers a new GET route
+// GET registers a new GET route with the specified path and handler.
+// Options can be provided to add OpenAPI documentation to the route.
 func (r *Router) GET(path string, handler HandlerFunc, opts ...RouteOption) {
 	r.Handle("GET "+path, handler, opts...)
 }
 
-// POST registers a new POST route
+// POST registers a new POST route with the specified path and handler.
+// Options can be provided to add OpenAPI documentation to the route.
 func (r *Router) POST(path string, handler HandlerFunc, opts ...RouteOption) {
 	r.Handle("POST "+path, handler, opts...)
 }
 
-// PUT registers a new PUT route
+// PUT registers a new PUT route with the specified path and handler.
+// Options can be provided to add OpenAPI documentation to the route.
 func (r *Router) PUT(path string, handler HandlerFunc, opts ...RouteOption) {
 	r.Handle("PUT "+path, handler, opts...)
 }
 
-// DELETE registers a new DELETE route
+// DELETE registers a new DELETE route with the specified path and handler.
+// Options can be provided to add OpenAPI documentation to the route.
 func (r *Router) DELETE(path string, handler HandlerFunc, opts ...RouteOption) {
 	r.Handle("DELETE "+path, handler, opts...)
 }
 
-// PATCH registers a new PATCH route
+// PATCH registers a new PATCH route with the specified path and handler.
+// Options can be provided to add OpenAPI documentation to the route.
 func (r *Router) PATCH(path string, handler HandlerFunc, opts ...RouteOption) {
 	r.Handle("PATCH "+path, handler, opts...)
 }
 
-// buildMiddlewareChain builds the middleware chain for a handler
+// buildMiddlewareChain builds the middleware chain for a handler.
+// It applies each middleware in reverse order so that the first middleware
+// in the list is the outermost wrapper around the handler.
 func (r *Router) buildMiddlewareChain(handler HandlerFunc) HandlerFunc {
 	if len(r.middlewares) == 0 {
 		return handler
@@ -172,12 +197,14 @@ func (r *Router) buildMiddlewareChain(handler HandlerFunc) HandlerFunc {
 	return h
 }
 
-// ServeHTTP implements the http.Handler interface
+// ServeHTTP implements the http.Handler interface.
+// This allows the router to be used directly with http.ListenAndServe.
 func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	r.mux.ServeHTTP(w, req)
 }
 
-// Routes returns all registered routes
+// Routes returns all registered routes.
+// This is used primarily for OpenAPI documentation generation.
 func (r *Router) Routes() []Route {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
@@ -194,7 +221,8 @@ func (r *Router) Routes() []Route {
 	return routes
 }
 
-// normalizePath ensures the path starts with a slash and is cleaned
+// normalizePath ensures the path starts with a slash and is cleaned.
+// It handles edge cases like empty paths and relative paths.
 func normalizePath(p string) string {
 	if p == "" {
 		return "/"
