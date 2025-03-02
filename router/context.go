@@ -1,6 +1,7 @@
 package router
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"encoding/xml"
@@ -38,6 +39,34 @@ var contextPool = sync.Pool{
 		}
 	},
 }
+
+// EncoderContainer holds both a buffer and an encoder
+type EncoderContainer struct {
+	Buffer  *bytes.Buffer
+	Encoder interface{}
+}
+
+// Encoder pools to minimize allocations
+var (
+	jsonEncoderPool = sync.Pool{
+		New: func() interface{} {
+			buf := bytes.Buffer{}
+			return &EncoderContainer{
+				Buffer:  &buf,
+				Encoder: json.NewEncoder(&buf),
+			}
+		},
+	}
+	xmlEncoderPool = sync.Pool{
+		New: func() interface{} {
+			buf := bytes.Buffer{}
+			return &EncoderContainer{
+				Buffer:  &buf,
+				Encoder: xml.NewEncoder(&buf),
+			}
+		},
+	}
+)
 
 // acquireContext retrieves a Context from the pool and initializes it with the given response writer and request.
 // This is called by the router for each incoming request.
@@ -147,21 +176,39 @@ func (c *Context) Param(key string) string {
 // JSON writes the given object as a JSON response with the given status code.
 // It sets the Content-Type header to "application/json; charset=utf-8".
 func (c *Context) JSON(code int, obj interface{}) {
+	container := jsonEncoderPool.Get().(*EncoderContainer)
+	container.Buffer.Reset()
+	encoder := container.Encoder.(*json.Encoder)
+
+	if err := encoder.Encode(obj); err != nil {
+		jsonEncoderPool.Put(container)
+		http.Error(c.Writer, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
 	c.SetHeader("Content-Type", "application/json; charset=utf-8")
 	c.Status(code)
-	if err := json.NewEncoder(c.Writer).Encode(obj); err != nil {
-		http.Error(c.Writer, err.Error(), http.StatusInternalServerError)
-	}
+	c.Writer.Write(container.Buffer.Bytes())
+	jsonEncoderPool.Put(container)
 }
 
 // XML sends an XML response with the given status code and object.
 // It sets the Content-Type header to "application/xml; charset=utf-8".
 func (c *Context) XML(code int, obj interface{}) {
+	container := xmlEncoderPool.Get().(*EncoderContainer)
+	container.Buffer.Reset()
+	encoder := container.Encoder.(*xml.Encoder)
+
+	if err := encoder.Encode(obj); err != nil {
+		xmlEncoderPool.Put(container)
+		http.Error(c.Writer, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
 	c.SetHeader("Content-Type", "application/xml; charset=utf-8")
 	c.Status(code)
-	if err := xml.NewEncoder(c.Writer).Encode(obj); err != nil {
-		http.Error(c.Writer, err.Error(), http.StatusInternalServerError)
-	}
+	c.Writer.Write(container.Buffer.Bytes())
+	xmlEncoderPool.Put(container)
 }
 
 // Data sends a raw data response with the specified content type.
