@@ -79,7 +79,7 @@ Add OpenAPI documentation to your routes:
 ```go
 import "github.com/joakimcarlsson/go-router/docs"
 
-r.GET("/users/:id", getUser,
+r.GET("/users/{id}", getUser,
     docs.WithSummary("Get user by ID"),
     docs.WithPathParam("id", "string", true, "User ID", nil),
     docs.WithJSONResponse[User](200, "User found"),
