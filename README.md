@@ -2,6 +2,8 @@
 
 A modular HTTP router for Go with built-in OpenAPI and Swagger UI support.
 
+[![Go Reference](https://pkg.go.dev/badge/github.com/JoakimCarlsson/go-router.svg)](https://pkg.go.dev/github.com/JoakimCarlsson/go-router)
+
 ## Overview
 
 This router is designed with modularity in mind, allowing you to use only the components you need. The project is structured into several packages, each with a specific responsibility:
