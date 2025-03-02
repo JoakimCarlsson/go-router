@@ -20,6 +20,13 @@ type Resource struct {
 	Description string `json:"description"`
 }
 
+// ErrorResponse represents an API error response
+type ErrorResponse struct {
+	Status  int    `json:"status"`
+	Message string `json:"message"`
+	Error   string `json:"error"`
+}
+
 func main() {
 	r := router.New()
 
@@ -28,7 +35,7 @@ func main() {
 		docs.WithTags("Health"),
 		docs.WithSummary("Health check endpoint"),
 		docs.WithDescription("Returns the health status of the API"),
-		docs.WithResponse(200, "Service is healthy"),
+		docs.WithResponse(http.StatusOK, "Service is healthy"),
 	)
 
 	// Protected endpoints that require authentication
@@ -36,8 +43,12 @@ func main() {
 		docs.WithTags("Resources"),
 		docs.WithSummary("List all resources"),
 		docs.WithDescription("Returns a list of all resources (requires authentication)"),
-		docs.WithResponse(200, "Resources retrieved successfully"),
-		docs.WithJSONResponse[[]Resource](200, "List of resources"),
+		docs.WithResponse(http.StatusOK, "Resources retrieved successfully"),
+		docs.WithJSONResponse[[]Resource](http.StatusOK, "List of resources"),
+		docs.WithResponse(http.StatusUnauthorized, "Unauthorized"),
+		docs.WithJSONResponse[ErrorResponse](http.StatusUnauthorized, "Authentication error"),
+		docs.WithResponse(http.StatusForbidden, "Forbidden - insufficient permissions"),
+		docs.WithJSONResponse[ErrorResponse](http.StatusForbidden, "Missing required scope"),
 		docs.WithOAuth2Scopes("read"),
 	)
 
@@ -46,9 +57,14 @@ func main() {
 		docs.WithSummary("Get resource by ID"),
 		docs.WithDescription("Retrieves a resource by its unique identifier (requires authentication)"),
 		docs.WithPathParam("id", "string", true, "Resource ID", nil),
-		docs.WithResponse(200, "Resource found"),
-		docs.WithJSONResponse[Resource](200, "Resource details"),
-		docs.WithResponse(404, "Resource not found"),
+		docs.WithResponse(http.StatusOK, "Resource found"),
+		docs.WithJSONResponse[Resource](http.StatusOK, "Resource details"),
+		docs.WithResponse(http.StatusUnauthorized, "Unauthorized"),
+		docs.WithJSONResponse[ErrorResponse](http.StatusUnauthorized, "Authentication error"),
+		docs.WithResponse(http.StatusForbidden, "Forbidden - insufficient permissions"),
+		docs.WithJSONResponse[ErrorResponse](http.StatusForbidden, "Missing required scope"),
+		docs.WithResponse(http.StatusNotFound, "Resource not found"),
+		docs.WithJSONResponse[ErrorResponse](http.StatusNotFound, "Resource not found details"),
 		docs.WithOAuth2Scopes("read"),
 	)
 

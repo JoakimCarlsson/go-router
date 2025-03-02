@@ -140,14 +140,12 @@ func (c *Context) ParamBoolDefault(key string, defaultValue bool) bool {
 }
 
 // Param returns the value of the path parameter with the given key.
+// Uses Go 1.22's PathValue for path parameter extraction.
 func (c *Context) Param(key string) string {
-	return c.params[key]
-}
-
-// SetParam sets a URL parameter value in the context.
-// This is typically called by the router when matching route parameters.
-func (c *Context) SetParam(name, value string) {
-	c.params[name] = value
+	if c.Request != nil {
+		return c.Request.PathValue(key)
+	}
+	return ""
 }
 
 // JSON writes the given object as a JSON response with the given status code.

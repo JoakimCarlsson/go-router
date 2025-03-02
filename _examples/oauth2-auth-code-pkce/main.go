@@ -62,7 +62,7 @@ func main() {
 		docs.WithTags("System"),
 		docs.WithSummary("Health check endpoint"),
 		docs.WithDescription("Check if the API is healthy"),
-		docs.WithResponse(200, "API is healthy"),
+		docs.WithResponse(http.StatusOK, "API is healthy"),
 	)
 
 	// Auth required endpoints
@@ -74,9 +74,12 @@ func main() {
 			docs.WithTags("Profile"),
 			docs.WithSummary("Get user profile"),
 			docs.WithDescription("Returns the authenticated user's profile information"),
-			docs.WithResponse(200, "Profile retrieved successfully"),
-			docs.WithJSONResponse[UserProfile](200, "User profile"),
-			docs.WithResponse(401, "Unauthorized"),
+			docs.WithResponse(http.StatusOK, "Profile retrieved successfully"),
+			docs.WithJSONResponse[UserProfile](http.StatusOK, "User profile"),
+			docs.WithResponse(http.StatusUnauthorized, "Unauthorized"),
+			docs.WithJSONResponse[ErrorResponse](http.StatusUnauthorized, "Authentication error"),
+			docs.WithResponse(http.StatusForbidden, "Forbidden - insufficient permissions"),
+			docs.WithJSONResponse[ErrorResponse](http.StatusForbidden, "Missing required scope"),
 			docs.WithOAuth2Scopes("profile:read"),
 		)
 
@@ -85,9 +88,12 @@ func main() {
 			docs.WithTags("Todos"),
 			docs.WithSummary("List todos"),
 			docs.WithDescription("Returns the authenticated user's todo items"),
-			docs.WithResponse(200, "Todos retrieved successfully"),
-			docs.WithJSONResponse[[]TodoItem](200, "Todo items"),
-			docs.WithResponse(401, "Unauthorized"),
+			docs.WithResponse(http.StatusOK, "Todos retrieved successfully"),
+			docs.WithJSONResponse[[]TodoItem](http.StatusOK, "Todo items"),
+			docs.WithResponse(http.StatusUnauthorized, "Unauthorized"),
+			docs.WithJSONResponse[ErrorResponse](http.StatusUnauthorized, "Authentication error"),
+			docs.WithResponse(http.StatusForbidden, "Forbidden - insufficient permissions"),
+			docs.WithJSONResponse[ErrorResponse](http.StatusForbidden, "Missing required scope"),
 			docs.WithOAuth2Scopes("todos:read"),
 		)
 
@@ -96,10 +102,14 @@ func main() {
 			docs.WithSummary("Create todo"),
 			docs.WithDescription("Creates a new todo item for the authenticated user"),
 			docs.WithJSONRequestBody[NewTodoRequest](true, "Todo details"),
-			docs.WithResponse(201, "Todo created successfully"),
-			docs.WithJSONResponse[TodoItem](201, "Created todo item"),
-			docs.WithResponse(400, "Invalid request"),
-			docs.WithResponse(401, "Unauthorized"),
+			docs.WithResponse(http.StatusCreated, "Todo created successfully"),
+			docs.WithJSONResponse[TodoItem](http.StatusCreated, "Created todo item"),
+			docs.WithResponse(http.StatusBadRequest, "Invalid request"),
+			docs.WithJSONResponse[ErrorResponse](http.StatusBadRequest, "Invalid request details"),
+			docs.WithResponse(http.StatusUnauthorized, "Unauthorized"),
+			docs.WithJSONResponse[ErrorResponse](http.StatusUnauthorized, "Authentication error"),
+			docs.WithResponse(http.StatusForbidden, "Forbidden - insufficient permissions"),
+			docs.WithJSONResponse[ErrorResponse](http.StatusForbidden, "Missing required scope"),
 			docs.WithOAuth2Scopes("todos:write"),
 		)
 
@@ -108,10 +118,14 @@ func main() {
 			docs.WithSummary("Get todo"),
 			docs.WithDescription("Returns a specific todo item by ID"),
 			docs.WithPathParam("id", "string", true, "Todo item ID", nil),
-			docs.WithResponse(200, "Todo retrieved successfully"),
-			docs.WithJSONResponse[TodoItem](200, "Todo item"),
-			docs.WithResponse(401, "Unauthorized"),
-			docs.WithResponse(404, "Todo not found"),
+			docs.WithResponse(http.StatusOK, "Todo retrieved successfully"),
+			docs.WithJSONResponse[TodoItem](http.StatusOK, "Todo item"),
+			docs.WithResponse(http.StatusUnauthorized, "Unauthorized"),
+			docs.WithJSONResponse[ErrorResponse](http.StatusUnauthorized, "Authentication error"),
+			docs.WithResponse(http.StatusForbidden, "Forbidden - insufficient permissions"),
+			docs.WithJSONResponse[ErrorResponse](http.StatusForbidden, "Missing required scope"),
+			docs.WithResponse(http.StatusNotFound, "Todo not found"),
+			docs.WithJSONResponse[ErrorResponse](http.StatusNotFound, "Todo not found details"),
 			docs.WithOAuth2Scopes("todos:read"),
 		)
 	})
@@ -258,7 +272,7 @@ func healthCheck(c *router.Context) {
 
 func getProfile(c *router.Context) {
 	// Check if the token has the required scope
-	if !hasScope(c, "profile:read") {
+	if (!hasScope(c, "profile:read")) {
 		c.JSON(http.StatusForbidden, ErrorResponse{
 			Status:  http.StatusForbidden,
 			Message: "Missing required scope: profile:read",
@@ -285,7 +299,7 @@ func getProfile(c *router.Context) {
 
 func listTodos(c *router.Context) {
 	// Check if the token has the required scope
-	if !hasScope(c, "todos:read") {
+	if (!hasScope(c, "todos:read")) {
 		c.JSON(http.StatusForbidden, ErrorResponse{
 			Status:  http.StatusForbidden,
 			Message: "Missing required scope: todos:read",
@@ -320,7 +334,7 @@ func listTodos(c *router.Context) {
 
 func createTodo(c *router.Context) {
 	// Check if the token has the required scope
-	if !hasScope(c, "todos:write") {
+	if (!hasScope(c, "todos:write")) {
 		c.JSON(http.StatusForbidden, ErrorResponse{
 			Status:  http.StatusForbidden,
 			Message: "Missing required scope: todos:write",
@@ -367,7 +381,7 @@ func createTodo(c *router.Context) {
 
 func getTodo(c *router.Context) {
 	// Check if the token has the required scope
-	if !hasScope(c, "todos:read") {
+	if (!hasScope(c, "todos:read")) {
 		c.JSON(http.StatusForbidden, ErrorResponse{
 			Status:  http.StatusForbidden,
 			Message: "Missing required scope: todos:read",

@@ -31,6 +31,13 @@ type ServiceStatus struct {
 	Metrics     ServiceMetrics `json:"metrics"`
 }
 
+// ErrorResponse represents an API error response
+type ErrorResponse struct {
+	Status  int    `json:"status"`
+	Message string `json:"message"`
+	Error   string `json:"error"`
+}
+
 func main() {
 	r := router.New()
 
@@ -39,7 +46,7 @@ func main() {
 		docs.WithTags("Health"),
 		docs.WithSummary("Basic health check"),
 		docs.WithDescription("Public endpoint to check if service is running"),
-		docs.WithResponse(200, "Service is healthy"),
+		docs.WithResponse(http.StatusOK, "Service is healthy"),
 	)
 
 	// Protected endpoints for service-to-service communication
@@ -47,8 +54,12 @@ func main() {
 		docs.WithTags("Status"),
 		docs.WithSummary("Get detailed service status"),
 		docs.WithDescription("Returns detailed status information (requires service authentication)"),
-		docs.WithResponse(200, "Status information retrieved"),
-		docs.WithJSONResponse[ServiceStatus](200, "Service status details"),
+		docs.WithResponse(http.StatusOK, "Status information retrieved"),
+		docs.WithJSONResponse[ServiceStatus](http.StatusOK, "Service status details"),
+		docs.WithResponse(http.StatusUnauthorized, "Unauthorized"),
+		docs.WithJSONResponse[ErrorResponse](http.StatusUnauthorized, "Authentication error"),
+		docs.WithResponse(http.StatusForbidden, "Forbidden - insufficient permissions"),
+		docs.WithJSONResponse[ErrorResponse](http.StatusForbidden, "Missing required scope"),
 		docs.WithOAuth2Scopes("status:read"),
 	)
 
@@ -56,7 +67,11 @@ func main() {
 		docs.WithTags("Maintenance"),
 		docs.WithSummary("Start maintenance mode"),
 		docs.WithDescription("Puts the service into maintenance mode (requires service authentication)"),
-		docs.WithResponse(200, "Maintenance mode activated"),
+		docs.WithResponse(http.StatusOK, "Maintenance mode activated"),
+		docs.WithResponse(http.StatusUnauthorized, "Unauthorized"),
+		docs.WithJSONResponse[ErrorResponse](http.StatusUnauthorized, "Authentication error"),
+		docs.WithResponse(http.StatusForbidden, "Forbidden - insufficient permissions"),
+		docs.WithJSONResponse[ErrorResponse](http.StatusForbidden, "Missing required scope"),
 		docs.WithOAuth2Scopes("maintenance:write"),
 	)
 
@@ -64,7 +79,11 @@ func main() {
 		docs.WithTags("Maintenance"),
 		docs.WithSummary("End maintenance mode"),
 		docs.WithDescription("Takes the service out of maintenance mode (requires service authentication)"),
-		docs.WithResponse(200, "Maintenance mode deactivated"),
+		docs.WithResponse(http.StatusOK, "Maintenance mode deactivated"),
+		docs.WithResponse(http.StatusUnauthorized, "Unauthorized"),
+		docs.WithJSONResponse[ErrorResponse](http.StatusUnauthorized, "Authentication error"),
+		docs.WithResponse(http.StatusForbidden, "Forbidden - insufficient permissions"),
+		docs.WithJSONResponse[ErrorResponse](http.StatusForbidden, "Missing required scope"),
 		docs.WithOAuth2Scopes("maintenance:write"),
 	)
 

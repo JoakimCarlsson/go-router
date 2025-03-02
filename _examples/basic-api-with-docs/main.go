@@ -355,6 +355,7 @@ func createProduct(c *router.Context, store *ProductStore) {
 
 func updateProduct(c *router.Context, store *ProductStore) {
 	id := c.Param("id")
+
 	_, found := store.GetProduct(id)
 
 	if !found {
@@ -404,6 +405,7 @@ func updateProduct(c *router.Context, store *ProductStore) {
 
 func deleteProduct(c *router.Context, store *ProductStore) {
 	id := c.Param("id")
+
 	found := store.DeleteProduct(id)
 
 	if !found {
