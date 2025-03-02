@@ -1,6 +1,50 @@
 # Go Router
 
-A lightweight HTTP router for Go with built-in OpenAPI support.
+A modular HTTP router for Go with built-in OpenAPI and Swagger UI support.
+
+## Overview
+
+This router is designed with modularity in mind, allowing you to use only the components you need. The project is structured into several packages, each with a specific responsibility:
+
+### Core Packages
+
+- **router**: The core HTTP routing functionality
+  - Path parameter support
+  - Middleware support
+  - Router groups
+  - HTTP method helpers
+
+- **metadata**: Shared type definitions
+  - OpenAPI/Swagger shared types
+  - OAuth2 configuration
+  - Common utilities
+
+### Documentation Packages
+
+- **docs**: API documentation utilities
+  - Type-safe route documentation
+  - Request/response schema generation
+  - Parameter and security documentation
+  - Validation tag support
+
+- **openapi**: OpenAPI specification generation
+  - OpenAPI 3.0 support
+  - Schema generation from Go types
+  - Security scheme configuration
+  - Server and info configuration
+
+- **swagger**: Swagger UI configuration and serving
+  - Customizable UI
+  - Dark mode support
+  - OAuth2 configuration
+  - Custom CSS/JS support
+
+### Integration
+
+- **integration**: Component integration
+  - OpenAPI adapter
+  - Swagger UI integration
+  - Clean separation of concerns
 
 ## Installation
 
@@ -8,80 +52,84 @@ A lightweight HTTP router for Go with built-in OpenAPI support.
 go get github.com/joakimcarlsson/go-router
 ```
 
-## Features
-
-- Lightweight HTTP routing
-- Built-in OpenAPI 3.0 specification generation
-- Route grouping with middleware support
-- Type-safe request/response documentation
-- Security scheme support
-
-## Quick Start
+## Basic Usage
 
 ```go
 package main
 
 import (
-    "net/http"
     "github.com/joakimcarlsson/go-router/router"
-    "github.com/joakimcarlsson/go-router/openapi"
 )
 
 func main() {
     r := router.New()
     
     r.GET("/hello", func(c *router.Context) {
-        c.JSON(200, map[string]string{"message": "Hello, World!"})
+        c.String(200, "Hello, World!")
     })
-
-    http.ListenAndServe(":8080", r)
+    
+    r.Run(":8080")
 }
 ```
 
-## OpenAPI Support
+## Documentation Support
+
+Add OpenAPI documentation to your routes:
 
 ```go
+import "github.com/joakimcarlsson/go-router/docs"
+
+r.GET("/users/{id}", getUser,
+    docs.WithSummary("Get user by ID"),
+    docs.WithPathParam("id", "string", true, "User ID", nil),
+    docs.WithJSONResponse[User](200, "User found"),
+)
+```
+
+## Swagger UI Integration
+
+Add interactive API documentation:
+
+```go
+import (
+    "github.com/joakimcarlsson/go-router/integration"
+    "github.com/joakimcarlsson/go-router/openapi"
+    "github.com/joakimcarlsson/go-router/swagger"
+)
+
+// Create OpenAPI generator
 generator := openapi.NewGenerator(openapi.Info{
-    Title: "My API",
+    Title:   "My API",
     Version: "1.0.0",
 })
 
-r.GET("/users", listUsers,
-    openapi.WithSummary("List users"),
-    openapi.WithResponseType("200", "Success", []User{}),
-)
-
-// Serve OpenAPI specification
-r.GET("/openapi.json", r.ServeOpenAPI(generator))
-
-// Serve Swagger UI documentation
-swaggerConfig := router.DefaultSwaggerUIConfig()
-swaggerConfig.Title = "API Documentation"
-swaggerConfig.DarkMode = true  // Enable dark mode
-r.GET("/docs", r.ServeSwaggerUI(swaggerConfig))
+// Configure Swagger UI
+swaggerUI := integration.NewSwaggerUIIntegration(r, generator)
+swaggerUI.SetupRoutes(r, "/openapi.json", "/docs")
 ```
 
-### Swagger UI Configuration Options
+## Examples
 
-The router includes built-in Swagger UI support with many configuration options:
+See the `_examples` directory for complete examples:
 
-```go
-config := router.DefaultSwaggerUIConfig()
-config.Title = "My API Documentation"           // Page title
-config.DarkMode = true                          // Enable dark mode
-config.SpecURL = "/openapi.json"                // Path to OpenAPI spec
-config.DocExpansion = "list"                    // "list", "full", or "none"
-config.TryItOutEnabled = true                   // Enable "Try it out" by default
-config.PersistAuthorization = true              // Save auth between page reloads
-config.DefaultModelsExpandDepth = 2             // Expand nested models
-config.RequestSnippetsEnabled = true            // Show code snippets for requests
-config.CustomCSS = "/* Add your custom CSS */"  // Customize styling
+- Basic routing and middleware
+- OpenAPI documentation
+- OAuth2 authentication
+- Swagger UI integration
+- Complete refactored example
 
-r.GET("/docs", r.ServeSwaggerUI(config))
-```
+## Design Goals
 
-For more examples, see the [_examples](_examples) directory.
+1. **Modularity**: Use only what you need
+2. **Type Safety**: Leveraging Go's type system
+3. **Clean API**: Intuitive and consistent interfaces
+4. **Extensibility**: Easy to add new features
+5. **Documentation**: First-class OpenAPI support
+
+## Contributing
+
+Contributions are welcome! Please read our contributing guidelines and code of conduct.
 
 ## License
 
-MIT License - see LICENSE file
+MIT License - see LICENSE file for details
