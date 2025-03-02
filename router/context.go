@@ -25,8 +25,6 @@ type Context struct {
 	StartTime time.Time
 	// StatusCode holds the HTTP status code that will be or has been sent
 	StatusCode int
-	// params contains URL parameters extracted from the request path
-	params map[string]string
 	// store provides a per-request key/value store
 	store map[string]interface{}
 	mu    sync.RWMutex
@@ -36,8 +34,7 @@ type Context struct {
 var contextPool = sync.Pool{
 	New: func() interface{} {
 		return &Context{
-			params: make(map[string]string),
-			store:  make(map[string]interface{}),
+			store: make(map[string]interface{}),
 		}
 	},
 }
@@ -59,7 +56,6 @@ func acquireContext(w http.ResponseWriter, r *http.Request) *Context {
 func releaseContext(ctx *Context) {
 	ctx.Writer = nil
 	ctx.Request = nil
-	clearStringMap(ctx.params)
 	clearInterfaceMap(ctx.store)
 	contextPool.Put(ctx)
 }
@@ -263,14 +259,6 @@ func (c *Context) GetInt(key interface{}) (int, bool) {
 // Context returns the underlying context.Context.
 func (c *Context) Context() context.Context {
 	return c.ctx
-}
-
-// clearStringMap clears a string map by removing all entries.
-// Used internally for context pooling.
-func clearStringMap(m map[string]string) {
-	for k := range m {
-		delete(m, k)
-	}
 }
 
 // clearInterfaceMap clears an interface map by removing all entries.
