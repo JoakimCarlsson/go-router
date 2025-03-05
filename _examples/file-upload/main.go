@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"mime/multipart"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -28,6 +29,20 @@ type UploadResponse struct {
 	Success bool       `json:"success"`
 	Message string     `json:"message,omitempty"`
 	Files   []FileInfo `json:"files,omitempty"`
+}
+
+// SingleUpload represents a single file upload with metadata
+type SingleUpload struct {
+	File        *multipart.FileHeader `form:"file" file:"true"`
+	Name        string                `form:"name"`
+	Description string                `form:"description"`
+}
+
+// MultiUpload represents a multiple file upload with metadata
+type MultiUpload struct {
+	Files    []*multipart.FileHeader `form:"files" file:"true"`
+	Category string                  `form:"category"`
+	Tags     string                  `form:"tags"`
 }
 
 var uploadDir = "./uploads"
@@ -103,50 +118,30 @@ func setupRoutes(r *router.Router) {
 	)
 }
 
-func main() {
-	r := router.New()
-
-	generator := openapi.NewGenerator(openapi.Info{
-		Title:       "File Upload API",
-		Version:     "1.0.0",
-		Description: "API for uploading and managing files using multipart form data",
-	})
-
-	generator.WithServer("http://localhost:8080", "Development server")
-
-	swaggerUI := integration.NewSwaggerUIIntegration(r, generator)
-	swaggerUI.SetupRoutes(r, "/openapi.json", "/docs")
-
-	setupRoutes(r)
-
-	port := "8080"
-	log.Printf("Server starting on port %s...", port)
-	log.Printf("API documentation available at http://localhost:%s/docs", port)
-	log.Fatal(http.ListenAndServe(":"+port, r))
-}
-
 // uploadSingleFile handles uploading a single file with metadata
 func uploadSingleFile(c *router.Context) {
-	// Get the file from the form
-	file, err := c.FormFile("file")
-	if err != nil {
+	var upload SingleUpload
+	if err := c.BindForm(&upload); err != nil {
 		c.JSON(http.StatusBadRequest, UploadResponse{
 			Success: false,
-			Message: "No file provided or invalid request: " + err.Error(),
+			Message: "Invalid form data: " + err.Error(),
 		})
 		return
 	}
 
-	// Get the form fields
-	name := c.FormValue("name")
-	description := c.FormValue("description")
+	if upload.File == nil {
+		c.JSON(http.StatusBadRequest, UploadResponse{
+			Success: false,
+			Message: "No file provided",
+		})
+		return
+	}
 
 	// Create filename
-	ext := filepath.Ext(file.Filename)
-	filename := file.Filename
-	// If a name was provided, use it for the saved file
-	if name != "" {
-		filename = name + ext
+	ext := filepath.Ext(upload.File.Filename)
+	filename := upload.File.Filename
+	if upload.Name != "" {
+		filename = upload.Name + ext
 	}
 
 	// Make sure filename is safe for filesystem
@@ -154,7 +149,7 @@ func uploadSingleFile(c *router.Context) {
 	dst := filepath.Join(uploadDir, safeName)
 
 	// Save the file
-	if err := c.SaveUploadedFile(file, dst); err != nil {
+	if err := c.SaveUploadedFile(upload.File, dst); err != nil {
 		c.JSON(http.StatusInternalServerError, UploadResponse{
 			Success: false,
 			Message: "Failed to save the file: " + err.Error(),
@@ -167,11 +162,11 @@ func uploadSingleFile(c *router.Context) {
 		Message: "File uploaded successfully",
 		Files: []FileInfo{
 			{
-				Filename:    file.Filename,
-				Size:        file.Size,
-				ContentType: file.Header.Get("Content-Type"),
+				Filename:    upload.File.Filename,
+				Size:        upload.File.Size,
+				ContentType: upload.File.Header.Get("Content-Type"),
 				StoredAt:    dst,
-				Description: description,
+				Description: upload.Description,
 			},
 		},
 	})
@@ -179,17 +174,16 @@ func uploadSingleFile(c *router.Context) {
 
 // uploadMultipleFiles handles uploading multiple files with metadata
 func uploadMultipleFiles(c *router.Context) {
-	form, err := c.MultipartForm()
-	if err != nil {
+	var upload MultiUpload
+	if err := c.BindForm(&upload); err != nil {
 		c.JSON(http.StatusBadRequest, UploadResponse{
 			Success: false,
-			Message: "Invalid multipart form: " + err.Error(),
+			Message: "Invalid form data: " + err.Error(),
 		})
 		return
 	}
 
-	files := form.File["files"]
-	if len(files) == 0 {
+	if len(upload.Files) == 0 {
 		c.JSON(http.StatusBadRequest, UploadResponse{
 			Success: false,
 			Message: "No files provided",
@@ -197,24 +191,20 @@ func uploadMultipleFiles(c *router.Context) {
 		return
 	}
 
-	// Get the form fields
-	category := c.FormValue("category")
-	tags := c.FormValue("tags")
-
 	categoryMsg := ""
-	if category != "" {
-		categoryMsg = fmt.Sprintf(" in category '%s'", category)
+	if upload.Category != "" {
+		categoryMsg = fmt.Sprintf(" in category '%s'", upload.Category)
 	}
 	tagsMsg := ""
-	if tags != "" {
-		tagsMsg = fmt.Sprintf(" with tags: %s", tags)
+	if upload.Tags != "" {
+		tagsMsg = fmt.Sprintf(" with tags: %s", upload.Tags)
 	}
 
 	var fileInfos []FileInfo
-	for _, file := range files {
+	for _, file := range upload.Files {
 		ext := filepath.Ext(file.Filename)
 		filename := fmt.Sprintf("%s_%s%s",
-			strings.ReplaceAll(category, " ", "_"),
+			strings.ReplaceAll(upload.Category, " ", "_"),
 			strings.ReplaceAll(file.Filename, " ", "_"),
 			ext)
 		dst := filepath.Join(uploadDir, filename)
@@ -233,7 +223,7 @@ func uploadMultipleFiles(c *router.Context) {
 			Size:        file.Size,
 			ContentType: file.Header.Get("Content-Type"),
 			StoredAt:    dst,
-			Description: fmt.Sprintf("Category: %s, Tags: %s", category, tags),
+			Description: fmt.Sprintf("Category: %s, Tags: %s", upload.Category, upload.Tags),
 		})
 	}
 
@@ -265,4 +255,26 @@ func listFiles(c *router.Context) {
 		"files": fileList,
 		"count": len(fileList),
 	})
+}
+
+func main() {
+	r := router.New()
+
+	generator := openapi.NewGenerator(openapi.Info{
+		Title:       "File Upload API",
+		Version:     "1.0.0",
+		Description: "API for uploading and managing files using multipart form data",
+	})
+
+	generator.WithServer("http://localhost:8080", "Development server")
+
+	swaggerUI := integration.NewSwaggerUIIntegration(r, generator)
+	swaggerUI.SetupRoutes(r, "/openapi.json", "/docs")
+
+	setupRoutes(r)
+
+	port := "8080"
+	log.Printf("Server starting on port %s...", port)
+	log.Printf("API documentation available at http://localhost:%s/docs", port)
+	log.Fatal(http.ListenAndServe(":"+port, r))
 }

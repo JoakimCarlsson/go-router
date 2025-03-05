@@ -5,11 +5,13 @@ import (
 	"context"
 	"encoding/json"
 	"encoding/xml"
+	"fmt"
 	"io"
 	"mime/multipart"
 	"net/http"
 	"net/url"
 	"os"
+	"reflect"
 	"strconv"
 	"strings"
 	"sync"
@@ -268,6 +270,115 @@ func (c *Context) BindXML(obj interface{}) error {
 	return xml.NewDecoder(c.Request.Body).Decode(obj)
 }
 
+// BindForm binds form data (including multipart form data) to a struct.
+// It uses struct tags to map form fields to struct fields:
+//   - `form:"name"` tag for form field mapping
+//   - `file:"true"` tag to indicate a field should be bound to a file upload
+//
+// Example:
+//
+//	type Upload struct {
+//	    File   *multipart.FileHeader `form:"file" file:"true"`
+//	    Name   string                `form:"name"`
+//	    Description string           `form:"description"`
+//	}
+//
+//	var upload Upload
+//	if err := c.BindForm(&upload); err != nil {
+//	    // handle error
+//	}
+func (c *Context) BindForm(obj interface{}) error {
+	if c.Request.Form == nil {
+		// Try to parse multipart first, fall back to regular form
+		err := c.Request.ParseMultipartForm(c.maxMultipartMemory)
+		if err != nil {
+			if err := c.Request.ParseForm(); err != nil {
+				return err
+			}
+		}
+	}
+
+	objValue := reflect.ValueOf(obj)
+	if objValue.Kind() != reflect.Ptr || objValue.Elem().Kind() != reflect.Struct {
+		return fmt.Errorf("binding element must be a pointer to a struct")
+	}
+
+	objValue = objValue.Elem()
+	objType := objValue.Type()
+
+	for i := 0; i < objValue.NumField(); i++ {
+		field := objValue.Field(i)
+		fieldType := objType.Field(i)
+
+		// Skip unexported fields
+		if !field.CanSet() {
+			continue
+		}
+
+		// Check for form tag
+		formTag := fieldType.Tag.Get("form")
+		if formTag == "" {
+			// Try json tag as fallback
+			formTag = strings.Split(fieldType.Tag.Get("json"), ",")[0]
+			if formTag == "" || formTag == "-" {
+				continue
+			}
+		}
+
+		// Check if this is a file field
+		if fieldType.Tag.Get("file") == "true" {
+			if field.Type() == reflect.TypeOf((*multipart.FileHeader)(nil)) {
+				if fh, err := c.FormFile(formTag); err == nil {
+					field.Set(reflect.ValueOf(fh))
+				}
+			} else if field.Type() == reflect.TypeOf([]*multipart.FileHeader{}) {
+				if form, err := c.MultipartForm(); err == nil {
+					if files := form.File[formTag]; len(files) > 0 {
+						field.Set(reflect.ValueOf(files))
+					}
+				}
+			}
+			continue
+		}
+
+		// Handle regular form fields
+		if values := c.Request.Form[formTag]; len(values) > 0 {
+			setValue(field, values)
+		}
+	}
+
+	return nil
+}
+
+// setValue sets the appropriate value to the struct field based on its type
+func setValue(field reflect.Value, values []string) {
+	switch field.Kind() {
+	case reflect.String:
+		field.SetString(values[0])
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		if val, err := strconv.ParseInt(values[0], 10, 64); err == nil {
+			field.SetInt(val)
+		}
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		if val, err := strconv.ParseUint(values[0], 10, 64); err == nil {
+			field.SetUint(val)
+		}
+	case reflect.Float32, reflect.Float64:
+		if val, err := strconv.ParseFloat(values[0], 64); err == nil {
+			field.SetFloat(val)
+		}
+	case reflect.Bool:
+		if val, err := strconv.ParseBool(values[0]); err == nil {
+			field.SetBool(val)
+		}
+	case reflect.Slice:
+		// Handle slices of supported types
+		if field.Type().Elem().Kind() == reflect.String {
+			field.Set(reflect.ValueOf(values))
+		}
+	}
+}
+
 // Set stores a key-value pair in the context.
 // This can be used to pass data between middleware and handlers.
 func (c *Context) Set(key string, value interface{}) {
@@ -408,11 +519,10 @@ func (c *Context) FormFile(name string) (*multipart.FileHeader, error) {
 			return nil, err
 		}
 	}
-	f, fh, err := c.Request.FormFile(name)
+	_, fh, err := c.Request.FormFile(name)
 	if err != nil {
 		return nil, err
 	}
-	f.Close()
 	return fh, nil
 }
 
