@@ -5,8 +5,11 @@ import (
 	"context"
 	"encoding/json"
 	"encoding/xml"
+	"io"
+	"mime/multipart"
 	"net/http"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -29,6 +32,8 @@ type Context struct {
 	// store provides a per-request key/value store
 	store map[string]interface{}
 	mu    sync.RWMutex
+	// maxMultipartMemory specifies the maximum memory used for parsing multipart forms
+	maxMultipartMemory int64
 }
 
 // Context pool to minimize allocations
@@ -77,6 +82,7 @@ func acquireContext(w http.ResponseWriter, r *http.Request) *Context {
 	ctx.ctx = r.Context()
 	ctx.StartTime = time.Now()
 	ctx.StatusCode = http.StatusOK
+	ctx.maxMultipartMemory = 32 << 20 // 32 MB
 	return ctx
 }
 
@@ -392,4 +398,56 @@ func (c *Context) Value(key interface{}) interface{} {
 // Useful for measuring request processing time.
 func (c *Context) Elapsed() time.Duration {
 	return time.Since(c.StartTime)
+}
+
+// FormFile returns the first file for the provided form field.
+// It wraps the http.Request's FormFile function and returns the file header.
+func (c *Context) FormFile(name string) (*multipart.FileHeader, error) {
+	if c.Request.MultipartForm == nil {
+		if err := c.Request.ParseMultipartForm(c.maxMultipartMemory); err != nil {
+			return nil, err
+		}
+	}
+	f, fh, err := c.Request.FormFile(name)
+	if err != nil {
+		return nil, err
+	}
+	f.Close()
+	return fh, nil
+}
+
+// MultipartForm returns the parsed multipart form data.
+// It calls ParseMultipartForm on the request if it hasn't been called already.
+func (c *Context) MultipartForm() (*multipart.Form, error) {
+	if c.Request.MultipartForm == nil {
+		if err := c.Request.ParseMultipartForm(c.maxMultipartMemory); err != nil {
+			return nil, err
+		}
+	}
+	return c.Request.MultipartForm, nil
+}
+
+// FormValue returns the first value for the named component of the form data.
+// It tries the URL query parameters first, then the POST or PUT form data.
+func (c *Context) FormValue(name string) string {
+	return c.Request.FormValue(name)
+}
+
+// SaveUploadedFile saves the uploaded file with given file header to specified destination path.
+// It creates the destination file and copies the content from the uploaded file.
+func (c *Context) SaveUploadedFile(file *multipart.FileHeader, dst string) error {
+	src, err := file.Open()
+	if err != nil {
+		return err
+	}
+	defer src.Close()
+
+	out, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
+	_, err = io.Copy(out, src)
+	return err
 }

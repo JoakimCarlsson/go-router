@@ -2,6 +2,7 @@ package docs
 
 import (
 	"reflect"
+	"strings"
 
 	"github.com/joakimcarlsson/go-router/metadata"
 )
@@ -146,6 +147,56 @@ func WithJSONRequestBody[T any](required bool, description string) RouteOption {
 			Required:    required,
 			Content: map[string]metadata.MediaType{
 				"application/json": {Schema: schema},
+			},
+		}
+	}
+}
+
+// WithMultipartFormData adds a multipart form data request body to the route.
+// This is useful for file uploads and form submissions with files.
+//
+// Parameters:
+//   - required: Whether the request body is required
+//   - description: A description of the request body
+//   - formFields: A map where keys are field names and values are field descriptions
+func WithMultipartFormData(required bool, description string, formFields map[string]string) RouteOption {
+	return func(m *metadata.RouteMetadata) {
+		properties := make(map[string]metadata.Schema)
+		requiredFields := make([]string, 0)
+
+		for fieldName, fieldDesc := range formFields {
+			if strings.HasSuffix(fieldName, "[]") {
+				baseName := strings.TrimSuffix(fieldName, "[]")
+				properties[baseName] = metadata.Schema{
+					Type: "array",
+					Items: &metadata.Schema{
+						Type:        "string",
+						Format:      "binary",
+						Description: fieldDesc,
+					},
+				}
+				requiredFields = append(requiredFields, baseName)
+			} else {
+				properties[fieldName] = metadata.Schema{
+					Type:        "string",
+					Format:      "binary",
+					Description: fieldDesc,
+				}
+				requiredFields = append(requiredFields, fieldName)
+			}
+		}
+
+		schema := metadata.Schema{
+			Type:       "object",
+			Properties: properties,
+			Required:   requiredFields,
+		}
+
+		m.RequestBody = &metadata.RequestBody{
+			Description: description,
+			Required:    required,
+			Content: map[string]metadata.MediaType{
+				"multipart/form-data": {Schema: schema},
 			},
 		}
 	}

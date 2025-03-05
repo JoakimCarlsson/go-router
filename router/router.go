@@ -39,17 +39,20 @@ type Router struct {
 	mu          sync.RWMutex
 	tags        []string
 	security    []metadata.SecurityRequirement
+	// maxMultipartMemory is the max memory used to parse multipart forms in bytes
+	maxMultipartMemory int64
 }
 
 // New creates a new Router instance with default configuration.
 // The returned router is ready to register routes and handle HTTP requests.
 func New() *Router {
 	return &Router{
-		mux:      http.NewServeMux(),
-		prefix:   "",
-		routes:   make([]route, 0),
-		tags:     make([]string, 0),
-		security: make([]metadata.SecurityRequirement, 0),
+		mux:                http.NewServeMux(),
+		prefix:             "",
+		routes:             make([]route, 0),
+		tags:               make([]string, 0),
+		security:           make([]metadata.SecurityRequirement, 0),
+		maxMultipartMemory: 32 << 20, // 32 MB
 	}
 }
 
@@ -147,6 +150,7 @@ func (r *Router) Handle(pattern string, handler HandlerFunc, opts ...RouteOption
 
 	r.mux.HandleFunc(method+" "+fullpath, func(w http.ResponseWriter, req *http.Request) {
 		ctx := acquireContext(w, req)
+		ctx.maxMultipartMemory = r.maxMultipartMemory
 		defer releaseContext(ctx)
 		finalHandler(ctx)
 	})
@@ -180,6 +184,14 @@ func (r *Router) DELETE(path string, handler HandlerFunc, opts ...RouteOption) {
 // Options can be provided to add OpenAPI documentation to the route.
 func (r *Router) PATCH(path string, handler HandlerFunc, opts ...RouteOption) {
 	r.Handle("PATCH "+path, handler, opts...)
+}
+
+// WithMultipartConfig sets the maximum memory allocation for multipart form data parsing.
+// This affects how much of a file upload will be stored in memory before being written to disk.
+// Default is 32MB if not specified.
+func (r *Router) WithMultipartConfig(maxMemory int64) *Router {
+	r.maxMultipartMemory = maxMemory
+	return r
 }
 
 // buildMiddlewareChain builds the middleware chain for a handler.
