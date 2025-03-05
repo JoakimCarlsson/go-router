@@ -2,7 +2,6 @@ package docs
 
 import (
 	"reflect"
-	"strings"
 
 	"github.com/joakimcarlsson/go-router/metadata"
 )
@@ -152,43 +151,52 @@ func WithJSONRequestBody[T any](required bool, description string) RouteOption {
 	}
 }
 
+// FormFieldSpec defines the specification for a form field
+type FormFieldSpec struct {
+	Description string
+	Required    bool
+	Type        string // "file", "file[]", or "string"
+}
+
 // WithMultipartFormData adds a multipart form data request body to the route.
 // This is useful for file uploads and form submissions with files.
 //
 // Parameters:
-//   - required: Whether the request body is required
 //   - description: A description of the request body
-//   - formFields: A map where keys are field names and values are field descriptions
-func WithMultipartFormData(required bool, description string, formFields map[string]string) RouteOption {
+//   - formFields: A map where keys are field names and values are field specifications
+func WithMultipartFormData(description string, formFields map[string]FormFieldSpec) RouteOption {
 	return func(m *metadata.RouteMetadata) {
 		properties := make(map[string]metadata.Schema)
 		requiredFields := make([]string, 0)
 
-		for fieldName, fieldDesc := range formFields {
-			if strings.HasSuffix(fieldName, "[]") {
-				baseName := strings.TrimSuffix(fieldName, "[]")
-				properties[baseName] = metadata.Schema{
+		for fieldName, spec := range formFields {
+			switch spec.Type {
+			case "file[]":
+				// Array of files
+				properties[fieldName] = metadata.Schema{
 					Type: "array",
 					Items: &metadata.Schema{
 						Type:        "string",
 						Format:      "binary",
-						Description: fieldDesc,
+						Description: spec.Description,
 					},
 				}
-				requiredFields = append(requiredFields, baseName)
-			} else if strings.HasPrefix(fieldName, "file:") {
-				baseName := strings.TrimPrefix(fieldName, "file:")
-				properties[baseName] = metadata.Schema{
-					Type:        "string",
-					Format:      "binary",
-					Description: fieldDesc,
-				}
-				requiredFields = append(requiredFields, baseName)
-			} else {
+			case "file":
+				// Single file field
 				properties[fieldName] = metadata.Schema{
 					Type:        "string",
-					Description: fieldDesc,
+					Format:      "binary",
+					Description: spec.Description,
 				}
+			default:
+				// Regular form field (string)
+				properties[fieldName] = metadata.Schema{
+					Type:        "string",
+					Description: spec.Description,
+				}
+			}
+
+			if spec.Required {
 				requiredFields = append(requiredFields, fieldName)
 			}
 		}
@@ -196,12 +204,16 @@ func WithMultipartFormData(required bool, description string, formFields map[str
 		schema := metadata.Schema{
 			Type:       "object",
 			Properties: properties,
-			Required:   requiredFields,
+		}
+
+		// Only add required fields if there are any
+		if len(requiredFields) > 0 {
+			schema.Required = requiredFields
 		}
 
 		m.RequestBody = &metadata.RequestBody{
 			Description: description,
-			Required:    required,
+			Required:    len(requiredFields) > 0, // RequestBody is required if any field is required
 			Content: map[string]metadata.MediaType{
 				"multipart/form-data": {Schema: schema},
 			},

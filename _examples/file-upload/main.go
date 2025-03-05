@@ -46,10 +46,22 @@ func setupRoutes(r *router.Router) {
 	r.POST("/upload/file", uploadSingleFile,
 		docs.WithSummary("Upload a single file"),
 		docs.WithDescription("Upload a single file with metadata"),
-		docs.WithMultipartFormData(true, "File to upload with metadata", map[string]string{
-			"file:file":   "The file to upload",
-			"name":        "Name of the file (optional)",
-			"description": "Description of the file (optional)",
+		docs.WithMultipartFormData("File to upload with metadata", map[string]docs.FormFieldSpec{
+			"file": {
+				Type:        "file",
+				Description: "The file to upload",
+				Required:    true,
+			},
+			"name": {
+				Type:        "string",
+				Description: "Name of the file",
+				Required:    false,
+			},
+			"description": {
+				Type:        "string",
+				Description: "Description of the file",
+				Required:    false,
+			},
 		}),
 		docs.WithJSONResponse[UploadResponse](http.StatusCreated, "File uploaded successfully"),
 		docs.WithResponse(http.StatusBadRequest, "Invalid request"),
@@ -60,10 +72,22 @@ func setupRoutes(r *router.Router) {
 	r.POST("/upload/files", uploadMultipleFiles,
 		docs.WithSummary("Upload multiple files"),
 		docs.WithDescription("Upload multiple files in a single request"),
-		docs.WithMultipartFormData(true, "Files to upload", map[string]string{
-			"files[]":  "Multiple files to upload",
-			"category": "Category for all files (optional)",
-			"tags":     "Comma-separated tags for the files (optional)",
+		docs.WithMultipartFormData("Files to upload", map[string]docs.FormFieldSpec{
+			"files": {
+				Type:        "file[]",
+				Description: "Multiple files to upload",
+				Required:    true,
+			},
+			"category": {
+				Type:        "string",
+				Description: "Category for all files",
+				Required:    false,
+			},
+			"tags": {
+				Type:        "string",
+				Description: "Comma-separated tags for the files",
+				Required:    false,
+			},
 		}),
 		docs.WithJSONResponse[UploadResponse](http.StatusCreated, "Files uploaded successfully"),
 		docs.WithResponse(http.StatusBadRequest, "Invalid request"),
