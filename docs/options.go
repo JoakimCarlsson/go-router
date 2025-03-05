@@ -176,10 +176,17 @@ func WithMultipartFormData(required bool, description string, formFields map[str
 					},
 				}
 				requiredFields = append(requiredFields, baseName)
+			} else if strings.HasPrefix(fieldName, "file:") {
+				baseName := strings.TrimPrefix(fieldName, "file:")
+				properties[baseName] = metadata.Schema{
+					Type:        "string",
+					Format:      "binary",
+					Description: fieldDesc,
+				}
+				requiredFields = append(requiredFields, baseName)
 			} else {
 				properties[fieldName] = metadata.Schema{
 					Type:        "string",
-					Format:      "binary",
 					Description: fieldDesc,
 				}
 				requiredFields = append(requiredFields, fieldName)

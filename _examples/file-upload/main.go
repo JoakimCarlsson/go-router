@@ -20,6 +20,7 @@ type FileInfo struct {
 	Size        int64  `json:"size"`
 	ContentType string `json:"contentType"`
 	StoredAt    string `json:"storedAt,omitempty"`
+	Description string `json:"description,omitempty"`
 }
 
 // UploadResponse represents the response from the upload endpoint
@@ -44,9 +45,11 @@ func setupRoutes(r *router.Router) {
 	// Single file upload endpoint
 	r.POST("/upload/file", uploadSingleFile,
 		docs.WithSummary("Upload a single file"),
-		docs.WithDescription("Upload a single file with optional metadata"),
-		docs.WithMultipartFormData(true, "File to upload", map[string]string{
-			"file": "The file to upload",
+		docs.WithDescription("Upload a single file with metadata"),
+		docs.WithMultipartFormData(true, "File to upload with metadata", map[string]string{
+			"file:file":   "The file to upload",
+			"name":        "Name of the file (optional)",
+			"description": "Description of the file (optional)",
 		}),
 		docs.WithJSONResponse[UploadResponse](http.StatusCreated, "File uploaded successfully"),
 		docs.WithResponse(http.StatusBadRequest, "Invalid request"),
@@ -58,7 +61,9 @@ func setupRoutes(r *router.Router) {
 		docs.WithSummary("Upload multiple files"),
 		docs.WithDescription("Upload multiple files in a single request"),
 		docs.WithMultipartFormData(true, "Files to upload", map[string]string{
-			"files[]": "Multiple files to upload",
+			"files[]":  "Multiple files to upload",
+			"category": "Category for all files (optional)",
+			"tags":     "Comma-separated tags for the files (optional)",
 		}),
 		docs.WithJSONResponse[UploadResponse](http.StatusCreated, "Files uploaded successfully"),
 		docs.WithResponse(http.StatusBadRequest, "Invalid request"),
@@ -96,8 +101,9 @@ func main() {
 	log.Fatal(http.ListenAndServe(":"+port, r))
 }
 
-// uploadSingleFile handles uploading a single file
+// uploadSingleFile handles uploading a single file with metadata
 func uploadSingleFile(c *router.Context) {
+	// Get the file from the form
 	file, err := c.FormFile("file")
 	if err != nil {
 		c.JSON(http.StatusBadRequest, UploadResponse{
@@ -107,10 +113,23 @@ func uploadSingleFile(c *router.Context) {
 		return
 	}
 
-	ext := filepath.Ext(file.Filename)
-	filename := fmt.Sprintf("%d%s", file.Size, ext)
-	dst := filepath.Join(uploadDir, filename)
+	// Get the form fields
+	name := c.FormValue("name")
+	description := c.FormValue("description")
 
+	// Create filename
+	ext := filepath.Ext(file.Filename)
+	filename := file.Filename
+	// If a name was provided, use it for the saved file
+	if name != "" {
+		filename = name + ext
+	}
+
+	// Make sure filename is safe for filesystem
+	safeName := strings.ReplaceAll(filename, " ", "_")
+	dst := filepath.Join(uploadDir, safeName)
+
+	// Save the file
 	if err := c.SaveUploadedFile(file, dst); err != nil {
 		c.JSON(http.StatusInternalServerError, UploadResponse{
 			Success: false,
@@ -128,12 +147,13 @@ func uploadSingleFile(c *router.Context) {
 				Size:        file.Size,
 				ContentType: file.Header.Get("Content-Type"),
 				StoredAt:    dst,
+				Description: description,
 			},
 		},
 	})
 }
 
-// uploadMultipleFiles handles uploading multiple files
+// uploadMultipleFiles handles uploading multiple files with metadata
 func uploadMultipleFiles(c *router.Context) {
 	form, err := c.MultipartForm()
 	if err != nil {
@@ -153,10 +173,26 @@ func uploadMultipleFiles(c *router.Context) {
 		return
 	}
 
+	// Get the form fields
+	category := c.FormValue("category")
+	tags := c.FormValue("tags")
+
+	categoryMsg := ""
+	if category != "" {
+		categoryMsg = fmt.Sprintf(" in category '%s'", category)
+	}
+	tagsMsg := ""
+	if tags != "" {
+		tagsMsg = fmt.Sprintf(" with tags: %s", tags)
+	}
+
 	var fileInfos []FileInfo
 	for _, file := range files {
 		ext := filepath.Ext(file.Filename)
-		filename := fmt.Sprintf("%d_%s%s", file.Size, strings.ReplaceAll(file.Filename, " ", "_"), ext)
+		filename := fmt.Sprintf("%s_%s%s",
+			strings.ReplaceAll(category, " ", "_"),
+			strings.ReplaceAll(file.Filename, " ", "_"),
+			ext)
 		dst := filepath.Join(uploadDir, filename)
 
 		if err := c.SaveUploadedFile(file, dst); err != nil {
@@ -173,12 +209,13 @@ func uploadMultipleFiles(c *router.Context) {
 			Size:        file.Size,
 			ContentType: file.Header.Get("Content-Type"),
 			StoredAt:    dst,
+			Description: fmt.Sprintf("Category: %s, Tags: %s", category, tags),
 		})
 	}
 
 	c.JSON(http.StatusCreated, UploadResponse{
 		Success: true,
-		Message: fmt.Sprintf("Successfully uploaded %d files", len(fileInfos)),
+		Message: fmt.Sprintf("Successfully uploaded %d files%s%s", len(fileInfos), categoryMsg, tagsMsg),
 		Files:   fileInfos,
 	})
 }
