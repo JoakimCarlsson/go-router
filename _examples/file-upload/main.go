@@ -33,16 +33,16 @@ type UploadResponse struct {
 
 // SingleUpload represents a single file upload with metadata
 type SingleUpload struct {
-	File        *multipart.FileHeader `form:"file" file:"true"`
-	Name        string                `form:"name"`
-	Description string                `form:"description"`
+	File        *multipart.FileHeader `form:"file" file:"true" required:"true" description:"The file to upload"`
+	Name        string                `form:"name" description:"Optional name for the file"`
+	Description string                `form:"description" description:"Description of the uploaded file"`
 }
 
 // MultiUpload represents a multiple file upload with metadata
 type MultiUpload struct {
-	Files    []*multipart.FileHeader `form:"files" file:"true"`
-	Category string                  `form:"category"`
-	Tags     string                  `form:"tags"`
+	Files    []*multipart.FileHeader `form:"files" file:"true" required:"true" description:"Multiple files to upload"`
+	Category string                  `form:"category" description:"Category for all files"`
+	Tags     string                  `form:"tags" description:"Comma-separated tags for the files"`
 }
 
 var uploadDir = "./uploads"
@@ -61,23 +61,7 @@ func setupRoutes(r *router.Router) {
 	r.POST("/upload/file", uploadSingleFile,
 		docs.WithSummary("Upload a single file"),
 		docs.WithDescription("Upload a single file with metadata"),
-		docs.WithMultipartFormData("File to upload with metadata", map[string]docs.FormFieldSpec{
-			"file": {
-				Type:        "file",
-				Description: "The file to upload",
-				Required:    true,
-			},
-			"name": {
-				Type:        "string",
-				Description: "Name of the file",
-				Required:    false,
-			},
-			"description": {
-				Type:        "string",
-				Description: "Description of the file",
-				Required:    false,
-			},
-		}),
+		docs.WithMultipartFormStruct[SingleUpload]("File to upload with metadata"),
 		docs.WithJSONResponse[UploadResponse](http.StatusCreated, "File uploaded successfully"),
 		docs.WithResponse(http.StatusBadRequest, "Invalid request"),
 		docs.WithResponse(http.StatusInternalServerError, "Server error"),
@@ -87,23 +71,7 @@ func setupRoutes(r *router.Router) {
 	r.POST("/upload/files", uploadMultipleFiles,
 		docs.WithSummary("Upload multiple files"),
 		docs.WithDescription("Upload multiple files in a single request"),
-		docs.WithMultipartFormData("Files to upload", map[string]docs.FormFieldSpec{
-			"files": {
-				Type:        "file[]",
-				Description: "Multiple files to upload",
-				Required:    true,
-			},
-			"category": {
-				Type:        "string",
-				Description: "Category for all files",
-				Required:    false,
-			},
-			"tags": {
-				Type:        "string",
-				Description: "Comma-separated tags for the files",
-				Required:    false,
-			},
-		}),
+		docs.WithMultipartFormStruct[MultiUpload]("Files to upload"),
 		docs.WithJSONResponse[UploadResponse](http.StatusCreated, "Files uploaded successfully"),
 		docs.WithResponse(http.StatusBadRequest, "Invalid request"),
 		docs.WithResponse(http.StatusInternalServerError, "Server error"),
