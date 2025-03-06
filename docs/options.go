@@ -151,6 +151,167 @@ func WithJSONRequestBody[T any](required bool, description string) RouteOption {
 	}
 }
 
+// FormFieldSpec defines the specification for a form field
+type FormFieldSpec struct {
+	Description string
+	Required    bool
+	Type        string // "file", "file[]", or "string"
+}
+
+// WithMultipartFormData adds a multipart form data request body to the route.
+// This is useful for file uploads and form submissions with files.
+//
+// Parameters:
+//   - description: A description of the request body
+//   - formFields: A map where keys are field names and values are field specifications
+func WithMultipartFormData(description string, formFields map[string]FormFieldSpec) RouteOption {
+	return func(m *metadata.RouteMetadata) {
+		properties := make(map[string]metadata.Schema)
+		requiredFields := make([]string, 0)
+
+		for fieldName, spec := range formFields {
+			switch spec.Type {
+			case "file[]":
+				// Array of files
+				properties[fieldName] = metadata.Schema{
+					Type: "array",
+					Items: &metadata.Schema{
+						Type:        "string",
+						Format:      "binary",
+						Description: spec.Description,
+					},
+				}
+			case "file":
+				// Single file field
+				properties[fieldName] = metadata.Schema{
+					Type:        "string",
+					Format:      "binary",
+					Description: spec.Description,
+				}
+			default:
+				// Regular form field (string)
+				properties[fieldName] = metadata.Schema{
+					Type:        "string",
+					Description: spec.Description,
+				}
+			}
+
+			if spec.Required {
+				requiredFields = append(requiredFields, fieldName)
+			}
+		}
+
+		schema := metadata.Schema{
+			Type:       "object",
+			Properties: properties,
+		}
+
+		// Only add required fields if there are any
+		if len(requiredFields) > 0 {
+			schema.Required = requiredFields
+		}
+
+		m.RequestBody = &metadata.RequestBody{
+			Description: description,
+			Required:    len(requiredFields) > 0, // RequestBody is required if any field is required
+			Content: map[string]metadata.MediaType{
+				"multipart/form-data": {Schema: schema},
+			},
+		}
+	}
+}
+
+// WithMultipartFormStruct adds a multipart form data request body to the route
+// using a struct type to define the form fields and their requirements.
+// Field tags are used to configure the form:
+//   - `form:"name"` defines the form field name
+//   - `file:"true"` indicates a file upload field
+//   - `required:"true"` marks the field as required
+//   - `description:"text"` provides field description for the docs
+//
+// Example:
+//
+//	type Upload struct {
+//	    File        *multipart.FileHeader `form:"file" file:"true" required:"true" description:"The file to upload"`
+//	    Name        string                `form:"name" description:"Optional name for the file"`
+//	    Description string                `form:"description" description:"File description"`
+//	}
+func WithMultipartFormStruct[T any](description string) RouteOption {
+	return func(m *metadata.RouteMetadata) {
+		t := reflect.TypeOf((*T)(nil)).Elem()
+		properties := make(map[string]metadata.Schema)
+		requiredFields := make([]string, 0)
+
+		for i := 0; i < t.NumField(); i++ {
+			field := t.Field(i)
+
+			// Get form field name
+			formTag := field.Tag.Get("form")
+			if formTag == "" {
+				continue
+			}
+
+			// Check if field is a file upload
+			isFile := field.Tag.Get("file") == "true"
+			isRequired := field.Tag.Get("required") == "true"
+			fieldDesc := field.Tag.Get("description")
+			if fieldDesc == "" {
+				fieldDesc = formTag // Use form name as fallback description
+			}
+
+			// Determine if it's an array of files
+			isFileArray := isFile && field.Type.Kind() == reflect.Slice
+
+			var schema metadata.Schema
+			if isFile {
+				if isFileArray {
+					schema = metadata.Schema{
+						Type: "array",
+						Items: &metadata.Schema{
+							Type:        "string",
+							Format:      "binary",
+							Description: fieldDesc,
+						},
+					}
+				} else {
+					schema = metadata.Schema{
+						Type:        "string",
+						Format:      "binary",
+						Description: fieldDesc,
+					}
+				}
+			} else {
+				schema = metadata.Schema{
+					Type:        "string",
+					Description: fieldDesc,
+				}
+			}
+
+			properties[formTag] = schema
+			if isRequired {
+				requiredFields = append(requiredFields, formTag)
+			}
+		}
+
+		schema := metadata.Schema{
+			Type:       "object",
+			Properties: properties,
+		}
+
+		if len(requiredFields) > 0 {
+			schema.Required = requiredFields
+		}
+
+		m.RequestBody = &metadata.RequestBody{
+			Description: description,
+			Required:    len(requiredFields) > 0,
+			Content: map[string]metadata.MediaType{
+				"multipart/form-data": {Schema: schema},
+			},
+		}
+	}
+}
+
 // WithResponse adds a response to the route.
 // This defines a response without any content schema.
 //

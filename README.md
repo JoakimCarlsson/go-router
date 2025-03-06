@@ -2,6 +2,8 @@
 
 A modular HTTP router for Go with built-in OpenAPI and Swagger UI support.
 
+[![Go Reference](https://pkg.go.dev/badge/github.com/JoakimCarlsson/go-router.svg)](https://pkg.go.dev/github.com/JoakimCarlsson/go-router)
+
 ## Overview
 
 This router is designed with modularity in mind, allowing you to use only the components you need. The project is structured into several packages, each with a specific responsibility:
@@ -13,6 +15,8 @@ This router is designed with modularity in mind, allowing you to use only the co
   - Middleware support
   - Router groups
   - HTTP method helpers
+  - Multipart form data handling
+  - File upload support
 
 - **metadata**: Shared type definitions
   - OpenAPI/Swagger shared types
@@ -72,6 +76,44 @@ func main() {
 }
 ```
 
+## File Uploads
+
+Handle file uploads with built-in multipart form support:
+
+```go
+// Define your upload struct with form tags
+type FileUpload struct {
+    File        *multipart.FileHeader `form:"file" file:"true" required:"true" description:"The file to upload"`
+    Name        string                `form:"name" description:"Optional name for the file"`
+    Description string                `form:"description" description:"Description of the file"`
+}
+
+// Handle single file upload
+r.POST("/upload", func(c *router.Context) {
+    var upload FileUpload
+    if err := c.BindForm(&upload); err != nil {
+        c.JSON(400, map[string]string{"error": err.Error()})
+        return
+    }
+
+    // Save the file
+    dst := filepath.Join("uploads", upload.File.Filename)
+    if err := c.SaveUploadedFile(upload.File, dst); err != nil {
+        c.JSON(500, map[string]string{"error": err.Error()})
+        return
+    }
+
+    c.JSON(201, map[string]string{
+        "message": "File uploaded successfully",
+        "name": upload.Name,
+        "path": dst,
+    })
+})
+
+// Configure upload size limit
+r.WithMultipartConfig(32 << 20) // 32 MB
+```
+
 ## Documentation Support
 
 Add OpenAPI documentation to your routes:
@@ -79,10 +121,18 @@ Add OpenAPI documentation to your routes:
 ```go
 import "github.com/joakimcarlsson/go-router/docs"
 
+// Document a JSON endpoint
 r.GET("/users/{id}", getUser,
     docs.WithSummary("Get user by ID"),
     docs.WithPathParam("id", "string", true, "User ID", nil),
     docs.WithJSONResponse[User](200, "User found"),
+)
+
+// Document a file upload endpoint
+r.POST("/upload", uploadHandler,
+    docs.WithSummary("Upload a file"),
+    docs.WithMultipartFormStruct[FileUpload]("File upload with metadata"),
+    docs.WithJSONResponse[UploadResponse](201, "File uploaded successfully"),
 )
 ```
 
@@ -128,7 +178,7 @@ See the `_examples` directory for complete examples:
 
 ## Contributing
 
-Contributions are welcome! Please read our contributing guidelines and code of conduct.
+Contributions are welcome!
 
 ## License
 
