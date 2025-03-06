@@ -4,8 +4,6 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
-
-	"github.com/joakimcarlsson/go-router/metadata"
 )
 
 // Generator handles OpenAPI specification generation
@@ -499,27 +497,3 @@ func (g *Generator) Generate(routes []RouteInfo) *Spec {
 
 	return spec
 }
-
-// AddMetadata adds route metadata to generate from
-func (g *Generator) AddMetadata(metadataList []metadata.RouteMetadata) {
-	for _, m := range metadataList {
-		g.routeInfo = append(g.routeInfo, RouteInfoFromMetadata(m))
-	}
-}
-
-// routeMetadataAdapter adapts RouteMetadata to the RouteInfo interface
-type routeMetadataAdapter struct {
-	metadata metadata.RouteMetadata
-}
-
-func (a *routeMetadataAdapter) Method() string                           { return a.metadata.Method }
-func (a *routeMetadataAdapter) Path() string                             { return a.metadata.Path }
-func (a *routeMetadataAdapter) OperationID() string                      { return a.metadata.OperationID }
-func (a *routeMetadataAdapter) Summary() string                          { return a.metadata.Summary }
-func (a *routeMetadataAdapter) Description() string                      { return a.metadata.Description }
-func (a *routeMetadataAdapter) Tags() []string                           { return a.metadata.Tags }
-func (a *routeMetadataAdapter) Parameters() []metadata.Parameter         { return a.metadata.Parameters }
-func (a *routeMetadataAdapter) RequestBody() *metadata.RequestBody       { return a.metadata.RequestBody }
-func (a *routeMetadataAdapter) Responses() map[string]metadata.Response  { return a.metadata.Responses }
-func (a *routeMetadataAdapter) Security() []metadata.SecurityRequirement { return a.metadata.Security }
-func (a *routeMetadataAdapter) IsDeprecated() bool                       { return a.metadata.Deprecated }
