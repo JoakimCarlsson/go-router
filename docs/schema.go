@@ -41,6 +41,17 @@ func SchemaFromType(t reflect.Type) metadata.Schema {
 		return schema
 	case reflect.Slice, reflect.Array:
 		itemSchema := SchemaFromType(t.Elem())
+		// If the item is an object type with a name, set up for reference
+		if itemSchema.Type == "object" && itemSchema.TypeName != "" {
+			return metadata.Schema{
+				Type: "array",
+				Items: &metadata.Schema{
+					Ref: "#/components/schemas/" + itemSchema.TypeName,
+				},
+				TypeName: "[]" + itemSchema.TypeName,
+			}
+		}
+		// For primitive types or unnamed objects, use the schema directly
 		return metadata.Schema{
 			Type:     "array",
 			Items:    &itemSchema,

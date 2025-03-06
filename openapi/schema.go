@@ -83,9 +83,28 @@ func ParameterFromMetadataParameter(p metadata.Parameter) Parameter {
 func ResponseFromMetadataResponse(r metadata.Response) Response {
 	content := make(map[string]MediaType)
 	for k, v := range r.Content {
-		content[k] = MediaType{
-			Schema:  SchemaFromMetadataSchema(v.Schema),
-			Example: v.Example,
+		schema := SchemaFromMetadataSchema(v.Schema)
+		// If this is an array type with a component reference, restructure it properly
+		if schema.Type == "array" && schema.Items != nil && schema.Items.Ref != "" {
+			content[k] = MediaType{
+				Schema: Schema{
+					Type:  "array",
+					Items: schema.Items,
+				},
+			}
+		} else if schema.Ref != "" {
+			// For direct references, use SchemaRef
+			content[k] = MediaType{
+				SchemaRef: &Reference{
+					Ref: schema.Ref,
+				},
+			}
+		} else {
+			// For other cases, use the schema as is
+			content[k] = MediaType{
+				Schema:  schema,
+				Example: v.Example,
+			}
 		}
 	}
 
@@ -112,9 +131,25 @@ func RequestBodyFromMetadataRequestBody(r *metadata.RequestBody) *RequestBody {
 
 	content := make(map[string]MediaType)
 	for k, v := range r.Content {
-		content[k] = MediaType{
-			Schema:  SchemaFromMetadataSchema(v.Schema),
-			Example: v.Example,
+		schema := SchemaFromMetadataSchema(v.Schema)
+		if schema.Type == "array" && schema.Items != nil && schema.Items.Ref != "" {
+			content[k] = MediaType{
+				Schema: Schema{
+					Type:  "array",
+					Items: schema.Items,
+				},
+			}
+		} else if schema.Ref != "" {
+			content[k] = MediaType{
+				SchemaRef: &Reference{
+					Ref: schema.Ref,
+				},
+			}
+		} else {
+			content[k] = MediaType{
+				Schema:  schema,
+				Example: v.Example,
+			}
 		}
 	}
 

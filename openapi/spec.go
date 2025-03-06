@@ -19,6 +19,28 @@ type Spec struct {
 	ExternalDocs map[string]string   `json:"externalDocs,omitempty"`
 }
 
+// Reference is a JSON reference to another component in the OpenAPI document
+type Reference struct {
+	Ref string `json:"$ref"`
+}
+
+// SchemaOrReference can be either a Schema object or a Reference to a schema
+type SchemaOrReference struct {
+	Schema    *Schema    `json:"-"`
+	Reference *Reference `json:"-"`
+}
+
+// MarshalJSON implements the json.Marshaler interface for SchemaOrReference
+func (s SchemaOrReference) MarshalJSON() ([]byte, error) {
+	if s.Reference != nil {
+		return json.Marshal(s.Reference)
+	}
+	if s.Schema != nil {
+		return json.Marshal(s.Schema)
+	}
+	return json.Marshal(nil)
+}
+
 type Info struct {
 	Title          string   `json:"title"`
 	Description    string   `json:"description,omitempty"`
@@ -84,9 +106,33 @@ type RequestBody struct {
 	Content     map[string]MediaType `json:"content"`
 }
 
+// MediaType represents a media type object in OpenAPI spec
 type MediaType struct {
-	Schema  Schema      `json:"schema"`
-	Example interface{} `json:"example,omitempty"`
+	Schema    Schema      `json:"schema,omitempty"`
+	Example   interface{} `json:"example,omitempty"`
+	SchemaRef *Reference  `json:"-"`
+}
+
+// MarshalJSON implements custom JSON marshaling for MediaType to handle schema references properly
+func (m MediaType) MarshalJSON() ([]byte, error) {
+	if m.SchemaRef != nil {
+		return json.Marshal(struct {
+			Schema  *Reference  `json:"schema"`
+			Example interface{} `json:"example,omitempty"`
+		}{
+			Schema:  m.SchemaRef,
+			Example: m.Example,
+		})
+	}
+
+	// Otherwise marshal as normal
+	return json.Marshal(struct {
+		Schema  Schema      `json:"schema"`
+		Example interface{} `json:"example,omitempty"`
+	}{
+		Schema:  m.Schema,
+		Example: m.Example,
+	})
 }
 
 type Parameter struct {
@@ -200,6 +246,15 @@ func SchemaFromType(t reflect.Type) Schema {
 		return schema
 	case reflect.Slice, reflect.Array:
 		itemSchema := SchemaFromType(t.Elem())
+		if itemSchema.Type == "object" && itemSchema.TypeName != "" {
+			return Schema{
+				Type: "array",
+				Items: &Schema{
+					Ref: "#/components/schemas/" + itemSchema.TypeName,
+				},
+				TypeName: "[]" + itemSchema.TypeName,
+			}
+		}
 		return Schema{
 			Type:     "array",
 			Items:    &itemSchema,

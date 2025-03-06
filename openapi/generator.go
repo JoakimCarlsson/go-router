@@ -191,6 +191,13 @@ func (g *Generator) generateSchemaName(schema Schema) string {
 	return ""
 }
 
+// createSchemaReference creates a reference to a schema component
+func (g *Generator) createSchemaReference(schemaName string) *Reference {
+	return &Reference{
+		Ref: "#/components/schemas/" + schemaName,
+	}
+}
+
 // RouteMetadata contains OpenAPI documentation for a route
 // This structure remains for backward compatibility
 type RouteMetadata struct {
@@ -291,6 +298,26 @@ func WithEmptyResponse(statusCode int, description string) RouteOption {
 	}
 }
 
+// WithJSONResponse adds a JSON response with schema inferred from the provided type T
+// It automatically handles both array and non-array types
+func WithJSONResponse[T any](statusCode int, description string) RouteOption {
+	return func(m *RouteMetadata) {
+		t := reflect.TypeOf((*T)(nil)).Elem()
+		schema := SchemaFromType(t)
+
+		if m.Responses == nil {
+			m.Responses = make(map[string]Response)
+		}
+
+		m.Responses[strconv.Itoa(statusCode)] = Response{
+			Description: description,
+			Content: map[string]MediaType{
+				"application/json": {Schema: schema},
+			},
+		}
+	}
+}
+
 // WithResponseType adds a response with schema inferred from the provided type
 // It automatically detects if the type is a slice/array
 func WithResponseType[T any](statusCode int, description string, _ T) RouteOption {
@@ -302,25 +329,60 @@ func WithResponseType[T any](statusCode int, description string, _ T) RouteOptio
 		t := reflect.TypeOf((*T)(nil)).Elem()
 
 		if t.Kind() == reflect.Slice || t.Kind() == reflect.Array {
-			itemSchema := SchemaFromType(t.Elem())
-			m.Responses[strconv.Itoa(statusCode)] = Response{
-				Description: description,
-				Content: map[string]MediaType{
-					"application/json": {
-						Schema: Schema{
-							Type:  "array",
-							Items: &itemSchema,
+			elemType := t.Elem()
+			itemSchema := SchemaFromType(elemType)
+
+			if itemSchema.Type == "object" && itemSchema.Properties != nil && itemSchema.TypeName != "" {
+				m.Responses[strconv.Itoa(statusCode)] = Response{
+					Description: description,
+					Content: map[string]MediaType{
+						"application/json": {
+							Schema: Schema{
+								Type: "array",
+								Items: &Schema{
+									Ref: "#/components/schemas/" + itemSchema.TypeName,
+								},
+							},
 						},
 					},
-				},
+				}
+			} else {
+				// For primitive type arrays, use the schema directly
+				m.Responses[strconv.Itoa(statusCode)] = Response{
+					Description: description,
+					Content: map[string]MediaType{
+						"application/json": {
+							Schema: Schema{
+								Type:  "array",
+								Items: &itemSchema,
+							},
+						},
+					},
+				}
 			}
 		} else {
 			schema := SchemaFromType(t)
-			m.Responses[strconv.Itoa(statusCode)] = Response{
-				Description: description,
-				Content: map[string]MediaType{
-					"application/json": {Schema: schema},
-				},
+			schemaName := schema.TypeName
+
+			if schema.Type == "object" && schema.Properties != nil && schemaName != "" {
+				m.Responses[strconv.Itoa(statusCode)] = Response{
+					Description: description,
+					Content: map[string]MediaType{
+						"application/json": {
+							SchemaRef: &Reference{
+								Ref: "#/components/schemas/" + schemaName,
+							},
+						},
+					},
+				}
+			} else {
+				// For primitive types, use the schema directly
+				m.Responses[strconv.Itoa(statusCode)] = Response{
+					Description: description,
+					Content: map[string]MediaType{
+						"application/json": {Schema: schema},
+					},
+				}
 			}
 		}
 	}
@@ -437,16 +499,48 @@ func (g *Generator) Generate(routes []RouteInfo) *Spec {
 			pathItem = PathItem{}
 		}
 
-		// Convert request body
 		var requestBody *RequestBody
 		if rb := route.RequestBody(); rb != nil {
 			requestBody = RequestBodyFromMetadataRequestBody(rb)
+
+			for contentType, mediaType := range requestBody.Content {
+				schemaName := g.generateSchemaName(mediaType.Schema)
+				if schemaName != "" && g.schemas[schemaName].Type != "" {
+					mediaType.SchemaRef = g.createSchemaReference(schemaName)
+					mediaType.Schema = Schema{}
+					requestBody.Content[contentType] = mediaType
+				}
+			}
 		}
 
 		// Convert responses
 		responses := make(map[string]Response)
 		for statusCode, response := range route.Responses() {
-			responses[statusCode] = ResponseFromMetadataResponse(response)
+			convertedResponse := ResponseFromMetadataResponse(response)
+
+			// Convert schema references in responses
+			for contentType, mediaType := range convertedResponse.Content {
+				schemaName := g.generateSchemaName(mediaType.Schema)
+				if schemaName != "" && g.schemas[schemaName].Type != "" {
+					mediaType.SchemaRef = g.createSchemaReference(schemaName)
+					mediaType.Schema = Schema{}
+					convertedResponse.Content[contentType] = mediaType
+				} else if mediaType.Schema.Type == "array" && mediaType.Schema.Items != nil {
+					itemSchemaName := g.generateSchemaName(*mediaType.Schema.Items)
+					if itemSchemaName != "" && g.schemas[itemSchemaName].Type != "" {
+						// Replace array item with reference
+						mediaType.Schema.Items.Ref = "#/components/schemas/" + itemSchemaName
+						// Clear other properties of the item as they're referenced
+						mediaType.Schema.Items.Type = ""
+						mediaType.Schema.Items.Properties = nil
+						mediaType.Schema.Items.Example = nil
+						mediaType.Schema.Items.Required = nil
+						convertedResponse.Content[contentType] = mediaType
+					}
+				}
+			}
+
+			responses[statusCode] = convertedResponse
 		}
 
 		// Convert parameters
