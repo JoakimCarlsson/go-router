@@ -10,14 +10,16 @@ import (
 
 	"github.com/joakimcarlsson/go-router/docs"
 	"github.com/joakimcarlsson/go-router/integration"
+	"github.com/joakimcarlsson/go-router/openapi"
 	"github.com/joakimcarlsson/go-router/router"
+	"github.com/joakimcarlsson/go-router/swagger"
 )
 
 // Product represents a product in the catalog
 type Product struct {
 	ID          string    `json:"id"`
 	Name        string    `json:"name" validate:"required"`
-	Description string    `json:"description"`
+	Description *string   `json:"description"`
 	Price       float64   `json:"price" validate:"min=0.01"`
 	Category    string    `json:"category"`
 	InStock     bool      `json:"inStock"`
@@ -28,7 +30,7 @@ type Product struct {
 // NewProductRequest represents a request to create a product
 type NewProductRequest struct {
 	Name        string  `json:"name" validate:"required"`
-	Description string  `json:"description"`
+	Description *string `json:"description"`
 	Price       float64 `json:"price" validate:"min=0.01"`
 	Category    string  `json:"category"`
 	InStock     bool    `json:"inStock"`
@@ -52,7 +54,7 @@ func NewProductStore() *ProductStore {
 	store.AddProduct(Product{
 		ID:          "1",
 		Name:        "Wireless Earbuds",
-		Description: "High-quality wireless earbuds with noise cancellation",
+		Description: nil,
 		Price:       129.99,
 		Category:    "Electronics",
 		InStock:     true,
@@ -63,7 +65,7 @@ func NewProductStore() *ProductStore {
 	store.AddProduct(Product{
 		ID:          "2",
 		Name:        "Running Shoes",
-		Description: "Comfortable running shoes with arch support",
+		Description: nil,
 		Price:       89.99,
 		Category:    "Footwear",
 		InStock:     true,
@@ -74,7 +76,7 @@ func NewProductStore() *ProductStore {
 	store.AddProduct(Product{
 		ID:          "3",
 		Name:        "Coffee Maker",
-		Description: "Programmable coffee maker with thermal carafe",
+		Description: nil,
 		Price:       74.50,
 		Category:    "Kitchen",
 		InStock:     false,
@@ -223,18 +225,22 @@ func main() {
 		docs.WithResponse(404, "Product not found"),
 	)
 
-	// Setup OpenAPI and Swagger
-	err := integration.Setup(r, integration.SetupOptions{
+	// Create OpenAPI generator
+	generator := openapi.NewGenerator(openapi.Info{
 		Title:       "Product Catalog API",
 		Version:     "1.0.0",
 		Description: "A sample product catalog API built with go-router",
-		SpecPath:    "/openapi.json",
-		DocsPath:    "/docs",
 	})
 
-	if err != nil {
-		log.Fatalf("Failed to setup API documentation: %v", err)
-	}
+	// Configure Swagger UI with specific settings for pointer fields
+	uiConfig := swagger.DefaultUIConfig()
+	uiConfig.DefaultModelRendering = "example"
+	uiConfig.Title = "Product Catalog API"
+
+	// Set up the integration
+	swaggerUI := integration.NewSwaggerUIIntegration(r, generator)
+	swaggerUI.WithUIConfig(uiConfig)
+	swaggerUI.SetupRoutes(r, "/openapi.json", "/docs")
 
 	fmt.Println("Server starting on http://localhost:8080")
 	fmt.Println("API documentation available at http://localhost:8080/docs")

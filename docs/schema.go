@@ -22,7 +22,9 @@ func SchemaFromType(t reflect.Type) metadata.Schema {
 
 	switch t.Kind() {
 	case reflect.Ptr:
-		return SchemaFromType(t.Elem())
+		schema := SchemaFromType(t.Elem())
+		schema.Nullable = true
+		return schema
 	case reflect.Struct:
 		properties, required := getStructProperties(t)
 		schema := metadata.Schema{
@@ -115,12 +117,22 @@ func getStructProperties(t reflect.Type) (map[string]metadata.Schema, []string) 
 			required = append(required, name)
 		}
 
-		schema := SchemaFromType(field.Type)
-		schema.MinLength = minLen
-		schema.MaxLength = maxLen
-		schema.Minimum = min
-		schema.Description = field.Tag.Get("description")
-		properties[name] = schema
+		if field.Type.Kind() == reflect.Ptr {
+			schema := SchemaFromType(field.Type.Elem())
+			schema.Nullable = true
+			schema.MinLength = minLen
+			schema.MaxLength = maxLen
+			schema.Minimum = min
+			schema.Description = field.Tag.Get("description")
+			properties[name] = schema
+		} else {
+			schema := SchemaFromType(field.Type)
+			schema.MinLength = minLen
+			schema.MaxLength = maxLen
+			schema.Minimum = min
+			schema.Description = field.Tag.Get("description")
+			properties[name] = schema
+		}
 	}
 
 	return properties, required
