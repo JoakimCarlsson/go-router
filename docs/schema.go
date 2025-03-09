@@ -22,13 +22,19 @@ func SchemaFromType(t reflect.Type) metadata.Schema {
 
 	switch t.Kind() {
 	case reflect.Ptr:
-		return SchemaFromType(t.Elem())
+		schema := SchemaFromType(t.Elem())
+		schema.Nullable = true
+		return schema
 	case reflect.Struct:
 		properties, required := getStructProperties(t)
+
+		// Register the type and get a collision-free name
+		typeName := metadata.RegisterType(t)
+
 		schema := metadata.Schema{
 			Type:       "object",
 			Properties: properties,
-			TypeName:   t.Name(),
+			TypeName:   typeName,
 		}
 		if len(required) > 0 {
 			schema.Required = required
@@ -38,7 +44,16 @@ func SchemaFromType(t reflect.Type) metadata.Schema {
 		}
 		return schema
 	case reflect.Slice, reflect.Array:
-		itemSchema := SchemaFromType(t.Elem())
+		elemType := t.Elem()
+		itemSchema := SchemaFromType(elemType)
+
+		// For arrays of structs, we need to explicitly register the element type
+		// to ensure it appears in the component schemas
+		if elemType.Kind() == reflect.Struct && elemType.Name() != "" {
+			// This ensures the element type is registered
+			metadata.RegisterType(elemType)
+		}
+
 		return metadata.Schema{
 			Type:     "array",
 			Items:    &itemSchema,
@@ -115,12 +130,22 @@ func getStructProperties(t reflect.Type) (map[string]metadata.Schema, []string) 
 			required = append(required, name)
 		}
 
-		schema := SchemaFromType(field.Type)
-		schema.MinLength = minLen
-		schema.MaxLength = maxLen
-		schema.Minimum = min
-		schema.Description = field.Tag.Get("description")
-		properties[name] = schema
+		if field.Type.Kind() == reflect.Ptr {
+			schema := SchemaFromType(field.Type.Elem())
+			schema.Nullable = true
+			schema.MinLength = minLen
+			schema.MaxLength = maxLen
+			schema.Minimum = min
+			schema.Description = field.Tag.Get("description")
+			properties[name] = schema
+		} else {
+			schema := SchemaFromType(field.Type)
+			schema.MinLength = minLen
+			schema.MaxLength = maxLen
+			schema.Minimum = min
+			schema.Description = field.Tag.Get("description")
+			properties[name] = schema
+		}
 	}
 
 	return properties, required

@@ -1,5 +1,11 @@
 package metadata
 
+import (
+	"reflect"
+	"strings"
+	"sync"
+)
+
 // RouteMetadata contains documentation and configuration for a route.
 // This structure is used for generating OpenAPI documentation and provides
 // all the information needed to describe an API endpoint.
@@ -88,6 +94,101 @@ type Schema struct {
 	Nullable             bool              `json:"nullable,omitempty"`
 	AdditionalProperties *Schema           `json:"additionalProperties,omitempty"`
 	TypeName             string            `json:"-"`
+}
+
+// TypeRegistryEntry stores information about a registered type
+type TypeRegistryEntry struct {
+	Name      string
+	PkgPath   string
+	Count     int
+	FinalName string
+}
+
+// typeRegistry tracks registered types and detects name collisions
+type typeRegistry struct {
+	types map[string]*TypeRegistryEntry
+	mu    sync.RWMutex
+}
+
+// global registry instance
+var globalTypeRegistry *typeRegistry
+
+// init initializes the global type registry
+func init() {
+	globalTypeRegistry = &typeRegistry{
+		types: make(map[string]*TypeRegistryEntry),
+	}
+}
+
+// RegisterType adds a type to the registry and returns a non-colliding name
+func RegisterType(t reflect.Type) string {
+	globalTypeRegistry.mu.Lock()
+	defer globalTypeRegistry.mu.Unlock()
+
+	name := t.Name()
+	pkgPath := t.PkgPath()
+	fullID := pkgPath + "." + name
+
+	// Check if we've seen this exact type before (same name and package)
+	if entry, exists := globalTypeRegistry.types[fullID]; exists {
+		entry.Count++
+		// Return the name we've already assigned to this type
+		return entry.FinalName
+	}
+
+	// Check if we've seen this base name before but with a different package
+	if entry, exists := globalTypeRegistry.types[name]; exists {
+		// This is a collision - we need qualified names for both
+
+		// If this is the first collision with this name, we need to rename the original entry
+		if entry.Count == 1 && entry.FinalName == name {
+			// Update the original entry to use a qualified name
+			origFullID := entry.PkgPath + "." + entry.Name
+
+			// Calculate the original's qualified name
+			origQualifiedName := SanitizeSchemaName(entry.PkgPath + "_" + entry.Name)
+			entry.FinalName = origQualifiedName
+
+			// Update map to point to the same entry with full ID
+			globalTypeRegistry.types[origFullID] = entry
+			delete(globalTypeRegistry.types, name)
+		}
+
+		// Register this new type with its package-qualified name
+		qualifiedName := SanitizeSchemaName(pkgPath + "_" + name)
+		globalTypeRegistry.types[fullID] = &TypeRegistryEntry{
+			Name:      name,
+			PkgPath:   pkgPath,
+			Count:     1,
+			FinalName: qualifiedName,
+		}
+
+		// Return the qualified name when there's a collision
+		return qualifiedName
+	}
+
+	// First time seeing this name, register with the simple name
+	globalTypeRegistry.types[name] = &TypeRegistryEntry{
+		Name:      name,
+		PkgPath:   pkgPath,
+		Count:     1,
+		FinalName: name, // Initially use the simple name
+	}
+
+	// Also register with the full ID for exact lookups
+	globalTypeRegistry.types[fullID] = globalTypeRegistry.types[name]
+
+	// Return simple name when there's no collision
+	return name
+}
+
+// SanitizeSchemaName converts a fully qualified type name to a valid schema name
+// by removing invalid characters and normalizing the format
+func SanitizeSchemaName(name string) string {
+	name = strings.ReplaceAll(name, ".", "_")
+	name = strings.ReplaceAll(name, "/", "_")
+	name = strings.ReplaceAll(name, "-", "_")
+	return name
 }
 
 // OAuth2Config holds OAuth2 configuration for API authentication.
