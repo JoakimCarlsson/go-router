@@ -27,10 +27,17 @@ func SchemaFromType(t reflect.Type) metadata.Schema {
 		return schema
 	case reflect.Struct:
 		properties, required := getStructProperties(t)
+		pkgPath := t.PkgPath()
+		typeName := t.Name()
+		fullTypeName := typeName
+		if pkgPath != "" {
+			fullTypeName = pkgPath + "." + typeName
+		}
+
 		schema := metadata.Schema{
 			Type:       "object",
 			Properties: properties,
-			TypeName:   t.Name(),
+			TypeName:   fullTypeName,
 		}
 		if len(required) > 0 {
 			schema.Required = required
@@ -46,7 +53,7 @@ func SchemaFromType(t reflect.Type) metadata.Schema {
 			return metadata.Schema{
 				Type: "array",
 				Items: &metadata.Schema{
-					Ref: "#/components/schemas/" + itemSchema.TypeName,
+					Ref: "#/components/schemas/" + sanitizeSchemaName(itemSchema.TypeName),
 				},
 				TypeName: "[]" + itemSchema.TypeName,
 			}
@@ -65,6 +72,16 @@ func SchemaFromType(t reflect.Type) metadata.Schema {
 		schema.Example = getExampleValue(t)
 		return schema
 	}
+}
+
+// sanitizeSchemaName converts a fully qualified type name to a valid schema name
+// by removing invalid characters and normalizing the format
+func sanitizeSchemaName(name string) string {
+	name = strings.ReplaceAll(name, ".", "_")
+	name = strings.ReplaceAll(name, "/", "_")
+	name = strings.ReplaceAll(name, "-", "_")
+
+	return name
 }
 
 func getValidationRules(field reflect.StructField) (required bool, minLen, maxLen *int, min *float64) {

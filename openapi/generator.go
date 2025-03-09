@@ -184,9 +184,9 @@ func (g *Generator) generateSchemaName(schema Schema) string {
 	if schema.TypeName != "" {
 		// For arrays, we only want the element type name
 		if strings.HasPrefix(schema.TypeName, "[]") {
-			return strings.TrimPrefix(schema.TypeName, "[]")
+			return sanitizeSchemaName(strings.TrimPrefix(schema.TypeName, "[]"))
 		}
-		return schema.TypeName
+		return sanitizeSchemaName(schema.TypeName)
 	}
 	return ""
 }
