@@ -150,14 +150,36 @@ func RequestBodyFromMetadataRequestBody(r *metadata.RequestBody) *RequestBody {
 	content := make(map[string]MediaType)
 	for k, v := range r.Content {
 		schema := SchemaFromMetadataSchema(v.Schema)
-		if schema.Type == "array" && schema.Items != nil && schema.Items.Ref != "" {
-			content[k] = MediaType{
-				Schema: Schema{
-					Type:  "array",
-					Items: schema.Items,
-				},
+		if schema.Type == "array" && schema.Items != nil {
+			if schema.Items.Ref != "" {
+				// For arrays with component references
+				content[k] = MediaType{
+					Schema: Schema{
+						Type: "array",
+						Items: &Schema{
+							Ref: schema.Items.Ref,
+						},
+					},
+				}
+			} else if schema.Items.Type == "object" && schema.Items.TypeName != "" {
+				// For arrays of objects that should be referenced
+				sanitizedName := metadata.SanitizeSchemaName(schema.Items.TypeName)
+				content[k] = MediaType{
+					Schema: Schema{
+						Type: "array",
+						Items: &Schema{
+							Ref: "#/components/schemas/" + sanitizedName,
+						},
+					},
+				}
+			} else {
+				// For arrays of primitive types
+				content[k] = MediaType{
+					Schema: schema,
+				}
 			}
 		} else if schema.Ref != "" {
+			// For direct references
 			content[k] = MediaType{
 				SchemaRef: &Reference{
 					Ref: schema.Ref,

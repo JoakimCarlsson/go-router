@@ -194,6 +194,16 @@ func main() {
 		docs.WithResponse(400, "Invalid product data"),
 	)
 
+	r.POST("/products/batch", func(c *router.Context) { createProductBatch(c, store) },
+		docs.WithTags("Products"),
+		docs.WithSummary("Creates a batch of products"),
+		docs.WithDescription("Creates multiple products in the catalog"),
+		docs.WithJSONRequestBody[[]NewProductRequest](true, "Product information"),
+		docs.WithResponse(201, "Product created successfully"),
+		docs.WithJSONResponse[[]Product](201, "Created product"),
+		docs.WithResponse(400, "Invalid product data"),
+	)
+
 	r.GET("/products/{id}", func(c *router.Context) { getProduct(c, store) },
 		docs.WithTags("Products"),
 		docs.WithSummary("Get product by ID"),
@@ -273,6 +283,48 @@ func healthCheck(c *router.Context) {
 		"status": "healthy",
 		"time":   time.Now().Format(time.RFC3339),
 	})
+}
+
+func createProductBatch(c *router.Context, store *ProductStore) {
+	var requests []NewProductRequest
+	if err := c.BindJSON(&requests); err != nil {
+		c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "Invalid request body",
+		})
+		return
+	}
+
+	products := make([]Product, 0, len(requests))
+	for _, request := range requests {
+		// Simple validation
+		if request.Name == "" {
+			c.JSON(http.StatusBadRequest, map[string]string{
+				"error": "Name is required",
+			})
+			return
+		}
+
+		if request.Price <= 0 {
+			c.JSON(http.StatusBadRequest, map[string]string{
+				"error": "Price must be greater than 0",
+			})
+			return
+		}
+
+		product := Product{
+			Name:        request.Name,
+			Description: request.Description,
+			Price:       request.Price,
+			Category:    request.Category,
+			InStock:     request.InStock,
+		}
+
+		id := store.AddProduct(product)
+		createdProduct, _ := store.GetProduct(id)
+		products = append(products, createdProduct)
+	}
+
+	c.JSON(http.StatusCreated, products)
 }
 
 func listProducts(c *router.Context, store *ProductStore) {
