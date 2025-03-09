@@ -6,6 +6,8 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+
+	"github.com/joakimcarlsson/go-router/metadata"
 )
 
 // Spec represents the OpenAPI 3.0.0 specification
@@ -233,17 +235,13 @@ func SchemaFromType(t reflect.Type) Schema {
 	case reflect.Struct:
 		properties, required := getStructProperties(t)
 
-		pkgPath := t.PkgPath()
-		typeName := t.Name()
-		fullTypeName := typeName
-		if pkgPath != "" {
-			fullTypeName = pkgPath + "." + typeName
-		}
+		// Register the type and get a collision-free name
+		typeName := metadata.RegisterType(t)
 
 		schema := Schema{
 			Type:       "object",
 			Properties: properties,
-			TypeName:   fullTypeName,
+			TypeName:   typeName,
 		}
 		if len(required) > 0 {
 			schema.Required = required
@@ -258,7 +256,7 @@ func SchemaFromType(t reflect.Type) Schema {
 			return Schema{
 				Type: "array",
 				Items: &Schema{
-					Ref: "#/components/schemas/" + sanitizeSchemaName(itemSchema.TypeName),
+					Ref: "#/components/schemas/" + metadata.SanitizeSchemaName(itemSchema.TypeName),
 				},
 				TypeName: "[]" + itemSchema.TypeName,
 			}

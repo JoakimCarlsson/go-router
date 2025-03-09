@@ -4,6 +4,8 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+
+	"github.com/joakimcarlsson/go-router/metadata"
 )
 
 // Generator handles OpenAPI specification generation
@@ -160,8 +162,21 @@ func (g *Generator) collectSchemas() {
 
 // collectSchemaComponents recursively collects component schemas
 func (g *Generator) collectSchemaComponents(schema Schema) {
+	// If it's an array type, process the item type
+	if schema.Type == "array" && schema.Items != nil {
+		// Register the array item type if it's an object
+		if schema.Items.Type == "object" && schema.Items.Properties != nil && schema.Items.TypeName != "" {
+			name := sanitizeSchemaName(schema.Items.TypeName)
+			g.schemas[name] = *schema.Items
+		}
+
+		// Continue processing the items schema
+		g.collectSchemaComponents(*schema.Items)
+		return
+	}
+
 	// If it's a struct type, register it as a component
-	if schema.Type == "object" && schema.Properties != nil {
+	if schema.Type == "object" && schema.Properties != nil && schema.TypeName != "" {
 		name := g.generateSchemaName(schema)
 		if name != "" {
 			g.schemas[name] = schema
@@ -171,11 +186,6 @@ func (g *Generator) collectSchemaComponents(schema Schema) {
 		for _, prop := range schema.Properties {
 			g.collectSchemaComponents(prop)
 		}
-	}
-
-	// Recurse into array items
-	if schema.Items != nil {
-		g.collectSchemaComponents(*schema.Items)
 	}
 }
 
@@ -303,17 +313,58 @@ func WithEmptyResponse(statusCode int, description string) RouteOption {
 func WithJSONResponse[T any](statusCode int, description string) RouteOption {
 	return func(m *RouteMetadata) {
 		t := reflect.TypeOf((*T)(nil)).Elem()
-		schema := SchemaFromType(t)
 
 		if m.Responses == nil {
 			m.Responses = make(map[string]Response)
 		}
 
-		m.Responses[strconv.Itoa(statusCode)] = Response{
-			Description: description,
-			Content: map[string]MediaType{
-				"application/json": {Schema: schema},
-			},
+		// Special handling for array types
+		if t.Kind() == reflect.Slice || t.Kind() == reflect.Array {
+			elemType := t.Elem()
+			// Register the element type to ensure it appears in components
+			itemTypeName := metadata.RegisterType(elemType)
+			sanitizedName := metadata.SanitizeSchemaName(itemTypeName)
+
+			m.Responses[strconv.Itoa(statusCode)] = Response{
+				Description: description,
+				Content: map[string]MediaType{
+					"application/json": {
+						Schema: Schema{
+							Type: "array",
+							Items: &Schema{
+								Ref: "#/components/schemas/" + sanitizedName,
+							},
+						},
+					},
+				},
+			}
+			return
+		}
+
+		// For non-array types
+		schema := SchemaFromType(t)
+		if schema.Type == "object" && schema.Properties != nil && schema.TypeName != "" {
+			// Use reference for object types
+			m.Responses[strconv.Itoa(statusCode)] = Response{
+				Description: description,
+				Content: map[string]MediaType{
+					"application/json": {
+						SchemaRef: &Reference{
+							Ref: "#/components/schemas/" + metadata.SanitizeSchemaName(schema.TypeName),
+						},
+					},
+				},
+			}
+		} else {
+			// Use inline schema for primitive types
+			m.Responses[strconv.Itoa(statusCode)] = Response{
+				Description: description,
+				Content: map[string]MediaType{
+					"application/json": {
+						Schema: schema,
+					},
+				},
+			}
 		}
 	}
 }

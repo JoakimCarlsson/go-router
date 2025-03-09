@@ -27,17 +27,14 @@ func SchemaFromType(t reflect.Type) metadata.Schema {
 		return schema
 	case reflect.Struct:
 		properties, required := getStructProperties(t)
-		pkgPath := t.PkgPath()
-		typeName := t.Name()
-		fullTypeName := typeName
-		if pkgPath != "" {
-			fullTypeName = pkgPath + "." + typeName
-		}
+
+		// Register the type and get a collision-free name
+		typeName := metadata.RegisterType(t)
 
 		schema := metadata.Schema{
 			Type:       "object",
 			Properties: properties,
-			TypeName:   fullTypeName,
+			TypeName:   typeName,
 		}
 		if len(required) > 0 {
 			schema.Required = required
@@ -47,18 +44,16 @@ func SchemaFromType(t reflect.Type) metadata.Schema {
 		}
 		return schema
 	case reflect.Slice, reflect.Array:
-		itemSchema := SchemaFromType(t.Elem())
-		// If the item is an object type with a name, set up for reference
-		if itemSchema.Type == "object" && itemSchema.TypeName != "" {
-			return metadata.Schema{
-				Type: "array",
-				Items: &metadata.Schema{
-					Ref: "#/components/schemas/" + sanitizeSchemaName(itemSchema.TypeName),
-				},
-				TypeName: "[]" + itemSchema.TypeName,
-			}
+		elemType := t.Elem()
+		itemSchema := SchemaFromType(elemType)
+
+		// For arrays of structs, we need to explicitly register the element type
+		// to ensure it appears in the component schemas
+		if elemType.Kind() == reflect.Struct && elemType.Name() != "" {
+			// This ensures the element type is registered
+			metadata.RegisterType(elemType)
 		}
-		// For primitive types or unnamed objects, use the schema directly
+
 		return metadata.Schema{
 			Type:     "array",
 			Items:    &itemSchema,
@@ -72,16 +67,6 @@ func SchemaFromType(t reflect.Type) metadata.Schema {
 		schema.Example = getExampleValue(t)
 		return schema
 	}
-}
-
-// sanitizeSchemaName converts a fully qualified type name to a valid schema name
-// by removing invalid characters and normalizing the format
-func sanitizeSchemaName(name string) string {
-	name = strings.ReplaceAll(name, ".", "_")
-	name = strings.ReplaceAll(name, "/", "_")
-	name = strings.ReplaceAll(name, "-", "_")
-
-	return name
 }
 
 func getValidationRules(field reflect.StructField) (required bool, minLen, maxLen *int, min *float64) {
