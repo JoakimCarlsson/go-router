@@ -219,13 +219,21 @@ type Tag struct {
 
 // SchemaFromType generates an OpenAPI schema from a Go type
 func SchemaFromType(t reflect.Type) Schema {
-	// Special handling for time.Time
 	if t.String() == "time.Time" {
 		return Schema{
 			Type:     "string",
 			Format:   "date-time",
 			Example:  "2025-02-22T08:36:06.224266+01:00",
 			TypeName: "time.Time",
+		}
+	}
+
+	if t.String() == "uuid.UUID" {
+		return Schema{
+			Type:     "uuid",
+			Format:   "uuid",
+			Example:  "123e4567-e89b-12d3-a456-426614174000",
+			TypeName: "UUID",
 		}
 	}
 
