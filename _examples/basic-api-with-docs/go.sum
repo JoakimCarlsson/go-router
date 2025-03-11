@@ -1,0 +1,4 @@
+github.com/google/uuid v1.6.0 h1:NIvaJDMOsjHA8n1jAhLSgzrAzy1Hgr+hNrb57e+94F0=
+github.com/google/uuid v1.6.0/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+yHo=
+github.com/joakimcarlsson/go-router v0.30.0 h1:CMBM7h+P9z5tisfrghb7PZq9n4iHY4alE6pclMNbsos=
+github.com/joakimcarlsson/go-router v0.30.0/go.mod h1:YnjMOB0wa3P6WGQKhTSS2ykjEP5LbrODXhNL0kBU8Qo=
