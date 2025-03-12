@@ -3,6 +3,7 @@ package integration
 import (
 	"fmt"
 
+	"github.com/joakimcarlsson/go-router/metadata"
 	"github.com/joakimcarlsson/go-router/openapi"
 	"github.com/joakimcarlsson/go-router/router"
 	"github.com/joakimcarlsson/go-router/swagger"
@@ -68,7 +69,7 @@ func Setup(r *router.Router, opts SetupOptions) error {
 	}
 
 	// Create OpenAPI generator
-	generator := openapi.NewGenerator(openapi.Info{
+	generator := openapi.NewGenerator(metadata.Info{
 		Title:       opts.Title,
 		Version:     opts.Version,
 		Description: opts.Description,

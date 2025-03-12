@@ -3,6 +3,7 @@ package integration
 import (
 	"net/http"
 
+	"github.com/joakimcarlsson/go-router/metadata"
 	"github.com/joakimcarlsson/go-router/openapi"
 	"github.com/joakimcarlsson/go-router/router"
 )
@@ -50,7 +51,7 @@ func (a *RouterOpenAPIAdapter) ExtractRouteInfo() []openapi.RouteInfo {
 // GenerateOpenAPISpec generates an OpenAPI specification from the router's routes.
 // This creates a complete OpenAPI specification document based on the
 // route metadata and configuration in the generator.
-func (a *RouterOpenAPIAdapter) GenerateOpenAPISpec() *openapi.Spec {
+func (a *RouterOpenAPIAdapter) GenerateOpenAPISpec() *metadata.Spec {
 	routeInfos := a.ExtractRouteInfo()
 	return a.Generator.Generate(routeInfos)
 }
