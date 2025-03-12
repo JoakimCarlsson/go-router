@@ -5,37 +5,38 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/joakimcarlsson/go-router/docs"
 	"github.com/joakimcarlsson/go-router/metadata"
 )
 
 // Generator handles OpenAPI specification generation
 type Generator struct {
-	info            Info
-	securitySchemes map[string]SecurityScheme
-	servers         []Server
-	schemas         map[string]Schema
+	info            metadata.Info
+	securitySchemes map[string]metadata.SecurityScheme
+	servers         []metadata.Server
+	schemas         map[string]metadata.Schema
 	routeInfo       []RouteInfo
 }
 
 // NewGenerator creates a new OpenAPI generator
-func NewGenerator(info Info) *Generator {
+func NewGenerator(info metadata.Info) *Generator {
 	return &Generator{
 		info:            info,
-		securitySchemes: make(map[string]SecurityScheme),
-		servers:         make([]Server, 0),
-		schemas:         make(map[string]Schema),
+		securitySchemes: make(map[string]metadata.SecurityScheme),
+		servers:         make([]metadata.Server, 0),
+		schemas:         make(map[string]metadata.Schema),
 		routeInfo:       make([]RouteInfo, 0),
 	}
 }
 
 // WithSecurityScheme adds a security scheme to the OpenAPI specification
-func (g *Generator) WithSecurityScheme(name string, scheme SecurityScheme) {
+func (g *Generator) WithSecurityScheme(name string, scheme metadata.SecurityScheme) {
 	g.securitySchemes[name] = scheme
 }
 
 // WithBasicAuth adds a basic authentication security scheme
 func (g *Generator) WithBasicAuth(name, description string) {
-	g.WithSecurityScheme(name, SecurityScheme{
+	g.WithSecurityScheme(name, metadata.SecurityScheme{
 		Type:        "http",
 		Scheme:      "basic",
 		Description: description,
@@ -44,7 +45,7 @@ func (g *Generator) WithBasicAuth(name, description string) {
 
 // WithBearerAuth adds a bearer token authentication security scheme
 func (g *Generator) WithBearerAuth(name, description string) {
-	g.WithSecurityScheme(name, SecurityScheme{
+	g.WithSecurityScheme(name, metadata.SecurityScheme{
 		Type:        "http",
 		Scheme:      "bearer",
 		Description: description,
@@ -53,7 +54,7 @@ func (g *Generator) WithBearerAuth(name, description string) {
 
 // WithAPIKey adds an API key authentication security scheme
 func (g *Generator) WithAPIKey(name, description, in, paramName string) {
-	g.WithSecurityScheme(name, SecurityScheme{
+	g.WithSecurityScheme(name, metadata.SecurityScheme{
 		Type:        "apiKey",
 		Description: description,
 		Name:        paramName,
@@ -63,11 +64,11 @@ func (g *Generator) WithAPIKey(name, description, in, paramName string) {
 
 // WithOAuth2ImplicitFlow adds an OAuth2 security scheme with implicit flow
 func (g *Generator) WithOAuth2ImplicitFlow(name, description, authorizationURL string, scopes map[string]string) {
-	g.WithSecurityScheme(name, SecurityScheme{
+	g.WithSecurityScheme(name, metadata.SecurityScheme{
 		Type:        "oauth2",
 		Description: description,
-		Flows: &OAuthFlows{
-			Implicit: &OAuthFlow{
+		Flows: &metadata.OAuthFlows{
+			Implicit: &metadata.OAuthFlow{
 				AuthorizationURL: authorizationURL,
 				Scopes:           scopes,
 			},
@@ -77,11 +78,11 @@ func (g *Generator) WithOAuth2ImplicitFlow(name, description, authorizationURL s
 
 // WithOAuth2PasswordFlow adds an OAuth2 security scheme with password flow
 func (g *Generator) WithOAuth2PasswordFlow(name, description, tokenURL string, scopes map[string]string) {
-	g.WithSecurityScheme(name, SecurityScheme{
+	g.WithSecurityScheme(name, metadata.SecurityScheme{
 		Type:        "oauth2",
 		Description: description,
-		Flows: &OAuthFlows{
-			Password: &OAuthFlow{
+		Flows: &metadata.OAuthFlows{
+			Password: &metadata.OAuthFlow{
 				TokenURL: tokenURL,
 				Scopes:   scopes,
 			},
@@ -91,11 +92,11 @@ func (g *Generator) WithOAuth2PasswordFlow(name, description, tokenURL string, s
 
 // WithOAuth2ClientCredentialsFlow adds an OAuth2 security scheme with client credentials flow
 func (g *Generator) WithOAuth2ClientCredentialsFlow(name, description, tokenURL string, scopes map[string]string) {
-	g.WithSecurityScheme(name, SecurityScheme{
+	g.WithSecurityScheme(name, metadata.SecurityScheme{
 		Type:        "oauth2",
 		Description: description,
-		Flows: &OAuthFlows{
-			ClientCredentials: &OAuthFlow{
+		Flows: &metadata.OAuthFlows{
+			ClientCredentials: &metadata.OAuthFlow{
 				TokenURL: tokenURL,
 				Scopes:   scopes,
 			},
@@ -105,11 +106,11 @@ func (g *Generator) WithOAuth2ClientCredentialsFlow(name, description, tokenURL 
 
 // WithOAuth2AuthorizationCodeFlow adds an OAuth2 security scheme with authorization code flow
 func (g *Generator) WithOAuth2AuthorizationCodeFlow(name, description, authorizationURL, tokenURL string, scopes map[string]string) {
-	g.WithSecurityScheme(name, SecurityScheme{
+	g.WithSecurityScheme(name, metadata.SecurityScheme{
 		Type:        "oauth2",
 		Description: description,
-		Flows: &OAuthFlows{
-			AuthorizationCode: &OAuthFlow{
+		Flows: &metadata.OAuthFlows{
+			AuthorizationCode: &metadata.OAuthFlow{
 				AuthorizationURL: authorizationURL,
 				TokenURL:         tokenURL,
 				Scopes:           scopes,
@@ -120,7 +121,7 @@ func (g *Generator) WithOAuth2AuthorizationCodeFlow(name, description, authoriza
 
 // WithOpenIDConnect adds an OpenID Connect security scheme
 func (g *Generator) WithOpenIDConnect(name, description, openIDConnectURL string) {
-	g.WithSecurityScheme(name, SecurityScheme{
+	g.WithSecurityScheme(name, metadata.SecurityScheme{
 		Type:             "openIdConnect",
 		Description:      description,
 		OpenIDConnectURL: openIDConnectURL,
@@ -129,7 +130,7 @@ func (g *Generator) WithOpenIDConnect(name, description, openIDConnectURL string
 
 // WithServer adds a server to the OpenAPI specification
 func (g *Generator) WithServer(url string, description string) {
-	g.servers = append(g.servers, Server{
+	g.servers = append(g.servers, metadata.Server{
 		URL:         url,
 		Description: description,
 	})
@@ -141,9 +142,7 @@ func (g *Generator) collectSchemas() {
 		// Collect from request bodies
 		if reqBody := route.RequestBody(); reqBody != nil {
 			for _, mediaType := range reqBody.Content {
-				// Convert metadata.Schema to openapi.Schema before collecting
-				schema := SchemaFromMetadataSchema(mediaType.Schema)
-				g.collectSchemaComponents(schema)
+				g.collectSchemaComponents(mediaType.Schema)
 			}
 		}
 
@@ -151,9 +150,7 @@ func (g *Generator) collectSchemas() {
 		for _, response := range route.Responses() {
 			if response.Content != nil {
 				for _, mediaType := range response.Content {
-					// Convert metadata.Schema to openapi.Schema before collecting
-					schema := SchemaFromMetadataSchema(mediaType.Schema)
-					g.collectSchemaComponents(schema)
+					g.collectSchemaComponents(mediaType.Schema)
 				}
 			}
 		}
@@ -161,12 +158,12 @@ func (g *Generator) collectSchemas() {
 }
 
 // collectSchemaComponents recursively collects component schemas
-func (g *Generator) collectSchemaComponents(schema Schema) {
+func (g *Generator) collectSchemaComponents(schema metadata.Schema) {
 	// If it's an array type, process the item type
 	if schema.Type == "array" && schema.Items != nil {
 		// Register the array item type if it's an object
 		if schema.Items.Type == "object" && schema.Items.Properties != nil && schema.Items.TypeName != "" {
-			name := sanitizeSchemaName(schema.Items.TypeName)
+			name := metadata.SanitizeSchemaName(schema.Items.TypeName)
 			g.schemas[name] = *schema.Items
 		}
 
@@ -190,20 +187,20 @@ func (g *Generator) collectSchemaComponents(schema Schema) {
 }
 
 // generateSchemaName generates a name for a schema based on its structure
-func (g *Generator) generateSchemaName(schema Schema) string {
+func (g *Generator) generateSchemaName(schema metadata.Schema) string {
 	if schema.TypeName != "" {
 		// For arrays, we only want the element type name
 		if strings.HasPrefix(schema.TypeName, "[]") {
-			return sanitizeSchemaName(strings.TrimPrefix(schema.TypeName, "[]"))
+			return metadata.SanitizeSchemaName(strings.TrimPrefix(schema.TypeName, "[]"))
 		}
-		return sanitizeSchemaName(schema.TypeName)
+		return metadata.SanitizeSchemaName(schema.TypeName)
 	}
 	return ""
 }
 
 // createSchemaReference creates a reference to a schema component
-func (g *Generator) createSchemaReference(schemaName string) *Reference {
-	return &Reference{
+func (g *Generator) createSchemaReference(schemaName string) *metadata.Reference {
+	return &metadata.Reference{
 		Ref: "#/components/schemas/" + schemaName,
 	}
 }
@@ -211,17 +208,17 @@ func (g *Generator) createSchemaReference(schemaName string) *Reference {
 // RouteMetadata contains OpenAPI documentation for a route
 // This structure remains for backward compatibility
 type RouteMetadata struct {
-	Method      string                `json:"-"`
-	Path        string                `json:"-"`
-	OperationID string                `json:"operationId,omitempty"`
-	Summary     string                `json:"summary,omitempty"`
-	Description string                `json:"description,omitempty"`
-	Tags        []string              `json:"tags,omitempty"`
-	Parameters  []Parameter           `json:"parameters,omitempty"`
-	RequestBody *RequestBody          `json:"requestBody,omitempty"`
-	Responses   map[string]Response   `json:"responses"`
-	Security    []SecurityRequirement `json:"security,omitempty"`
-	Deprecated  bool                  `json:"deprecated,omitempty"`
+	Method      string                         `json:"-"`
+	Path        string                         `json:"-"`
+	OperationID string                         `json:"operationId,omitempty"`
+	Summary     string                         `json:"summary,omitempty"`
+	Description string                         `json:"description,omitempty"`
+	Tags        []string                       `json:"tags,omitempty"`
+	Parameters  []metadata.Parameter           `json:"parameters,omitempty"`
+	RequestBody *metadata.RequestBody          `json:"requestBody,omitempty"`
+	Responses   map[string]metadata.Response   `json:"responses"`
+	Security    []metadata.SecurityRequirement `json:"security,omitempty"`
+	Deprecated  bool                           `json:"deprecated,omitempty"`
 }
 
 // WithOperationID sets the operationId for the route
@@ -258,12 +255,12 @@ func WithTags(tags ...string) RouteOption {
 // WithParameter adds a parameter to the route
 func WithParameter(name, in, typ string, required bool, description string, example interface{}) RouteOption {
 	return func(m *RouteMetadata) {
-		m.Parameters = append(m.Parameters, Parameter{
+		m.Parameters = append(m.Parameters, metadata.Parameter{
 			Name:        name,
 			In:          in,
 			Required:    required,
 			Description: description,
-			Schema: Schema{
+			Schema: metadata.Schema{
 				Type:    typ,
 				Example: example,
 			},
@@ -282,14 +279,14 @@ func WithPathParam(name, typ string, required bool, description string, example 
 }
 
 // WithResponse adds a response to the route
-func WithResponse(statusCode int, description string, contentType string, schema Schema) RouteOption {
+func WithResponse(statusCode int, description string, contentType string, schema metadata.Schema) RouteOption {
 	return func(m *RouteMetadata) {
 		if m.Responses == nil {
-			m.Responses = make(map[string]Response)
+			m.Responses = make(map[string]metadata.Response)
 		}
-		m.Responses[strconv.Itoa(statusCode)] = Response{
+		m.Responses[strconv.Itoa(statusCode)] = metadata.Response{
 			Description: description,
-			Content: map[string]MediaType{
+			Content: map[string]metadata.MediaType{
 				contentType: {Schema: schema},
 			},
 		}
@@ -300,9 +297,9 @@ func WithResponse(statusCode int, description string, contentType string, schema
 func WithEmptyResponse(statusCode int, description string) RouteOption {
 	return func(m *RouteMetadata) {
 		if m.Responses == nil {
-			m.Responses = make(map[string]Response)
+			m.Responses = make(map[string]metadata.Response)
 		}
-		m.Responses[strconv.Itoa(statusCode)] = Response{
+		m.Responses[strconv.Itoa(statusCode)] = metadata.Response{
 			Description: description,
 		}
 	}
@@ -315,7 +312,7 @@ func WithJSONResponse[T any](statusCode int, description string) RouteOption {
 		t := reflect.TypeOf((*T)(nil)).Elem()
 
 		if m.Responses == nil {
-			m.Responses = make(map[string]Response)
+			m.Responses = make(map[string]metadata.Response)
 		}
 
 		// Special handling for array types
@@ -325,13 +322,13 @@ func WithJSONResponse[T any](statusCode int, description string) RouteOption {
 			itemTypeName := metadata.RegisterType(elemType)
 			sanitizedName := metadata.SanitizeSchemaName(itemTypeName)
 
-			m.Responses[strconv.Itoa(statusCode)] = Response{
+			m.Responses[strconv.Itoa(statusCode)] = metadata.Response{
 				Description: description,
-				Content: map[string]MediaType{
+				Content: map[string]metadata.MediaType{
 					"application/json": {
-						Schema: Schema{
+						Schema: metadata.Schema{
 							Type: "array",
-							Items: &Schema{
+							Items: &metadata.Schema{
 								Ref: "#/components/schemas/" + sanitizedName,
 							},
 						},
@@ -342,14 +339,14 @@ func WithJSONResponse[T any](statusCode int, description string) RouteOption {
 		}
 
 		// For non-array types
-		schema := SchemaFromType(t)
+		schema := docs.SchemaFromType(t)
 		if schema.Type == "object" && schema.Properties != nil && schema.TypeName != "" {
 			// Use reference for object types
-			m.Responses[strconv.Itoa(statusCode)] = Response{
+			m.Responses[strconv.Itoa(statusCode)] = metadata.Response{
 				Description: description,
-				Content: map[string]MediaType{
+				Content: map[string]metadata.MediaType{
 					"application/json": {
-						SchemaRef: &Reference{
+						SchemaRef: &metadata.Reference{
 							Ref: "#/components/schemas/" + metadata.SanitizeSchemaName(schema.TypeName),
 						},
 					},
@@ -357,9 +354,9 @@ func WithJSONResponse[T any](statusCode int, description string) RouteOption {
 			}
 		} else {
 			// Use inline schema for primitive types
-			m.Responses[strconv.Itoa(statusCode)] = Response{
+			m.Responses[strconv.Itoa(statusCode)] = metadata.Response{
 				Description: description,
-				Content: map[string]MediaType{
+				Content: map[string]metadata.MediaType{
 					"application/json": {
 						Schema: schema,
 					},
@@ -374,23 +371,23 @@ func WithJSONResponse[T any](statusCode int, description string) RouteOption {
 func WithResponseType[T any](statusCode int, description string, _ T) RouteOption {
 	return func(m *RouteMetadata) {
 		if m.Responses == nil {
-			m.Responses = make(map[string]Response)
+			m.Responses = make(map[string]metadata.Response)
 		}
 
 		t := reflect.TypeOf((*T)(nil)).Elem()
 
 		if t.Kind() == reflect.Slice || t.Kind() == reflect.Array {
 			elemType := t.Elem()
-			itemSchema := SchemaFromType(elemType)
+			itemSchema := docs.SchemaFromType(elemType)
 
 			if itemSchema.Type == "object" && itemSchema.Properties != nil && itemSchema.TypeName != "" {
-				m.Responses[strconv.Itoa(statusCode)] = Response{
+				m.Responses[strconv.Itoa(statusCode)] = metadata.Response{
 					Description: description,
-					Content: map[string]MediaType{
+					Content: map[string]metadata.MediaType{
 						"application/json": {
-							Schema: Schema{
+							Schema: metadata.Schema{
 								Type: "array",
-								Items: &Schema{
+								Items: &metadata.Schema{
 									Ref: "#/components/schemas/" + itemSchema.TypeName,
 								},
 							},
@@ -399,11 +396,11 @@ func WithResponseType[T any](statusCode int, description string, _ T) RouteOptio
 				}
 			} else {
 				// For primitive type arrays, use the schema directly
-				m.Responses[strconv.Itoa(statusCode)] = Response{
+				m.Responses[strconv.Itoa(statusCode)] = metadata.Response{
 					Description: description,
-					Content: map[string]MediaType{
+					Content: map[string]metadata.MediaType{
 						"application/json": {
-							Schema: Schema{
+							Schema: metadata.Schema{
 								Type:  "array",
 								Items: &itemSchema,
 							},
@@ -412,15 +409,15 @@ func WithResponseType[T any](statusCode int, description string, _ T) RouteOptio
 				}
 			}
 		} else {
-			schema := SchemaFromType(t)
+			schema := docs.SchemaFromType(t)
 			schemaName := schema.TypeName
 
 			if schema.Type == "object" && schema.Properties != nil && schemaName != "" {
-				m.Responses[strconv.Itoa(statusCode)] = Response{
+				m.Responses[strconv.Itoa(statusCode)] = metadata.Response{
 					Description: description,
-					Content: map[string]MediaType{
+					Content: map[string]metadata.MediaType{
 						"application/json": {
-							SchemaRef: &Reference{
+							SchemaRef: &metadata.Reference{
 								Ref: "#/components/schemas/" + schemaName,
 							},
 						},
@@ -428,9 +425,9 @@ func WithResponseType[T any](statusCode int, description string, _ T) RouteOptio
 				}
 			} else {
 				// For primitive types, use the schema directly
-				m.Responses[strconv.Itoa(statusCode)] = Response{
+				m.Responses[strconv.Itoa(statusCode)] = metadata.Response{
 					Description: description,
-					Content: map[string]MediaType{
+					Content: map[string]metadata.MediaType{
 						"application/json": {Schema: schema},
 					},
 				}
@@ -443,12 +440,12 @@ func WithResponseType[T any](statusCode int, description string, _ T) RouteOptio
 func WithRequestBody[T any](description string, required bool, _ T) RouteOption {
 	return func(m *RouteMetadata) {
 		t := reflect.TypeOf((*T)(nil)).Elem()
-		schema := SchemaFromType(t)
+		schema := docs.SchemaFromType(t)
 
-		m.RequestBody = &RequestBody{
+		m.RequestBody = &metadata.RequestBody{
 			Description: description,
 			Required:    required,
-			Content: map[string]MediaType{
+			Content: map[string]metadata.MediaType{
 				"application/json": {
 					Schema: schema,
 				},
@@ -461,10 +458,10 @@ func WithRequestBody[T any](description string, required bool, _ T) RouteOption 
 func WithSecurity(requirements ...map[string][]string) RouteOption {
 	return func(m *RouteMetadata) {
 		if m.Security == nil {
-			m.Security = make([]SecurityRequirement, 0)
+			m.Security = make([]metadata.SecurityRequirement, 0)
 		}
 		for _, req := range requirements {
-			secReq := make(SecurityRequirement)
+			secReq := make(metadata.SecurityRequirement)
 			for k, v := range req {
 				secReq[k] = v
 			}
@@ -490,16 +487,16 @@ func WithDeprecated(message string) RouteOption {
 func WithResponseExample[T any](statusCode int, description string, example T) RouteOption {
 	return func(m *RouteMetadata) {
 		if m.Responses == nil {
-			m.Responses = make(map[string]Response)
+			m.Responses = make(map[string]metadata.Response)
 		}
 
 		t := reflect.TypeOf((*T)(nil)).Elem()
-		schema := SchemaFromType(t)
+		schema := docs.SchemaFromType(t)
 		schema.Example = example
 
-		m.Responses[strconv.Itoa(statusCode)] = Response{
+		m.Responses[strconv.Itoa(statusCode)] = metadata.Response{
 			Description: description,
-			Content: map[string]MediaType{
+			Content: map[string]metadata.MediaType{
 				"application/json": {Schema: schema},
 			},
 		}
@@ -510,13 +507,13 @@ func WithResponseExample[T any](statusCode int, description string, example T) R
 func WithRequestBodyExample[T any](description string, required bool, example T) RouteOption {
 	return func(m *RouteMetadata) {
 		t := reflect.TypeOf((*T)(nil)).Elem()
-		schema := SchemaFromType(t)
+		schema := docs.SchemaFromType(t)
 		schema.Example = example
 
-		m.RequestBody = &RequestBody{
+		m.RequestBody = &metadata.RequestBody{
 			Description: description,
 			Required:    required,
-			Content: map[string]MediaType{
+			Content: map[string]metadata.MediaType{
 				"application/json": {
 					Schema: schema,
 				},
@@ -526,15 +523,15 @@ func WithRequestBodyExample[T any](description string, required bool, example T)
 }
 
 // Generate creates an OpenAPI specification from the collected route information
-func (g *Generator) Generate(routes []RouteInfo) *Spec {
+func (g *Generator) Generate(routes []RouteInfo) *metadata.Spec {
 	g.routeInfo = routes
 	g.collectSchemas()
 
-	spec := &Spec{
+	spec := &metadata.Spec{
 		OpenAPI: "3.0.0",
 		Info:    g.info,
-		Paths:   make(map[string]PathItem),
-		Components: &Components{
+		Paths:   make(map[string]metadata.PathItem),
+		Components: &metadata.Components{
 			SecuritySchemes: g.securitySchemes,
 			Schemas:         g.schemas,
 		},
@@ -547,70 +544,64 @@ func (g *Generator) Generate(routes []RouteInfo) *Spec {
 	for _, route := range routes {
 		pathItem, ok := spec.Paths[route.Path()]
 		if !ok {
-			pathItem = PathItem{}
+			pathItem = metadata.PathItem{}
 		}
 
-		var requestBody *RequestBody
+		var requestBody *metadata.RequestBody
 		if rb := route.RequestBody(); rb != nil {
-			requestBody = RequestBodyFromMetadataRequestBody(rb)
+			requestBody = rb
 
 			for contentType, mediaType := range requestBody.Content {
 				schemaName := g.generateSchemaName(mediaType.Schema)
 				if schemaName != "" && g.schemas[schemaName].Type != "" {
 					mediaType.SchemaRef = g.createSchemaReference(schemaName)
-					mediaType.Schema = Schema{}
+					mediaType.Schema = metadata.Schema{}
 					requestBody.Content[contentType] = mediaType
 				}
 			}
 		}
 
 		// Convert responses
-		responses := make(map[string]Response)
+		responses := make(map[string]metadata.Response)
 		for statusCode, response := range route.Responses() {
-			convertedResponse := ResponseFromMetadataResponse(response)
-
-			// Convert schema references in responses
-			for contentType, mediaType := range convertedResponse.Content {
+			for contentType, mediaType := range response.Content {
 				schemaName := g.generateSchemaName(mediaType.Schema)
 				if schemaName != "" && g.schemas[schemaName].Type != "" {
 					mediaType.SchemaRef = g.createSchemaReference(schemaName)
-					mediaType.Schema = Schema{}
-					convertedResponse.Content[contentType] = mediaType
+					mediaType.Schema = metadata.Schema{}
+					response.Content[contentType] = mediaType
 				} else if mediaType.Schema.Type == "array" && mediaType.Schema.Items != nil {
 					itemSchemaName := g.generateSchemaName(*mediaType.Schema.Items)
 					if itemSchemaName != "" && g.schemas[itemSchemaName].Type != "" {
-						// Replace array item with reference
 						mediaType.Schema.Items.Ref = "#/components/schemas/" + itemSchemaName
-						// Clear other properties of the item as they're referenced
 						mediaType.Schema.Items.Type = ""
 						mediaType.Schema.Items.Properties = nil
 						mediaType.Schema.Items.Example = nil
 						mediaType.Schema.Items.Required = nil
-						convertedResponse.Content[contentType] = mediaType
+						response.Content[contentType] = mediaType
 					}
 				}
 			}
 
-			responses[statusCode] = convertedResponse
+			responses[statusCode] = response
 		}
 
-		// Convert parameters
-		parameters := make([]Parameter, len(route.Parameters()))
-		for i, param := range route.Parameters() {
-			parameters[i] = ParameterFromMetadataParameter(param)
-		}
+		// Properly copy parameters from the route
+		routeParams := route.Parameters()
+		parameters := make([]metadata.Parameter, len(routeParams))
+		copy(parameters, routeParams)
 
 		// Convert security requirements
-		security := make([]SecurityRequirement, len(route.Security()))
+		security := make([]metadata.SecurityRequirement, len(route.Security()))
 		for i, sec := range route.Security() {
-			secReq := make(SecurityRequirement)
+			secReq := make(metadata.SecurityRequirement)
 			for k, v := range sec {
 				secReq[k] = v
 			}
 			security[i] = secReq
 		}
 
-		operation := &Operation{
+		operation := &metadata.Operation{
 			OperationID: route.OperationID(),
 			Summary:     route.Summary(),
 			Description: route.Description(),

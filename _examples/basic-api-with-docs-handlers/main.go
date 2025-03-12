@@ -14,6 +14,7 @@ import (
 	"github.com/joakimcarlsson/go-router/_examples/basic-api-with-docs-handlers/handlers/health"
 	"github.com/joakimcarlsson/go-router/_examples/basic-api-with-docs-handlers/store"
 	"github.com/joakimcarlsson/go-router/integration"
+	"github.com/joakimcarlsson/go-router/metadata"
 	"github.com/joakimcarlsson/go-router/openapi"
 	"github.com/joakimcarlsson/go-router/router"
 	"github.com/joakimcarlsson/go-router/swagger"
@@ -37,7 +38,7 @@ func main() {
 	r.DELETE("/products/{id}", delete.Handler(productStore), delete.RouteOptions()...)
 
 	// Create OpenAPI generator
-	generator := openapi.NewGenerator(openapi.Info{
+	generator := openapi.NewGenerator(metadata.Info{
 		Title:       "Product Catalog API",
 		Version:     "1.0.0",
 		Description: "A sample product catalog API built with go-router",

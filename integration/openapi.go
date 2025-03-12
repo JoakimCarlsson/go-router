@@ -1,8 +1,11 @@
 package integration
 
 import (
+	"encoding/json"
+	"io"
 	"net/http"
 
+	"github.com/joakimcarlsson/go-router/metadata"
 	"github.com/joakimcarlsson/go-router/openapi"
 	"github.com/joakimcarlsson/go-router/router"
 )
@@ -50,7 +53,7 @@ func (a *RouterOpenAPIAdapter) ExtractRouteInfo() []openapi.RouteInfo {
 // GenerateOpenAPISpec generates an OpenAPI specification from the router's routes.
 // This creates a complete OpenAPI specification document based on the
 // route metadata and configuration in the generator.
-func (a *RouterOpenAPIAdapter) GenerateOpenAPISpec() *openapi.Spec {
+func (a *RouterOpenAPIAdapter) GenerateOpenAPISpec() *metadata.Spec {
 	routeInfos := a.ExtractRouteInfo()
 	return a.Generator.Generate(routeInfos)
 }
@@ -62,7 +65,15 @@ func (a *RouterOpenAPIAdapter) ServeHTTP(w http.ResponseWriter, r *http.Request)
 	spec := a.GenerateOpenAPISpec()
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	if err := openapi.WriteJSON(w, spec); err != nil {
+	if err := WriteJSON(w, spec); err != nil {
 		http.Error(w, "Failed to write OpenAPI spec", http.StatusInternalServerError)
 	}
+}
+
+// WriteJSON writes a JSON representation of the value to the writer
+func WriteJSON(w io.Writer, value interface{}) error {
+	encoder := json.NewEncoder(w)
+	encoder.SetIndent("", "  ")
+	encoder.SetEscapeHTML(false)
+	return encoder.Encode(value)
 }

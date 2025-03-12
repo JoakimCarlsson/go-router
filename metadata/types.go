@@ -1,6 +1,7 @@
 package metadata
 
 import (
+	"encoding/json"
 	"reflect"
 	"strings"
 	"sync"
@@ -38,6 +39,28 @@ type Parameter struct {
 	Example     interface{} `json:"example,omitempty"`
 }
 
+// MarshalJSON implements json.Marshaler for Parameter to ensure all fields are serialized
+func (p Parameter) MarshalJSON() ([]byte, error) {
+	// Create a custom struct to ensure all Parameter fields are included
+	type ParameterJSON struct {
+		Name        string      `json:"name"`
+		In          string      `json:"in"`
+		Required    bool        `json:"required,omitempty"`
+		Description string      `json:"description,omitempty"`
+		Schema      Schema      `json:"schema"`
+		Example     interface{} `json:"example,omitempty"`
+	}
+
+	return json.Marshal(ParameterJSON{
+		Name:        p.Name,
+		In:          p.In,
+		Required:    p.Required,
+		Description: p.Description,
+		Schema:      p.Schema,
+		Example:     p.Example,
+	})
+}
+
 // RequestBody represents a request body for an API operation.
 // It contains information about the content type, schema, and whether the body is required.
 type RequestBody struct {
@@ -61,8 +84,34 @@ type SecurityRequirement map[string][]string
 // MediaType represents the structure of request/response content.
 // It includes a schema and an optional example.
 type MediaType struct {
-	Schema  Schema      `json:"schema"`
-	Example interface{} `json:"example,omitempty"`
+	Schema    Schema      `json:"schema,omitempty"`
+	Example   interface{} `json:"example,omitempty"`
+	SchemaRef *Reference  `json:"-"` // Not directly serialized to JSON
+}
+
+// MarshalJSON implements json.Marshaler for MediaType to handle SchemaRef
+func (m MediaType) MarshalJSON() ([]byte, error) {
+	type Alias MediaType // Create an alias to avoid recursion in MarshalJSON
+
+	// If SchemaRef is set, serialize with the Reference instead of Schema
+	if m.SchemaRef != nil {
+		return json.Marshal(struct {
+			Schema  *Reference  `json:"schema"`
+			Example interface{} `json:"example,omitempty"`
+		}{
+			Schema:  m.SchemaRef,
+			Example: m.Example,
+		})
+	}
+
+	// Otherwise, use the default serialization (Schema)
+	return json.Marshal(struct {
+		Schema  Schema      `json:"schema,omitempty"`
+		Example interface{} `json:"example,omitempty"`
+	}{
+		Schema:  m.Schema,
+		Example: m.Example,
+	})
 }
 
 // Header represents a response header.
@@ -96,6 +145,142 @@ type Schema struct {
 	TypeName             string            `json:"-"`
 }
 
+// Reference is a JSON reference to another component in the OpenAPI document
+type Reference struct {
+	Ref string `json:"$ref"`
+}
+
+// SchemaOrReference can be either a Schema object or a Reference to a schema
+type SchemaOrReference struct {
+	Schema    *Schema    `json:"-"` // The schema object to reference
+	Reference *Reference `json:"-"` // The reference to a schema
+}
+
+// MarshalJSON implements the json.Marshaler interface for SchemaOrReference
+func (s SchemaOrReference) MarshalJSON() ([]byte, error) {
+	if s.Reference != nil {
+		return json.Marshal(s.Reference)
+	}
+	if s.Schema != nil {
+		return json.Marshal(s.Schema)
+	}
+	return json.Marshal(nil)
+}
+
+// Spec represents the OpenAPI 3.0.0 specification
+type Spec struct {
+	OpenAPI      string              `json:"openapi"`
+	Info         Info                `json:"info"`
+	Servers      []Server            `json:"servers,omitempty"`
+	Paths        map[string]PathItem `json:"paths"`
+	Components   *Components         `json:"components,omitempty"`
+	Tags         []Tag               `json:"tags,omitempty"`
+	ExternalDocs map[string]string   `json:"externalDocs,omitempty"`
+}
+
+// Info represents OpenAPI info object
+type Info struct {
+	Title          string   `json:"title"`
+	Description    string   `json:"description,omitempty"`
+	Version        string   `json:"version"`
+	TermsOfService string   `json:"termsOfService,omitempty"`
+	Contact        *Contact `json:"contact,omitempty"`
+	License        *License `json:"license,omitempty"`
+}
+
+// Contact information for the API
+type Contact struct {
+	Name  string `json:"name,omitempty"`
+	URL   string `json:"url,omitempty"`
+	Email string `json:"email,omitempty"`
+}
+
+// License information for the API
+type License struct {
+	Name string `json:"name"`
+	URL  string `json:"url,omitempty"`
+}
+
+// Server information for the API
+type Server struct {
+	URL         string                    `json:"url"`
+	Description string                    `json:"description,omitempty"`
+	Variables   map[string]ServerVariable `json:"variables,omitempty"`
+}
+
+// ServerVariable defines a variable for server URL template substitution
+type ServerVariable struct {
+	Enum        []string `json:"enum,omitempty"`
+	Default     string   `json:"default"`
+	Description string   `json:"description,omitempty"`
+}
+
+// PathItem describes operations available on a single API endpoint
+type PathItem struct {
+	Summary     string     `json:"summary,omitempty"`
+	Description string     `json:"description,omitempty"`
+	Get         *Operation `json:"get,omitempty"`
+	Post        *Operation `json:"post,omitempty"`
+	Put         *Operation `json:"put,omitempty"`
+	Delete      *Operation `json:"delete,omitempty"`
+	Patch       *Operation `json:"patch,omitempty"`
+	Options     *Operation `json:"options,omitempty"`
+	Head        *Operation `json:"head,omitempty"`
+	Trace       *Operation `json:"trace,omitempty"`
+}
+
+// Operation describes a single API operation on a path
+type Operation struct {
+	OperationID string                `json:"operationId,omitempty"`
+	Summary     string                `json:"summary,omitempty"`
+	Description string                `json:"description,omitempty"`
+	Tags        []string              `json:"tags,omitempty"`
+	Parameters  []Parameter           `json:"parameters,omitempty"`
+	RequestBody *RequestBody          `json:"requestBody,omitempty"`
+	Responses   map[string]Response   `json:"responses"`
+	Security    []SecurityRequirement `json:"security,omitempty"`
+	Deprecated  bool                  `json:"deprecated,omitempty"`
+}
+
+// Components holds reusable OpenAPI objects
+type Components struct {
+	Schemas         map[string]Schema         `json:"schemas,omitempty"`
+	SecuritySchemes map[string]SecurityScheme `json:"securitySchemes,omitempty"`
+}
+
+// SecurityScheme defines security mechanism for API
+type SecurityScheme struct {
+	Type             string      `json:"type"`
+	Scheme           string      `json:"scheme,omitempty"`
+	Name             string      `json:"name,omitempty"`
+	In               string      `json:"in,omitempty"`
+	Description      string      `json:"description,omitempty"`
+	Flows            *OAuthFlows `json:"flows,omitempty"`
+	OpenIDConnectURL string      `json:"openIdConnectUrl,omitempty"`
+}
+
+// OAuthFlows is the configuration container for the supported OAuth Flows
+type OAuthFlows struct {
+	Implicit          *OAuthFlow `json:"implicit,omitempty"`
+	Password          *OAuthFlow `json:"password,omitempty"`
+	ClientCredentials *OAuthFlow `json:"clientCredentials,omitempty"`
+	AuthorizationCode *OAuthFlow `json:"authorizationCode,omitempty"`
+}
+
+// OAuthFlow configuration details for a specific OAuth Flow
+type OAuthFlow struct {
+	AuthorizationURL string            `json:"authorizationUrl,omitempty"`
+	TokenURL         string            `json:"tokenUrl,omitempty"`
+	RefreshURL       string            `json:"refreshUrl,omitempty"`
+	Scopes           map[string]string `json:"scopes"`
+}
+
+// Tag represents a tag
+type Tag struct {
+	Name        string `json:"name"`
+	Description string `json:"description,omitempty"`
+}
+
 // TypeRegistryEntry stores information about a registered type
 type TypeRegistryEntry struct {
 	Name      string
@@ -106,12 +291,12 @@ type TypeRegistryEntry struct {
 
 // typeRegistry tracks registered types and detects name collisions
 type typeRegistry struct {
-	types map[string]*TypeRegistryEntry
-	mu    sync.RWMutex
+	types map[string]*TypeRegistryEntry // Map of type name to its Registry entry
+	mu    sync.RWMutex                  // Mutex to ensure concurrent access is synchronized
 }
 
 // global registry instance
-var globalTypeRegistry *typeRegistry
+var globalTypeRegistry *typeRegistry // Singleton instance of typeRegistry
 
 // init initializes the global type registry
 func init() {
@@ -122,12 +307,12 @@ func init() {
 
 // RegisterType adds a type to the registry and returns a non-colliding name
 func RegisterType(t reflect.Type) string {
-	globalTypeRegistry.mu.Lock()
-	defer globalTypeRegistry.mu.Unlock()
+	globalTypeRegistry.mu.Lock()         // Acquire write lock
+	defer globalTypeRegistry.mu.Unlock() // Release write lock when done
 
-	name := t.Name()
-	pkgPath := t.PkgPath()
-	fullID := pkgPath + "." + name
+	name := t.Name()               // Base name
+	pkgPath := t.PkgPath()         // Package path
+	fullID := pkgPath + "." + name // Full ID of the type
 
 	// Check if we've seen this exact type before (same name and package)
 	if entry, exists := globalTypeRegistry.types[fullID]; exists {
