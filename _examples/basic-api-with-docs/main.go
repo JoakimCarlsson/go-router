@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/joakimcarlsson/go-router/docs"
 	"github.com/joakimcarlsson/go-router/integration"
 	"github.com/joakimcarlsson/go-router/openapi"
@@ -17,7 +18,7 @@ import (
 
 // Product represents a product in the catalog
 type Product struct {
-	ID          string    `json:"id"`
+	ID          uuid.UUID `json:"id"`
 	Name        string    `json:"name" validate:"required"`
 	Description *string   `json:"description"`
 	Price       float64   `json:"price" validate:"min=0.01"`
@@ -39,20 +40,20 @@ type NewProductRequest struct {
 // ProductStore is a simple in-memory store for products
 type ProductStore struct {
 	mu       sync.RWMutex
-	products map[string]Product
+	products map[uuid.UUID]Product
 	counter  int
 }
 
 // NewProductStore creates a new product store with sample data
 func NewProductStore() *ProductStore {
 	store := &ProductStore{
-		products: make(map[string]Product),
+		products: make(map[uuid.UUID]Product),
 		counter:  100,
 	}
 
 	// Add some sample products
 	store.AddProduct(Product{
-		ID:          "1",
+		ID:          uuid.New(),
 		Name:        "Wireless Earbuds",
 		Description: nil,
 		Price:       129.99,
@@ -63,7 +64,7 @@ func NewProductStore() *ProductStore {
 	})
 
 	store.AddProduct(Product{
-		ID:          "2",
+		ID:          uuid.New(),
 		Name:        "Running Shoes",
 		Description: nil,
 		Price:       89.99,
@@ -74,7 +75,7 @@ func NewProductStore() *ProductStore {
 	})
 
 	store.AddProduct(Product{
-		ID:          "3",
+		ID:          uuid.New(),
 		Name:        "Coffee Maker",
 		Description: nil,
 		Price:       74.50,
@@ -100,7 +101,7 @@ func (s *ProductStore) GetProducts() []Product {
 }
 
 // GetProduct returns a product by ID
-func (s *ProductStore) GetProduct(id string) (Product, bool) {
+func (s *ProductStore) GetProduct(id uuid.UUID) (Product, bool) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -109,13 +110,12 @@ func (s *ProductStore) GetProduct(id string) (Product, bool) {
 }
 
 // AddProduct adds a product to the store
-func (s *ProductStore) AddProduct(product Product) string {
+func (s *ProductStore) AddProduct(product Product) uuid.UUID {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if product.ID == "" {
-		s.counter++
-		product.ID = strconv.Itoa(s.counter)
+	if product.ID == uuid.Nil {
+		product.ID = uuid.New()
 	}
 
 	now := time.Now()
@@ -146,7 +146,7 @@ func (s *ProductStore) UpdateProduct(product Product) bool {
 }
 
 // DeleteProduct deletes a product from the store
-func (s *ProductStore) DeleteProduct(id string) bool {
+func (s *ProductStore) DeleteProduct(id uuid.UUID) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -361,7 +361,8 @@ func listProducts(c *router.Context, store *ProductStore) {
 
 func getProduct(c *router.Context, store *ProductStore) {
 	id := c.Param("id")
-	product, found := store.GetProduct(id)
+	uuid := uuid.MustParse(id)
+	product, found := store.GetProduct(uuid)
 
 	if !found {
 		c.JSON(http.StatusNotFound, map[string]string{
@@ -413,8 +414,9 @@ func createProduct(c *router.Context, store *ProductStore) {
 
 func updateProduct(c *router.Context, store *ProductStore) {
 	id := c.Param("id")
+	uuid := uuid.MustParse(id)
 
-	_, found := store.GetProduct(id)
+	_, found := store.GetProduct(uuid)
 
 	if !found {
 		c.JSON(http.StatusNotFound, map[string]string{
@@ -447,7 +449,7 @@ func updateProduct(c *router.Context, store *ProductStore) {
 	}
 
 	product := Product{
-		ID:          id,
+		ID:          uuid,
 		Name:        request.Name,
 		Description: request.Description,
 		Price:       request.Price,
@@ -456,15 +458,16 @@ func updateProduct(c *router.Context, store *ProductStore) {
 	}
 
 	store.UpdateProduct(product)
-	updatedProduct, _ := store.GetProduct(id)
+	updatedProduct, _ := store.GetProduct(uuid)
 
 	c.JSON(http.StatusOK, updatedProduct)
 }
 
 func deleteProduct(c *router.Context, store *ProductStore) {
 	id := c.Param("id")
+	uuid := uuid.MustParse(id)
 
-	found := store.DeleteProduct(id)
+	found := store.DeleteProduct(uuid)
 
 	if !found {
 		c.JSON(http.StatusNotFound, map[string]string{
