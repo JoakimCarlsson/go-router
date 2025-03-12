@@ -1,17 +1,17 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"reflect"
+	"strconv"
 	"time"
 
 	"github.com/joakimcarlsson/go-router/docs"
+	"github.com/joakimcarlsson/go-router/integration"
 	"github.com/joakimcarlsson/go-router/metadata"
 	"github.com/joakimcarlsson/go-router/openapi"
 	"github.com/joakimcarlsson/go-router/router"
-	"github.com/joakimcarlsson/go-router/swagger"
 )
 
 // Custom types that need special OpenAPI handling
@@ -39,7 +39,7 @@ type GeoPoint struct {
 
 // User represents a user in the system with custom field types
 type User struct {
-	ID        CustomID    `json:"id"`
+	ID        CustomID     `json:"id"`
 	Email     EmailAddress `json:"email"`
 	Phone     PhoneNumber  `json:"phone,omitempty"`
 	CreatedAt time.Time    `json:"createdAt"`
@@ -48,12 +48,12 @@ type User struct {
 
 // Product represents a product in the catalog
 type Product struct {
-	ID          CustomID    `json:"id"`
-	Name        string      `json:"name"`
-	Description string      `json:"description"`
-	Price       Money       `json:"price"`
-	CreatedAt   time.Time   `json:"createdAt"`
-	UpdatedAt   time.Time   `json:"updatedAt"`
+	ID          CustomID  `json:"id"`
+	Name        string    `json:"name"`
+	Description string    `json:"description"`
+	Price       Money     `json:"price"`
+	CreatedAt   time.Time `json:"createdAt"`
+	UpdatedAt   time.Time `json:"updatedAt"`
 }
 
 // In-memory store for demo purposes
@@ -92,80 +92,74 @@ func init() {
 func main() {
 	// Register custom type handlers before creating any routes
 	registerTypeHandlers()
-	
+
 	// Create a new router
 	r := router.New()
-	
+
 	// Setup the OpenAPI generator with info about the API
-	gen := openapi.NewGenerator()
-	gen.SetInfo("Custom Types API", "API demonstrating custom type handlers", "1.0.0")
-	
+	generator := openapi.NewGenerator(metadata.Info{
+		Title:       "Product Catalog API",
+		Version:     "1.0.0",
+		Description: "A sample product catalog API built with go-router",
+	})
+
 	// User routes
-	r.GET("/users", getAllUsers).
-		With(
-			openapi.WithDescription("Get all users"),
-			openapi.WithTags("Users"),
-			openapi.WithResponseType(http.StatusOK, "List of users", []User{}),
-		)
+	r.GET("/users", getAllUsers,
+		docs.WithTags("Users"),
+		docs.WithSummary("Get all users"),
+		docs.WithDescription("Retrieves a list of all users in the system"),
+		docs.WithJSONResponse[[]User](http.StatusOK, "List of users"),
+	)
 
-	r.GET("/users/{id}", getUser).
-		With(
-			openapi.WithDescription("Get a user by ID"),
-			openapi.WithTags("Users"),
-			openapi.WithPathParam("id", "integer", "User ID", true),
-			openapi.WithResponseType(http.StatusOK, "User data", User{}),
-		)
+	r.GET("/users/{id}", getUser,
+		docs.WithTags("Users"),
+		docs.WithSummary("Get user by ID"),
+		docs.WithDescription("Retrieves a single user by their ID"),
+		docs.WithPathParam("id", "integer", true, "User ID", 1001),
+		docs.WithJSONResponse[User](http.StatusOK, "User data"),
+		docs.WithResponse(http.StatusNotFound, "User not found"),
+	)
 
-	r.POST("/users", createUser).
-		With(
-			openapi.WithDescription("Create a new user"),
-			openapi.WithTags("Users"),
-			openapi.WithJSONRequestBody(User{}, "User data", true),
-			openapi.WithResponseType(http.StatusCreated, "Created user", User{}),
-		)
+	r.POST("/users", createUser,
+		docs.WithTags("Users"),
+		docs.WithSummary("Create a new user"),
+		docs.WithDescription("Creates a new user in the system"),
+		docs.WithJSONRequestBody[User](true, "User data to create"),
+		docs.WithJSONResponse[User](http.StatusCreated, "Created user"),
+		docs.WithResponse(http.StatusBadRequest, "Invalid request data"),
+	)
 
-	// Product routes
-	r.GET("/products", getAllProducts).
-		With(
-			openapi.WithDescription("Get all products"),
-			openapi.WithTags("Products"),
-			openapi.WithResponseType(http.StatusOK, "List of products", []Product{}),
-		)
+	r.GET("/products", getAllProducts,
+		docs.WithTags("Products"),
+		docs.WithSummary("Get all products"),
+		docs.WithDescription("Retrieves a list of all products in the catalog"),
+		docs.WithJSONResponse[[]Product](http.StatusOK, "List of products"),
+	)
 
-	r.GET("/products/{id}", getProduct).
-		With(
-			openapi.WithDescription("Get a product by ID"),
-			openapi.WithTags("Products"),
-			openapi.WithPathParam("id", "integer", "Product ID", true),
-			openapi.WithResponseType(http.StatusOK, "Product data", Product{}),
-		)
+	r.GET("/products/{id}", getProduct,
+		docs.WithTags("Products"),
+		docs.WithSummary("Get product by ID"),
+		docs.WithDescription("Retrieves a single product by its ID"),
+		docs.WithPathParam("id", "integer", true, "Product ID", 1001),
+		docs.WithJSONResponse[Product](http.StatusOK, "Product data"),
+		docs.WithResponse(http.StatusNotFound, "Product not found"),
+	)
 
-	r.POST("/products", createProduct).
-		With(
-			openapi.WithDescription("Create a new product"),
-			openapi.WithTags("Products"),
-			openapi.WithJSONRequestBody(Product{}, "Product data", true),
-			openapi.WithResponseType(http.StatusCreated, "Created product", Product{}),
-		)
+	r.POST("/products", createProduct,
+		docs.WithTags("Products"),
+		docs.WithSummary("Create a new product"),
+		docs.WithDescription("Creates a new product in the catalog"),
+		docs.WithJSONRequestBody[Product](true, "Product data to create"),
+		docs.WithJSONResponse[Product](http.StatusCreated, "Created product"),
+		docs.WithResponse(http.StatusBadRequest, "Invalid request data"),
+	)
 
-	// Debug route to see the schema for a specific type
-	r.GET("/debug/schema/{type}", debugSchema).
-		With(
-			openapi.WithDescription("Get OpenAPI schema for a specific type"),
-			openapi.WithTags("Debug"),
-			openapi.WithPathParam("type", "string", "Type name (email, phone, money, geopoint)", true),
-			openapi.WithResponseType(http.StatusOK, "Schema information", map[string]interface{}{}),
-		)
-
-	// Generate OpenAPI documentation
-	spec := gen.Generate(r.Routes)
-	
 	// Serve the Swagger UI
-	r.Mount("/swagger", swagger.Handler(spec))
-	
+	swaggerUI := integration.NewSwaggerUIIntegration(r, generator)
+	swaggerUI.SetupRoutes(r, "/openapi.json", "/docs")
+
 	// Serve the API
 	fmt.Println("Starting server at :8080")
-	fmt.Println("Access Swagger UI at http://localhost:8080/swagger")
 	http.ListenAndServe(":8080", r)
 }
 
@@ -181,19 +175,18 @@ func registerTypeHandlers() {
 			TypeName:    "EmailAddress",
 		}
 	})
-	
+
 	// Register handler for PhoneNumber type
 	metadata.RegisterTypeHandler("main.PhoneNumber", func(t reflect.Type) metadata.Schema {
 		return metadata.Schema{
 			Type:        "string",
 			Format:      "phone",
-			Pattern:     `^\+[1-9]\d{1,14}$`,
 			Example:     "+1-555-123-4567",
 			Description: "Phone number with optional country code",
 			TypeName:    "PhoneNumber",
 		}
 	})
-	
+
 	// Register handler for CustomID type
 	metadata.RegisterTypeHandler("main.CustomID", func(t reflect.Type) metadata.Schema {
 		return metadata.Schema{
@@ -228,9 +221,9 @@ func registerTypeHandlers() {
 					MaxLength:   func() *int { max := 3; return &max }(),
 				},
 			},
-			Required:  []string{"amount", "currency"},
-			Example:   map[string]interface{}{"amount": 99.99, "currency": "USD"},
-			TypeName:  "Money",
+			Required: []string{"amount", "currency"},
+			Example:  map[string]interface{}{"amount": 99.99, "currency": "USD"},
+			TypeName: "Money",
 		}
 	})
 
@@ -240,116 +233,93 @@ func registerTypeHandlers() {
 
 // Handler functions
 
-func getAllUsers(w http.ResponseWriter, r *http.Request) {
+// getAllUsers handles GET /users
+func getAllUsers(c *router.Context) {
 	allUsers := make([]User, 0, len(users))
 	for _, user := range users {
 		allUsers = append(allUsers, user)
 	}
-	router.JSON(w, http.StatusOK, allUsers)
+	c.JSON(http.StatusOK, allUsers)
 }
 
-func getUser(w http.ResponseWriter, r *http.Request) {
-	idParam := router.PathParam(r, "id")
+// getUser handles GET /users/{id}
+func getUser(c *router.Context) {
+	idParam := c.Param("id")
 	id := CustomID(atoi(idParam))
-	
+
 	user, exists := users[id]
 	if !exists {
-		router.JSON(w, http.StatusNotFound, map[string]string{"error": "User not found"})
+		c.JSON(http.StatusNotFound, map[string]string{"error": "User not found"})
 		return
 	}
-	
-	router.JSON(w, http.StatusOK, user)
+
+	c.JSON(http.StatusOK, user)
 }
 
-func createUser(w http.ResponseWriter, r *http.Request) {
+// createUser handles POST /users
+func createUser(c *router.Context) {
 	var user User
-	err := json.NewDecoder(r.Body).Decode(&user)
-	if err != nil {
-		router.JSON(w, http.StatusBadRequest, map[string]string{"error": "Invalid request body"})
+	if err := c.BindJSON(&user); err != nil {
+		c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid request body"})
 		return
 	}
-	
+
 	// Assign ID and creation time
 	user.ID = nextID
 	nextID++
 	user.CreatedAt = time.Now()
-	
+
 	// Save to store
 	users[user.ID] = user
-	
-	router.JSON(w, http.StatusCreated, user)
+
+	c.JSON(http.StatusCreated, user)
 }
 
-func getAllProducts(w http.ResponseWriter, r *http.Request) {
+// getAllProducts handles GET /products
+func getAllProducts(c *router.Context) {
 	allProducts := make([]Product, 0, len(products))
 	for _, product := range products {
 		allProducts = append(allProducts, product)
 	}
-	router.JSON(w, http.StatusOK, allProducts)
+	c.JSON(http.StatusOK, allProducts)
 }
 
-func getProduct(w http.ResponseWriter, r *http.Request) {
-	idParam := router.PathParam(r, "id")
+// getProduct handles GET /products/{id}
+func getProduct(c *router.Context) {
+	idParam := c.Param("id")
 	id := CustomID(atoi(idParam))
-	
+
 	product, exists := products[id]
 	if !exists {
-		router.JSON(w, http.StatusNotFound, map[string]string{"error": "Product not found"})
+		c.JSON(http.StatusNotFound, map[string]string{"error": "Product not found"})
 		return
 	}
-	
-	router.JSON(w, http.StatusOK, product)
+
+	c.JSON(http.StatusOK, product)
 }
 
-func createProduct(w http.ResponseWriter, r *http.Request) {
+// createProduct handles POST /products
+func createProduct(c *router.Context) {
 	var product Product
-	err := json.NewDecoder(r.Body).Decode(&product)
-	if err != nil {
-		router.JSON(w, http.StatusBadRequest, map[string]string{"error": "Invalid request body"})
+	if err := c.BindJSON(&product); err != nil {
+		c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid request body"})
 		return
 	}
-	
+
 	// Assign ID and timestamps
 	product.ID = nextID
 	nextID++
 	product.CreatedAt = time.Now()
 	product.UpdatedAt = time.Now()
-	
+
 	// Save to store
 	products[product.ID] = product
-	
-	router.JSON(w, http.StatusCreated, product)
-}
 
-func debugSchema(w http.ResponseWriter, r *http.Request) {
-	typeParam := router.PathParam(r, "type")
-	
-	var schema metadata.Schema
-	
-	switch typeParam {
-	case "email":
-		schema = docs.SchemaFromType(reflect.TypeOf(EmailAddress("")))
-	case "phone":
-		schema = docs.SchemaFromType(reflect.TypeOf(PhoneNumber("")))
-	case "money":
-		schema = docs.SchemaFromType(reflect.TypeOf(Money{}))
-	case "geopoint":
-		schema = docs.SchemaFromType(reflect.TypeOf(GeoPoint{}))
-	case "customid":
-		schema = docs.SchemaFromType(reflect.TypeOf(CustomID(0)))
-	default:
-		router.JSON(w, http.StatusBadRequest, map[string]string{
-			"error": "Unknown type. Use one of: email, phone, money, geopoint, customid",
-		})
-		return
-	}
-	
-	router.JSON(w, http.StatusOK, schema)
+	c.JSON(http.StatusCreated, product)
 }
 
 // Helper function to convert string to int
 func atoi(s string) int {
-	var n int
-	fmt.Sscanf(s, "%d", &n)
+	n, _ := strconv.Atoi(s)
 	return n
 }
