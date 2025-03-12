@@ -55,10 +55,7 @@ func SchemaFromType(t reflect.Type) metadata.Schema {
 		elemType := t.Elem()
 		itemSchema := SchemaFromType(elemType)
 
-		// For arrays of structs, we need to explicitly register the element type
-		// to ensure it appears in the component schemas
 		if elemType.Kind() == reflect.Struct && elemType.Name() != "" {
-			// This ensures the element type is registered
 			metadata.RegisterType(elemType)
 		}
 
@@ -200,12 +197,10 @@ func generateExample(t reflect.Type) interface{} {
 	for i := 0; i < t.NumField(); i++ {
 		field := t.Field(i)
 
-		// Skip unexported fields
 		if !field.IsExported() {
 			continue
 		}
 
-		// Get JSON tag name or field name
 		name := field.Tag.Get("json")
 		if idx := strings.Index(name, ","); idx != -1 {
 			name = name[:idx]
@@ -217,12 +212,14 @@ func generateExample(t reflect.Type) interface{} {
 			name = field.Name
 		}
 
-		// Generate example value for the field
 		var value interface{}
 		switch field.Type.Kind() {
 		case reflect.Struct:
 			if field.Type.String() == "time.Time" {
 				value = "2025-02-22T08:36:06.224266+01:00"
+			}
+			if field.Type.String() == "uuid.UUID" {
+				value = "123e4567-e89b-12d3-a456-426614174000"
 			} else {
 				value = generateExample(field.Type)
 			}
