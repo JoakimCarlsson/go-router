@@ -28,7 +28,7 @@ func SchemaFromType(t reflect.Type) metadata.Schema {
 
 	if typeName == "uuid.UUID" {
 		return metadata.Schema{
-			Type:     "uuid",
+			Type:     "string",
 			Format:   "uuid",
 			Example:  "123e4567-e89b-12d3-a456-426614174000",
 			TypeName: "UUID",
