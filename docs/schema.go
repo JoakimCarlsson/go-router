@@ -84,41 +84,6 @@ func SchemaFromType(t reflect.Type) metadata.Schema {
 	}
 }
 
-func getValidationRules(field reflect.StructField) (required bool, minLen, maxLen *int, min *float64) {
-	tag := field.Tag.Get("validate")
-	if tag == "" {
-		return
-	}
-
-	rules := strings.Split(tag, ",")
-	for _, rule := range rules {
-		if rule == "required" {
-			required = true
-			continue
-		}
-
-		if strings.HasPrefix(rule, "min=") {
-			val, err := strconv.Atoi(strings.TrimPrefix(rule, "min="))
-			if err == nil {
-				if field.Type.Kind() == reflect.String {
-					minLen = &val
-				} else {
-					floatVal := float64(val)
-					min = &floatVal
-				}
-			}
-		}
-
-		if strings.HasPrefix(rule, "max=") {
-			val, err := strconv.Atoi(strings.TrimPrefix(rule, "max="))
-			if err == nil && field.Type.Kind() == reflect.String {
-				maxLen = &val
-			}
-		}
-	}
-	return
-}
-
 func getStructProperties(t reflect.Type) (map[string]metadata.Schema, []string) {
 	properties := make(map[string]metadata.Schema)
 	var required []string
@@ -166,6 +131,42 @@ func getStructProperties(t reflect.Type) (map[string]metadata.Schema, []string) 
 	return properties, required
 }
 
+// getValidationRules returns validation rules for a field defined using struct tags with the `validate` key
+func getValidationRules(field reflect.StructField) (required bool, minLen, maxLen *int, min *float64) {
+	tag := field.Tag.Get("validate")
+	if tag == "" {
+		return
+	}
+
+	rules := strings.Split(tag, ",")
+	for _, rule := range rules {
+		if rule == "required" {
+			required = true
+			continue
+		}
+
+		if strings.HasPrefix(rule, "min=") {
+			val, err := strconv.Atoi(strings.TrimPrefix(rule, "min="))
+			if err == nil {
+				if field.Type.Kind() == reflect.String {
+					minLen = &val
+				} else {
+					floatVal := float64(val)
+					min = &floatVal
+				}
+			}
+		}
+
+		if strings.HasPrefix(rule, "max=") {
+			val, err := strconv.Atoi(strings.TrimPrefix(rule, "max="))
+			if err == nil && field.Type.Kind() == reflect.String {
+				maxLen = &val
+			}
+		}
+	}
+	return
+}
+
 func getGoTypeSchema(t reflect.Type) string {
 	switch t.Kind() {
 	case reflect.Bool:
@@ -203,6 +204,8 @@ func getExampleValue(t reflect.Type) interface{} {
 		return 3.14
 	case reflect.String:
 		return "example"
+	case reflect.Ptr:
+		return getExampleValue(t.Elem())
 	default:
 		return nil
 	}
@@ -242,8 +245,28 @@ func generateExample(t reflect.Type) interface{} {
 			} else {
 				value = generateExample(field.Type)
 			}
+		case reflect.Ptr:
+			// For pointer fields, generate an example of the underlying type
+			elemType := field.Type.Elem()
+			switch elemType.Kind() {
+			case reflect.Struct:
+				if elemType.String() == "time.Time" {
+					value = time.Now().Format(time.RFC3339)
+				} else if elemType.String() == "uuid.UUID" {
+					value = "123e4567-e89b-12d3-a456-426614174000"
+				} else {
+					value = generateExample(elemType)
+				}
+			default:
+				value = getExampleValue(elemType)
+			}
 		case reflect.Slice, reflect.Array:
-			if elemExample := generateExample(field.Type.Elem()); elemExample != nil {
+			elemType := field.Type.Elem()
+			if elemType.Kind() == reflect.Struct {
+				if structExample := generateExample(elemType); structExample != nil {
+					value = []interface{}{structExample}
+				}
+			} else if elemExample := getExampleValue(elemType); elemExample != nil {
 				value = []interface{}{elemExample}
 			}
 		default:

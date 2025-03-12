@@ -50,7 +50,7 @@ type User struct {
 type Product struct {
 	ID          CustomID  `json:"id"`
 	Name        string    `json:"name"`
-	Description string    `json:"description"`
+	Description *string   `json:"description"`
 	Price       Money     `json:"price"`
 	CreatedAt   time.Time `json:"createdAt"`
 	UpdatedAt   time.Time `json:"updatedAt"`
@@ -79,7 +79,7 @@ func init() {
 	products[1001] = Product{
 		ID:          1001,
 		Name:        "Ergonomic Keyboard",
-		Description: "A comfortable keyboard for long coding sessions",
+		Description: nil,
 		Price: Money{
 			Amount:   129.99,
 			Currency: "USD",
