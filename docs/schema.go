@@ -4,6 +4,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/joakimcarlsson/go-router/metadata"
 )
@@ -20,7 +21,7 @@ func SchemaFromType(t reflect.Type) metadata.Schema {
 		return metadata.Schema{
 			Type:     "string",
 			Format:   "date-time",
-			Example:  "2025-02-22T08:36:06.224266+01:00",
+			Example:  time.Now().Format(time.RFC3339),
 			TypeName: "time.Time",
 		}
 	}
@@ -235,9 +236,8 @@ func generateExample(t reflect.Type) interface{} {
 		switch field.Type.Kind() {
 		case reflect.Struct:
 			if field.Type.String() == "time.Time" {
-				value = "2025-02-22T08:36:06.224266+01:00"
-			}
-			if field.Type.String() == "uuid.UUID" {
+				value = time.Now().Format(time.RFC3339)
+			} else if field.Type.String() == "uuid.UUID" {
 				value = "123e4567-e89b-12d3-a456-426614174000"
 			} else {
 				value = generateExample(field.Type)
