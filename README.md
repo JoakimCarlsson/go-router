@@ -22,6 +22,7 @@ This router is designed with modularity in mind, allowing you to use only the co
   - OpenAPI/Swagger shared types
   - OAuth2 configuration
   - Common utilities
+  - Custom type handler registry
 
 ### Documentation Packages
 
@@ -30,6 +31,7 @@ This router is designed with modularity in mind, allowing you to use only the co
   - Request/response schema generation
   - Parameter and security documentation
   - Validation tag support
+  - Custom type schema generation
 
 - **openapi**: OpenAPI specification generation
   - OpenAPI 3.0 support
@@ -136,6 +138,36 @@ r.POST("/upload", uploadHandler,
 )
 ```
 
+## Custom Type Handlers
+
+Register custom OpenAPI schema handlers for your own types:
+
+```go
+import (
+    "reflect"
+    "github.com/joakimcarlsson/go-router/metadata"
+)
+
+// Define a custom type
+type EmailAddress string
+
+// Register a type handler
+metadata.RegisterTypeHandler("mypackage.EmailAddress", func(t reflect.Type) metadata.Schema {
+    return metadata.Schema{
+        Type:        "string",
+        Format:      "email",
+        Example:     "user@example.com",
+        Description: "Email address in standard format",
+    }
+})
+
+// Use it in your models
+type User struct {
+    Email EmailAddress `json:"email"`
+    // Other fields...
+}
+```
+
 ## Swagger UI Integration
 
 Add interactive API documentation:
@@ -166,6 +198,7 @@ See the `_examples` directory for complete examples:
 - OpenAPI documentation
 - OAuth2 authentication
 - Swagger UI integration
+- Custom type handlers
 - Complete refactored example
 
 ## Design Goals
@@ -175,6 +208,7 @@ See the `_examples` directory for complete examples:
 3. **Clean API**: Intuitive and consistent interfaces
 4. **Extensibility**: Easy to add new features
 5. **Documentation**: First-class OpenAPI support
+6. **Open/Closed Principle**: Extend functionality without changing library code
 
 ## Contributing
 

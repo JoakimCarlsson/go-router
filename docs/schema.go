@@ -10,7 +10,13 @@ import (
 
 // SchemaFromType generates a metadata Schema from a Go type
 func SchemaFromType(t reflect.Type) metadata.Schema {
-	if t.String() == "time.Time" {
+	// Check if there's a registered custom handler for this type
+	typeName := t.String()
+	if handler, exists := metadata.GetTypeHandler(typeName); exists {
+		return handler(t)
+	}
+
+	if typeName == "time.Time" {
 		return metadata.Schema{
 			Type:     "string",
 			Format:   "date-time",
@@ -19,7 +25,7 @@ func SchemaFromType(t reflect.Type) metadata.Schema {
 		}
 	}
 
-	if t.String() == "uuid.UUID" {
+	if typeName == "uuid.UUID" {
 		return metadata.Schema{
 			Type:     "uuid",
 			Format:   "uuid",
