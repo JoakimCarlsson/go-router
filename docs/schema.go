@@ -71,10 +71,13 @@ func SchemaFromType(t reflect.Type) metadata.Schema {
 			TypeName: "[]" + itemSchema.TypeName,
 		}
 	default:
+		// For basic types, include default examples
 		schema := metadata.Schema{
 			Type:     getGoTypeSchema(t),
 			TypeName: t.Name(),
 		}
+
+		// Set example only if a custom handler hasn't set one
 		schema.Example = getExampleValue(t)
 		return schema
 	}
@@ -178,7 +181,17 @@ func getGoTypeSchema(t reflect.Type) string {
 	}
 }
 
+// getExampleValue returns an appropriate example value for a Go type
+// First checks if there's a custom type handler registered that provides an example
 func getExampleValue(t reflect.Type) interface{} {
+	typeName := t.String()
+	if handler, exists := metadata.GetTypeHandler(typeName); exists {
+		schema := handler(t)
+		if schema.Example != nil {
+			return schema.Example
+		}
+	}
+
 	switch t.Kind() {
 	case reflect.Bool:
 		return true
