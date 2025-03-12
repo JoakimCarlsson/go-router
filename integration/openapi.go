@@ -1,6 +1,8 @@
 package integration
 
 import (
+	"encoding/json"
+	"io"
 	"net/http"
 
 	"github.com/joakimcarlsson/go-router/metadata"
@@ -63,7 +65,15 @@ func (a *RouterOpenAPIAdapter) ServeHTTP(w http.ResponseWriter, r *http.Request)
 	spec := a.GenerateOpenAPISpec()
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	if err := openapi.WriteJSON(w, spec); err != nil {
+	if err := WriteJSON(w, spec); err != nil {
 		http.Error(w, "Failed to write OpenAPI spec", http.StatusInternalServerError)
 	}
+}
+
+// WriteJSON writes a JSON representation of the value to the writer
+func WriteJSON(w io.Writer, value interface{}) error {
+	encoder := json.NewEncoder(w)
+	encoder.SetIndent("", "  ")
+	encoder.SetEscapeHTML(false)
+	return encoder.Encode(value)
 }
