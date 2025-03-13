@@ -51,14 +51,7 @@ func (p Parameter) MarshalJSON() ([]byte, error) {
 		Example     interface{} `json:"example,omitempty"`
 	}
 
-	return json.Marshal(ParameterJSON{
-		Name:        p.Name,
-		In:          p.In,
-		Required:    p.Required,
-		Description: p.Description,
-		Schema:      p.Schema,
-		Example:     p.Example,
-	})
+	return json.Marshal(ParameterJSON(p))
 }
 
 // RequestBody represents a request body for an API operation.
@@ -127,6 +120,7 @@ type Schema struct {
 	Type                 string            `json:"type,omitempty"`
 	Ref                  string            `json:"$ref,omitempty"`
 	Format               string            `json:"format,omitempty"`
+	Pattern              string            `json:"pattern,omitempty"`
 	Description          string            `json:"description,omitempty"`
 	Items                *Schema           `json:"items,omitempty"`
 	Properties           map[string]Schema `json:"properties,omitempty"`

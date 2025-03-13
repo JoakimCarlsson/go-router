@@ -95,6 +95,286 @@ func WithPathParam(name, typ string, required bool, description string, example 
 	return WithParameter(name, "path", typ, required, description, example)
 }
 
+// WithFormattedPathParam adds a path parameter with a specific format to the route.
+// The format field specifies the format of the parameter value, such as "uuid", "date", etc.
+//
+// Parameters:
+//   - name: The parameter name
+//   - format: The format of the parameter (uuid, date-time, date, email, uri, etc.)
+//   - required: Whether the parameter is required
+//   - description: A description of the parameter
+//   - example: An example value for the parameter
+func WithFormattedPathParam(name, format string, required bool, description string, example interface{}) RouteOption {
+	return func(m *metadata.RouteMetadata) {
+		m.Parameters = append(m.Parameters, metadata.Parameter{
+			Name:        name,
+			In:          "path",
+			Required:    required,
+			Description: description,
+			Schema: metadata.Schema{
+				Type:    "string",
+				Format:  format,
+				Example: example,
+			},
+		})
+	}
+}
+
+// WithRegexPathParam adds a path parameter with a regex pattern to the route.
+// This documents that the parameter must match the specified pattern.
+//
+// Parameters:
+//   - name: The parameter name
+//   - pattern: The regex pattern the parameter must match
+//   - required: Whether the parameter is required
+//   - description: A description of the parameter
+//   - example: An example value for the parameter
+func WithRegexPathParam(name, pattern string, required bool, description string, example interface{}) RouteOption {
+	return func(m *metadata.RouteMetadata) {
+		m.Parameters = append(m.Parameters, metadata.Parameter{
+			Name:        name,
+			In:          "path",
+			Required:    required,
+			Description: description + "\n\nMust match pattern: `" + pattern + "`",
+			Schema: metadata.Schema{
+				Type:    "string",
+				Pattern: pattern,
+				Example: example,
+			},
+		})
+	}
+}
+
+// WithNumericPathParam adds a numeric path parameter to the route with optional range constraints.
+//
+// Parameters:
+//   - name: The parameter name
+//   - required: Whether the parameter is required
+//   - description: A description of the parameter
+//   - example: An example value for the parameter
+//   - minimum: Minimum value (optional, set to nil if not needed)
+//   - maximum: Maximum value (optional, set to nil if not needed)
+func WithNumericPathParam(name string, required bool, description string, example float64, minimum, maximum *float64) RouteOption {
+	return func(m *metadata.RouteMetadata) {
+		schema := metadata.Schema{
+			Type:    "number",
+			Example: example,
+		}
+
+		if minimum != nil {
+			schema.Minimum = minimum
+		}
+		if maximum != nil {
+			schema.Maximum = maximum
+		}
+
+		m.Parameters = append(m.Parameters, metadata.Parameter{
+			Name:        name,
+			In:          "path",
+			Required:    required,
+			Description: description,
+			Schema:      schema,
+		})
+	}
+}
+
+// WithIntegerPathParam adds an integer path parameter to the route with optional range constraints.
+//
+// Parameters:
+//   - name: The parameter name
+//   - required: Whether the parameter is required
+//   - description: A description of the parameter
+//   - example: An example value for the parameter
+//   - minimum: Minimum value (optional, set to nil if not needed)
+//   - maximum: Maximum value (optional, set to nil if not needed)
+func WithIntegerPathParam(name string, required bool, description string, example int64, minimum, maximum *float64) RouteOption {
+	return func(m *metadata.RouteMetadata) {
+		schema := metadata.Schema{
+			Type:    "integer",
+			Example: example,
+		}
+
+		if minimum != nil {
+			schema.Minimum = minimum
+		}
+		if maximum != nil {
+			schema.Maximum = maximum
+		}
+
+		m.Parameters = append(m.Parameters, metadata.Parameter{
+			Name:        name,
+			In:          "path",
+			Required:    required,
+			Description: description,
+			Schema:      schema,
+		})
+	}
+}
+
+// WithEnumPathParam adds a path parameter with enumerated allowed values to the route.
+//
+// Parameters:
+//   - name: The parameter name
+//   - required: Whether the parameter is required
+//   - description: A description of the parameter
+//   - example: An example value for the parameter
+//   - values: Array of allowed values for the parameter
+func WithEnumPathParam(name string, required bool, description string, example interface{}, values []interface{}) RouteOption {
+	return func(m *metadata.RouteMetadata) {
+		m.Parameters = append(m.Parameters, metadata.Parameter{
+			Name:        name,
+			In:          "path",
+			Required:    required,
+			Description: description,
+			Schema: metadata.Schema{
+				Type:    "string",
+				Enum:    values,
+				Example: example,
+			},
+		})
+	}
+}
+
+// WithFormattedQueryParam adds a query parameter with a specific format to the route.
+// The format field specifies the format of the parameter value, such as "uuid", "date", etc.
+//
+// Parameters:
+//   - name: The parameter name
+//   - format: The format of the parameter (uuid, date-time, date, email, uri, etc.)
+//   - required: Whether the parameter is required
+//   - description: A description of the parameter
+//   - example: An example value for the parameter
+func WithFormattedQueryParam(name, format string, required bool, description string, example interface{}) RouteOption {
+	return func(m *metadata.RouteMetadata) {
+		m.Parameters = append(m.Parameters, metadata.Parameter{
+			Name:        name,
+			In:          "query",
+			Required:    required,
+			Description: description,
+			Schema: metadata.Schema{
+				Type:    "string",
+				Format:  format,
+				Example: example,
+			},
+		})
+	}
+}
+
+// WithRegexQueryParam adds a query parameter with a regex pattern to the route.
+// This documents that the parameter must match the specified pattern.
+//
+// Parameters:
+//   - name: The parameter name
+//   - pattern: The regex pattern the parameter must match
+//   - required: Whether the parameter is required
+//   - description: A description of the parameter
+//   - example: An example value for the parameter
+func WithRegexQueryParam(name, pattern string, required bool, description string, example interface{}) RouteOption {
+	return func(m *metadata.RouteMetadata) {
+		m.Parameters = append(m.Parameters, metadata.Parameter{
+			Name:        name,
+			In:          "query",
+			Required:    required,
+			Description: description + "\n\nMust match pattern: `" + pattern + "`",
+			Schema: metadata.Schema{
+				Type:    "string",
+				Pattern: pattern,
+				Example: example,
+			},
+		})
+	}
+}
+
+// WithEnumQueryParam adds a query parameter with enumerated allowed values to the route.
+//
+// Parameters:
+//   - name: The parameter name
+//   - required: Whether the parameter is required
+//   - description: A description of the parameter
+//   - example: An example value for the parameter
+//   - values: Array of allowed values for the parameter
+func WithEnumQueryParam(name string, required bool, description string, example interface{}, values []interface{}) RouteOption {
+	return func(m *metadata.RouteMetadata) {
+		m.Parameters = append(m.Parameters, metadata.Parameter{
+			Name:        name,
+			In:          "query",
+			Required:    required,
+			Description: description,
+			Schema: metadata.Schema{
+				Type:    "string",
+				Enum:    values,
+				Example: example,
+			},
+		})
+	}
+}
+
+// WithFormattedParam is a generic function that adds a parameter with a specific format to the route.
+// The format field specifies the format of the parameter value, such as "uuid", "date", etc.
+//
+// Parameters:
+//   - name: The parameter name
+//   - in: The parameter location (path, query, header, cookie)
+//   - format: The format of the parameter (uuid, date-time, date, email, uri, etc.)
+//   - required: Whether the parameter is required
+//   - description: A description of the parameter
+//   - example: An example value for the parameter
+func WithFormattedParam(name, in, format string, required bool, description string, example interface{}) RouteOption {
+	return func(m *metadata.RouteMetadata) {
+		m.Parameters = append(m.Parameters, metadata.Parameter{
+			Name:        name,
+			In:          in,
+			Required:    required,
+			Description: description,
+			Schema: metadata.Schema{
+				Type:    "string",
+				Format:  format,
+				Example: example,
+			},
+		})
+	}
+}
+
+// WithUUIDPathParam adds a UUID path parameter to the route.
+func WithUUIDPathParam(name string, required bool, description string, example string) RouteOption {
+	return WithFormattedPathParam(name, "uuid", required, description, example)
+}
+
+// WithDatePathParam adds a date path parameter to the route.
+func WithDatePathParam(name string, required bool, description string, example string) RouteOption {
+	return WithFormattedPathParam(name, "date", required, description, example)
+}
+
+// WithDateTimePathParam adds a date-time path parameter to the route.
+func WithDateTimePathParam(name string, required bool, description string, example string) RouteOption {
+	return WithFormattedPathParam(name, "date-time", required, description, example)
+}
+
+// WithEmailPathParam adds an email path parameter to the route.
+func WithEmailPathParam(name string, required bool, description string, example string) RouteOption {
+	return WithFormattedPathParam(name, "email", required, description, example)
+}
+
+// WithUUIDQueryParam adds a UUID query parameter to the route.
+func WithUUIDQueryParam(name string, required bool, description string, example string) RouteOption {
+	return WithFormattedQueryParam(name, "uuid", required, description, example)
+}
+
+// WithDateQueryParam adds a date query parameter to the route.
+func WithDateQueryParam(name string, required bool, description string, example string) RouteOption {
+	return WithFormattedQueryParam(name, "date", required, description, example)
+}
+
+// WithDateTimeQueryParam adds a date-time query parameter to the route.
+func WithDateTimeQueryParam(name string, required bool, description string, example string) RouteOption {
+	return WithFormattedQueryParam(name, "date-time", required, description, example)
+}
+
+// WithEmailQueryParam adds an email query parameter to the route.
+func WithEmailQueryParam(name string, required bool, description string, example string) RouteOption {
+	return WithFormattedQueryParam(name, "email", required, description, example)
+}
+
 // WithHeaderParam adds a header parameter to the route.
 // Header parameters are sent in the HTTP request headers.
 //
