@@ -51,14 +51,7 @@ func (p Parameter) MarshalJSON() ([]byte, error) {
 		Example     interface{} `json:"example,omitempty"`
 	}
 
-	return json.Marshal(ParameterJSON{
-		Name:        p.Name,
-		In:          p.In,
-		Required:    p.Required,
-		Description: p.Description,
-		Schema:      p.Schema,
-		Example:     p.Example,
-	})
+	return json.Marshal(ParameterJSON(p))
 }
 
 // RequestBody represents a request body for an API operation.
@@ -127,6 +120,7 @@ type Schema struct {
 	Type                 string            `json:"type,omitempty"`
 	Ref                  string            `json:"$ref,omitempty"`
 	Format               string            `json:"format,omitempty"`
+	Pattern              string            `json:"pattern,omitempty"`
 	Description          string            `json:"description,omitempty"`
 	Items                *Schema           `json:"items,omitempty"`
 	Properties           map[string]Schema `json:"properties,omitempty"`
@@ -279,6 +273,51 @@ type OAuthFlow struct {
 type Tag struct {
 	Name        string `json:"name"`
 	Description string `json:"description,omitempty"`
+}
+
+// TypeHandler is a function that can generate a Schema for a specific Go type.
+// Custom type handlers can be registered to support specialized type conversions.
+type TypeHandler func(reflect.Type) Schema
+
+// typeHandlerRegistry stores custom type handlers for Schema generation
+type typeHandlerRegistry struct {
+	handlers map[string]TypeHandler
+	mu       sync.RWMutex
+}
+
+// global instance of the type handler registry
+var globalTypeHandlerRegistry *typeHandlerRegistry
+
+// init creates and initializes the global type handler registry
+func init() {
+	globalTypeRegistry = &typeRegistry{
+		types: make(map[string]*TypeRegistryEntry),
+	}
+
+	globalTypeHandlerRegistry = &typeHandlerRegistry{
+		handlers: make(map[string]TypeHandler),
+	}
+}
+
+// RegisterTypeHandler adds a custom type handler for a specific type.
+// The typeName should be in the format "package.TypeName" (e.g., "time.Time").
+// The handler function will be called when SchemaFromType encounters this type.
+// This allows users to customize how Schemas are generated for their own types.
+func RegisterTypeHandler(typeName string, handler TypeHandler) {
+	globalTypeHandlerRegistry.mu.Lock()
+	defer globalTypeHandlerRegistry.mu.Unlock()
+
+	globalTypeHandlerRegistry.handlers[typeName] = handler
+}
+
+// GetTypeHandler retrieves a type handler for a given type name if registered.
+// Returns the handler function and a boolean indicating if a handler was found.
+func GetTypeHandler(typeName string) (TypeHandler, bool) {
+	globalTypeHandlerRegistry.mu.RLock()
+	defer globalTypeHandlerRegistry.mu.RUnlock()
+
+	handler, exists := globalTypeHandlerRegistry.handlers[typeName]
+	return handler, exists
 }
 
 // TypeRegistryEntry stores information about a registered type
