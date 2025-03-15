@@ -36,6 +36,8 @@ type Context struct {
 	mu    sync.RWMutex
 	// maxMultipartMemory specifies the maximum memory used for parsing multipart forms
 	maxMultipartMemory int64
+	// sseInitialized tracks whether SSE has been initialized
+	sseInitialized bool
 }
 
 // Context pool to minimize allocations
@@ -85,6 +87,7 @@ func acquireContext(w http.ResponseWriter, r *http.Request) *Context {
 	ctx.StartTime = time.Now()
 	ctx.StatusCode = http.StatusOK
 	ctx.maxMultipartMemory = 32 << 20 // 32 MB
+	ctx.sseInitialized = false
 	return ctx
 }
 
@@ -560,4 +563,109 @@ func (c *Context) SaveUploadedFile(file *multipart.FileHeader, dst string) error
 
 	_, err = io.Copy(out, src)
 	return err
+}
+
+// SSEEvent represents a Server-Sent Event with optional fields
+type SSEEvent struct {
+	// Event is the optional event type
+	Event string
+	// Data is the event payload
+	Data string
+	// ID is an optional identifier for the event
+	ID string
+	// Retry is an optional reconnection time in milliseconds
+	Retry int
+}
+
+// InitSSE initializes a response for Server-Sent Events.
+// It sets the appropriate headers and status code.
+func (c *Context) InitSSE() {
+	if c.sseInitialized {
+		return
+	}
+	c.Writer.Header().Set("Content-Type", "text/event-stream")
+	c.Writer.Header().Set("Cache-Control", "no-cache")
+	c.Writer.Header().Set("Connection", "keep-alive")
+	c.Writer.Header().Set("X-Accel-Buffering", "no")
+	c.Status(http.StatusOK)
+	c.sseInitialized = true
+}
+
+// SSE sends a Server-Sent Event to the client.
+// It automatically initializes the SSE connection if not already initialized.
+func (c *Context) SSE(event SSEEvent) error {
+	if !c.sseInitialized {
+		c.InitSSE()
+	}
+
+	var buffer bytes.Buffer
+
+	if event.Event != "" {
+		buffer.WriteString(fmt.Sprintf("event: %s\n", event.Event))
+	}
+
+	if event.ID != "" {
+		buffer.WriteString(fmt.Sprintf("id: %s\n", event.ID))
+	}
+
+	if event.Retry > 0 {
+		buffer.WriteString(fmt.Sprintf("retry: %d\n", event.Retry))
+	}
+
+	if event.Data != "" {
+		lines := strings.Split(event.Data, "\n")
+		for _, line := range lines {
+			buffer.WriteString(fmt.Sprintf("data: %s\n", line))
+		}
+	} else {
+		buffer.WriteString("data: \n")
+	}
+
+	buffer.WriteString("\n")
+
+	_, err := c.Writer.Write(buffer.Bytes())
+	if err != nil {
+		return err
+	}
+
+	if f, ok := c.Writer.(http.Flusher); ok {
+		f.Flush()
+	}
+
+	return nil
+}
+
+// SSEJson sends a Server-Sent Event with JSON data.
+// It marshals the provided object to JSON before sending.
+func (c *Context) SSEJson(event string, obj interface{}, eventID string) error {
+	data, err := json.Marshal(obj)
+	if err != nil {
+		return err
+	}
+
+	return c.SSE(SSEEvent{
+		Event: event,
+		Data:  string(data),
+		ID:    eventID,
+	})
+}
+
+// SSEKeepAlive sends a comment to keep the SSE connection alive.
+// Many proxies and clients have timeouts, so sending a keep-alive
+// comment periodically helps maintain the connection.
+func (c *Context) SSEKeepAlive() error {
+	if !c.sseInitialized {
+		c.InitSSE()
+	}
+
+	_, err := c.Writer.Write([]byte(": keep-alive\n\n"))
+	if err != nil {
+		return err
+	}
+
+	if f, ok := c.Writer.(http.Flusher); ok {
+		f.Flush()
+	}
+
+	return nil
 }
