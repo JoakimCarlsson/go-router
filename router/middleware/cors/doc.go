@@ -41,6 +41,15 @@
 // AllowOrigins []string: List of allowed origins. Can contain wildcards like "https://*.example.com".
 // Use "*" to allow all origins. Default value is ["*"].
 //
+// For domain wildcards like "https://*.example.com":
+//   - This matches "https://sub.example.com", "https://nested.sub.example.com", etc.
+//   - This does NOT match "https://example.com" itself (the parent domain)
+//
+// For a pattern like "https://*.admin.example.com":
+//   - This matches "https://dashboard.admin.example.com", "https://user.admin.example.com"
+//   - This does NOT match "https://admin.example.com" or "https://example.com"
+//   - This does NOT match origins on different domains like "https://sub.example.com"
+//
 // AllowMethods []string: HTTP methods allowed for CORS requests.
 // Default value is [GET, POST, PUT, DELETE, HEAD, OPTIONS, PATCH].
 //

@@ -84,29 +84,56 @@ func Handler(options Options) router.MiddlewareFunc {
 		return func(c *router.Context) {
 			origin := c.GetHeader("Origin")
 
-			// Skip if request has no Origin header
-			if origin == "" {
+			// Always set the Vary header
+			c.SetHeader("Vary", "Origin")
+
+			// Skip if request has no Origin header, unless it's an OPTIONS request
+			// OPTIONS without Origin might still be a preflight sent by browser
+			isPreflight := c.Request.Method == http.MethodOptions
+
+			if origin == "" && !isPreflight {
 				next(c)
 				return
 			}
 
-			// Handle preflight requests
-			if c.Request.Method == http.MethodOptions {
-				// Set preflight response headers
-				c.SetHeader("Access-Control-Allow-Origin", getAllowOrigin(origin, options.AllowOrigins))
-
-				if allowMethods != "" {
-					c.SetHeader("Access-Control-Allow-Methods", allowMethods)
-				}
-
-				// Only add allow-headers if there are custom headers or if "*" is specified
-				if len(options.AllowHeaders) > 0 {
-					c.SetHeader("Access-Control-Allow-Headers", allowHeaders)
+			// Process the allowed origin based on origin header
+			// For preflight without origin, we'll use the first allowed origin
+			// This ensures consistent behavior
+			allowOrigin := ""
+			if origin != "" {
+				allowOrigin = getAllowOrigin(origin, options.AllowOrigins)
+			} else if isPreflight && len(options.AllowOrigins) > 0 {
+				// Special case: OPTIONS with no origin or null origin
+				// For security, only use "*" if it was explicitly configured
+				// Otherwise, set empty to respect the route's restriction
+				if contains(options.AllowOrigins, "*") {
+					allowOrigin = "*"
 				} else {
-					reqHeaders := c.GetHeader("Access-Control-Request-Headers")
+					// Don't respond with a specific origin for null origins for security reasons
+					// but do set methods and headers to allow browser to see what's allowed
+					allowOrigin = "null"
+				}
+			}
+
+			// Handle preflight OPTIONS requests directly
+			if isPreflight {
+				// Set response headers for preflight request
+				c.SetHeader("Access-Control-Allow-Origin", allowOrigin)
+				c.SetHeader("Access-Control-Allow-Methods", allowMethods)
+
+				// Handle headers
+				reqHeaders := c.GetHeader("Access-Control-Request-Headers")
+				if len(options.AllowHeaders) > 0 && options.AllowHeaders[0] == "*" {
+					// If wildcard headers, mirror the requested headers
 					if reqHeaders != "" {
 						c.SetHeader("Access-Control-Allow-Headers", reqHeaders)
+					} else {
+						c.SetHeader("Access-Control-Allow-Headers", "*")
 					}
+				} else if len(options.AllowHeaders) > 0 {
+					c.SetHeader("Access-Control-Allow-Headers", allowHeaders)
+				} else if reqHeaders != "" {
+					c.SetHeader("Access-Control-Allow-Headers", reqHeaders)
 				}
 
 				if options.AllowCredentials {
@@ -125,7 +152,9 @@ func Handler(options Options) router.MiddlewareFunc {
 			}
 
 			// Set response headers for actual request
-			c.SetHeader("Access-Control-Allow-Origin", getAllowOrigin(origin, options.AllowOrigins))
+			if origin != "" {
+				c.SetHeader("Access-Control-Allow-Origin", allowOrigin)
+			}
 
 			if exposeHeaders != "" {
 				c.SetHeader("Access-Control-Expose-Headers", exposeHeaders)
@@ -142,21 +171,43 @@ func Handler(options Options) router.MiddlewareFunc {
 
 // getAllowOrigin returns the allowed origin based on the Origin header and configuration
 func getAllowOrigin(origin string, allowOrigins []string) string {
-	// If "*" is specified, return "*" or origin based on whether credentials are allowed
 	for _, allowOrigin := range allowOrigins {
-		if allowOrigin == "*" {
-			return "*"
-		}
+		// Exact match
 		if allowOrigin == origin {
 			return origin
 		}
-		// Handle wildcards in origins like "https://*.example.com"
-		if strings.HasPrefix(allowOrigin, "*") {
-			if strings.HasSuffix(origin, allowOrigin[1:]) {
-				return origin
+
+		// Wildcard match (*)
+		if allowOrigin == "*" {
+			return "*"
+		}
+
+		// Protocol wildcard match (https://*.example.com)
+		if strings.Contains(allowOrigin, "://*.") {
+			parts := strings.SplitN(allowOrigin, "://*.", 2)
+			if len(parts) == 2 {
+				protocol := parts[0] + "://"
+				domain := "." + parts[1] // Add dot to ensure we match domain boundary
+
+				if strings.HasPrefix(origin, protocol) && strings.HasSuffix(origin, domain) {
+					// Check that there's at least one character between protocol and domain
+					if len(origin) > len(protocol)+len(domain) {
+						return origin
+					}
+				}
 			}
 		}
 	}
 
 	return ""
+}
+
+// contains checks if a string slice contains a specific value
+func contains(slice []string, item string) bool {
+	for _, s := range slice {
+		if s == item {
+			return true
+		}
+	}
+	return false
 }
