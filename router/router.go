@@ -103,13 +103,14 @@ func (r *Router) Use(middlewares ...func(http.Handler) http.Handler) {
 // allowing routes to be registered within the group.
 func (r *Router) Group(path string, fn func(*Router)) {
 	group := &Router{
-		mux:         r.mux,
-		prefix:      r.prefix + path,
-		middlewares: slices.Clone(r.middlewares),
-		parent:      r,
-		routes:      make([]route, 0),
-		tags:        make([]string, 0),
-		security:    make([]metadata.SecurityRequirement, 0),
+		mux:                r.mux,
+		prefix:             r.prefix + path,
+		middlewares:        slices.Clone(r.middlewares),
+		parent:             r,
+		routes:             make([]route, 0),
+		tags:               make([]string, 0),
+		security:           make([]metadata.SecurityRequirement, 0),
+		maxMultipartMemory: r.maxMultipartMemory,
 	}
 	fn(group)
 
@@ -130,6 +131,7 @@ func (r *Router) Handle(pattern string, handler HandlerFunc, opts ...RouteOption
 
 	fullpath := normalizePath(path.Join(r.prefix, subpath))
 
+	// Create metadata for documentation
 	metadata := &metadata.RouteMetadata{
 		Method:     method,
 		Path:       fullpath,
@@ -175,6 +177,15 @@ func (r *Router) Handle(pattern string, handler HandlerFunc, opts ...RouteOption
 	}
 
 	r.mux.Handle(method+" "+fullpath, httpHandler)
+
+	// Always register both versions of the path (with and without trailing slash)
+	var alternatePath string
+	if len(fullpath) > 1 && fullpath[len(fullpath)-1] == '/' {
+		alternatePath = fullpath[:len(fullpath)-1]
+	} else {
+		alternatePath = fullpath + "/"
+	}
+	r.mux.Handle(method+" "+alternatePath, httpHandler)
 }
 
 // GET registers a new GET route with the specified path and handler.
