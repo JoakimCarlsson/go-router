@@ -1,4 +1,4 @@
-package middleware
+package cors
 
 import (
 	"net/http"
@@ -8,8 +8,8 @@ import (
 	"github.com/joakimcarlsson/go-router/router"
 )
 
-// CORSConfig defines the configuration options for CORS middleware.
-type CORSConfig struct {
+// Options defines the configuration options for CORS middleware.
+type Options struct {
 	// AllowOrigins is a list of origins a cross-domain request can be executed from.
 	// If the special "*" value is present in the list, all origins will be allowed.
 	// Default value is ["*"]
@@ -43,9 +43,9 @@ type CORSConfig struct {
 	OptionsPassthrough bool
 }
 
-// DefaultCORSConfig returns a configuration with sensible defaults.
-func DefaultCORSConfig() CORSConfig {
-	return CORSConfig{
+// DefaultOptions returns a configuration with sensible defaults.
+func DefaultOptions() Options {
+	return Options{
 		AllowOrigins:       []string{"*"},
 		AllowMethods:       []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodDelete, http.MethodHead, http.MethodOptions, http.MethodPatch},
 		AllowHeaders:       []string{},
@@ -56,28 +56,28 @@ func DefaultCORSConfig() CORSConfig {
 	}
 }
 
-// CORS returns a middleware that handles Cross-Origin Resource Sharing.
-func CORS() router.MiddlewareFunc {
-	return CORSWithConfig(DefaultCORSConfig())
+// Default returns a middleware that handles Cross-Origin Resource Sharing with default options.
+func Default() router.MiddlewareFunc {
+	return Handler(DefaultOptions())
 }
 
-// CORSWithConfig returns a CORS middleware with configuration.
-func CORSWithConfig(config CORSConfig) router.MiddlewareFunc {
+// Handler returns a CORS middleware with the specified options.
+func Handler(options Options) router.MiddlewareFunc {
 	// Normalize configurations
-	if len(config.AllowOrigins) == 0 {
-		config.AllowOrigins = []string{"*"}
+	if len(options.AllowOrigins) == 0 {
+		options.AllowOrigins = []string{"*"}
 	}
-	if len(config.AllowMethods) == 0 {
-		config.AllowMethods = []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodDelete, http.MethodHead, http.MethodOptions, http.MethodPatch}
+	if len(options.AllowMethods) == 0 {
+		options.AllowMethods = []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodDelete, http.MethodHead, http.MethodOptions, http.MethodPatch}
 	}
 
 	// Convert config to header value strings
-	allowMethods := strings.Join(config.AllowMethods, ", ")
-	allowHeaders := strings.Join(config.AllowHeaders, ", ")
-	exposeHeaders := strings.Join(config.ExposeHeaders, ", ")
+	allowMethods := strings.Join(options.AllowMethods, ", ")
+	allowHeaders := strings.Join(options.AllowHeaders, ", ")
+	exposeHeaders := strings.Join(options.ExposeHeaders, ", ")
 	maxAge := ""
-	if config.MaxAge > 0 {
-		maxAge = strconv.Itoa(config.MaxAge)
+	if options.MaxAge > 0 {
+		maxAge = strconv.Itoa(options.MaxAge)
 	}
 
 	return func(next router.HandlerFunc) router.HandlerFunc {
@@ -93,13 +93,14 @@ func CORSWithConfig(config CORSConfig) router.MiddlewareFunc {
 			// Handle preflight requests
 			if c.Request.Method == http.MethodOptions {
 				// Set preflight response headers
-				c.SetHeader("Access-Control-Allow-Origin", getAllowOrigin(origin, config.AllowOrigins))
+				c.SetHeader("Access-Control-Allow-Origin", getAllowOrigin(origin, options.AllowOrigins))
 
 				if allowMethods != "" {
 					c.SetHeader("Access-Control-Allow-Methods", allowMethods)
 				}
 
-				if len(config.AllowHeaders) > 0 {
+				// Only add allow-headers if there are custom headers or if "*" is specified
+				if len(options.AllowHeaders) > 0 {
 					c.SetHeader("Access-Control-Allow-Headers", allowHeaders)
 				} else {
 					reqHeaders := c.GetHeader("Access-Control-Request-Headers")
@@ -108,7 +109,7 @@ func CORSWithConfig(config CORSConfig) router.MiddlewareFunc {
 					}
 				}
 
-				if config.AllowCredentials {
+				if options.AllowCredentials {
 					c.SetHeader("Access-Control-Allow-Credentials", "true")
 				}
 
@@ -116,20 +117,21 @@ func CORSWithConfig(config CORSConfig) router.MiddlewareFunc {
 					c.SetHeader("Access-Control-Max-Age", maxAge)
 				}
 
-				if !config.OptionsPassthrough {
+				// End preflight request if not passing through
+				if !options.OptionsPassthrough {
 					c.Status(http.StatusNoContent)
 					return
 				}
 			}
 
 			// Set response headers for actual request
-			c.SetHeader("Access-Control-Allow-Origin", getAllowOrigin(origin, config.AllowOrigins))
+			c.SetHeader("Access-Control-Allow-Origin", getAllowOrigin(origin, options.AllowOrigins))
 
 			if exposeHeaders != "" {
 				c.SetHeader("Access-Control-Expose-Headers", exposeHeaders)
 			}
 
-			if config.AllowCredentials {
+			if options.AllowCredentials {
 				c.SetHeader("Access-Control-Allow-Credentials", "true")
 			}
 

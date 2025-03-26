@@ -90,31 +90,38 @@ Configure Cross-Origin Resource Sharing (CORS) with the built-in middleware:
 ```go
 import (
     "github.com/joakimcarlsson/go-router/router"
-    "github.com/joakimcarlsson/go-router/router/middleware"
+    "github.com/joakimcarlsson/go-router/router/middleware/cors"
 )
 
 func main() {
     r := router.New()
     
     // Use default CORS settings (allow all origins)
-    r.Use(middleware.CORS())
+    r.Use(cors.Default())
     
-    // Or use custom CORS configuration
-    corsConfig := middleware.CORSConfig{
+    // Or use custom CORS configuration with the simple API
+    r.Use(cors.Handler(cors.Options{
         AllowOrigins:     []string{"https://example.com", "https://*.trusted-domain.com"},
         AllowMethods:     []string{http.MethodGet, http.MethodPost, http.MethodPut},
         AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
         ExposeHeaders:    []string{"Content-Length", "X-Request-ID"},
         AllowCredentials: true,
         MaxAge:           86400, // Cache preflight response for 24 hours
-    }
-    r.Use(middleware.CORSWithConfig(corsConfig))
+    }))
     
-    // Routes...
+    // Different CORS settings for specific route groups
+    r.Group("/api", func(api *router.Router) {
+        api.Use(cors.Handler(cors.Options{
+            AllowOrigins: []string{"https://api.example.com"},
+            // Other options...
+        }))
+        
+        // API routes...
+    })
 }
 ```
 
-For more details and advanced configuration options, see the [middleware documentation](router/middleware/README.md).
+For more details and advanced configuration options, see the [CORS middleware documentation](router/middleware/cors/README.md).
 
 ## File Uploads
 

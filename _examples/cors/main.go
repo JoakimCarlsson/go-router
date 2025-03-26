@@ -6,7 +6,7 @@ import (
 	"net/http"
 
 	"github.com/joakimcarlsson/go-router/router"
-	"github.com/joakimcarlsson/go-router/router/middleware"
+	"github.com/joakimcarlsson/go-router/router/middleware/cors"
 )
 
 func main() {
@@ -15,7 +15,7 @@ func main() {
 
 	// Add CORS middleware with default configuration
 	// This will allow all origins with default methods
-	r.Use(middleware.CORS())
+	r.Use(cors.Default())
 
 	// Root group with default CORS
 	r.GET("/", func(c *router.Context) {
@@ -24,20 +24,18 @@ func main() {
 		})
 	})
 
-	// API group with custom CORS configuration
+	// API group with custom CORS configuration using the simpler API
 	apiRouter := router.New()
 
-	// Custom CORS configuration for API routes
-	// This is more restrictive and allows specific origins
-	apiCorsConfig := middleware.CORSConfig{
+	// Custom CORS configuration for API routes using the Handler function
+	apiRouter.Use(cors.Handler(cors.Options{
 		AllowOrigins:     []string{"https://example.com", "https://api.example.com"},
 		AllowMethods:     []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodDelete},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization"},
+		ExposeHeaders:    []string{"Content-Length", "X-Request-ID"},
 		AllowCredentials: true,
 		MaxAge:           86400, // 24 hours
-	}
-
-	apiRouter.Use(middleware.CORSWithConfig(apiCorsConfig))
+	}))
 
 	apiRouter.GET("/users", func(c *router.Context) {
 		c.JSON(http.StatusOK, []map[string]string{
@@ -65,18 +63,16 @@ func main() {
 		})
 	})
 
-	// Create a third group with wildcard origin support
-	adminRouter := router.New()
-	adminCorsConfig := middleware.CORSConfig{
-		AllowOrigins:     []string{"https://*.admin.example.com"},
-		AllowMethods:     []string{http.MethodGet, http.MethodPost},
-		AllowHeaders:     []string{"*"}, // Allow all headers
-		AllowCredentials: true,
-	}
-	adminRouter.Use(middleware.CORSWithConfig(adminCorsConfig))
-
-	// Mount the admin router
+	// Create a third group with wildcard origin support and the simplest syntax
 	r.Group("/admin", func(admin *router.Router) {
+		// Apply CORS middleware directly to this group with the simplest syntax
+		admin.Use(cors.Handler(cors.Options{
+			AllowOrigins:     []string{"https://*.admin.example.com"},
+			AllowMethods:     []string{http.MethodGet, http.MethodPost},
+			AllowHeaders:     []string{"*"}, // Allow all headers
+			AllowCredentials: true,
+		}))
+
 		admin.GET("/dashboard", func(c *router.Context) {
 			c.JSON(http.StatusOK, map[string]string{
 				"message": "Admin dashboard with domain wildcard CORS",
@@ -91,5 +87,5 @@ func main() {
 	fmt.Println("Restricted CORS (specific origins): http://localhost:8080/api/users")
 	fmt.Println("Wildcard CORS (*.admin.example.com): http://localhost:8080/admin/dashboard")
 
-	log.Fatal(http.ListenAndServe(":8080", apiRouter))
+	log.Fatal(http.ListenAndServe(":8080", r))
 }

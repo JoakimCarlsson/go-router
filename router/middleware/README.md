@@ -6,33 +6,24 @@ This directory contains official middleware implementations for use with the go-
 
 ### CORS Middleware
 
-The CORS middleware provides a configurable way to handle Cross-Origin Resource Sharing (CORS) in your Go router application.
-
-#### Usage
+A dedicated CORS middleware is available in the [cors package](cors/README.md).
 
 ```go
-// Import the middleware package
-import "github.com/joakimcarlsson/go-router/router/middleware"
+import "github.com/joakimcarlsson/go-router/router/middleware/cors"
 
-// Use default CORS settings (allow all origins)
-r := router.New()
-r.Use(middleware.CORS())
+// Default configuration
+r.Use(cors.Default())
 
-// Use custom CORS settings
-corsConfig := middleware.CORSConfig{
-    AllowOrigins:     []string{"https://example.com", "https://api.example.com"},
-    AllowMethods:     []string{http.MethodGet, http.MethodPost, http.MethodPut},
-    AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
-    ExposeHeaders:    []string{"Content-Length"},
-    AllowCredentials: true,
-    MaxAge:           86400, // 24 hours in seconds
-}
-r.Use(middleware.CORSWithConfig(corsConfig))
+// Custom configuration
+r.Use(cors.Handler(cors.Options{
+    AllowOrigins: []string{"https://example.com"},
+    // Other options...
+}))
 ```
 
 #### Configuration Options
 
-The `CORSConfig` struct provides the following configuration options:
+The `CORSOptions` struct provides the following configuration options:
 
 | Field | Type | Description | Default |
 |-------|------|-------------|---------|
@@ -49,25 +40,23 @@ The `CORSConfig` struct provides the following configuration options:
 **Allowing Multiple Origins**
 
 ```go
-config := middleware.CORSConfig{
+r.Use(middleware.Handler(middleware.CORSOptions{
     AllowOrigins: []string{
         "https://example.com",
         "https://api.example.com",
         "https://admin.example.com",
     },
-}
-r.Use(middleware.CORSWithConfig(config))
+}))
 ```
 
 **Domain Wildcard Support**
 
 ```go
-config := middleware.CORSConfig{
+r.Use(middleware.Handler(middleware.CORSOptions{
     AllowOrigins: []string{
         "https://*.example.com", // Allows any subdomain of example.com
     },
-}
-r.Use(middleware.CORSWithConfig(config))
+}))
 ```
 
 **Different CORS Settings for Different Route Groups**
@@ -79,11 +68,10 @@ r.Use(middleware.CORS())
 
 // API group with stricter CORS
 r.Group("/api", func(api *router.Router) {
-    apiCorsConfig := middleware.CORSConfig{
+    api.Use(middleware.Handler(middleware.CORSOptions{
         AllowOrigins:     []string{"https://api.example.com"},
         AllowCredentials: true,
-    }
-    api.Use(middleware.CORSWithConfig(apiCorsConfig))
+    }))
     
     // API routes...
 })
