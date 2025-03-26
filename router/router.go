@@ -233,6 +233,70 @@ func (r *Router) Routes() []Route {
 	return routes
 }
 
+// AutoRegisterOptions automatically registers OPTIONS handlers for all routes in the current router.
+// This ensures that preflight requests for CORS will be handled properly.
+// Call this method after registering all your routes and before starting the server.
+//
+// For CORS to work correctly with browsers, the server must respond to preflight OPTIONS requests.
+// Without this method or manually registered OPTIONS handlers, browsers will block cross-origin
+// requests to your API endpoints.
+//
+// Example usage:
+//
+//	r := router.New()
+//	r.Use(cors.Handler(...))
+//
+//	// Register your routes
+//	r.GET("/api/users", getUsersHandler)
+//	r.POST("/api/users", createUserHandler)
+//
+//	// Auto-register OPTIONS handlers for all routes
+//	r.AutoRegisterOptions()
+//
+//	http.ListenAndServe(":8080", r)
+func (r *Router) AutoRegisterOptions() *Router {
+	r.mu.RLock()
+
+	// Only collect paths from the current router instance, not all router instances
+	routes := make(map[string]bool)
+
+	for _, route := range r.routes {
+		// Only include routes registered directly on this router instance
+		// by checking the route's path against the router's prefix
+		if r.parent == nil || strings.HasPrefix(route.path, r.prefix) {
+			// Extract the path relative to this router's prefix for comparing
+			routePath := route.path
+			routes[routePath] = true
+		}
+	}
+	r.mu.RUnlock()
+
+	// For each registered path, add an OPTIONS handler if one doesn't already exist
+	for path := range routes {
+		found := false
+
+		// Check if OPTIONS handler already exists for this path
+		r.mu.RLock()
+		for _, route := range r.routes {
+			if route.method == "OPTIONS" && route.path == path {
+				found = true
+				break
+			}
+		}
+		r.mu.RUnlock()
+
+		// If no OPTIONS handler exists, register an empty one
+		if !found {
+			r.Handle("OPTIONS "+path, func(c *Context) {
+				// Empty handler - the CORS middleware will handle the response
+				c.Status(http.StatusNoContent)
+			})
+		}
+	}
+
+	return r
+}
+
 // normalizePath ensures the path starts with a slash and is cleaned.
 // It handles edge cases like empty paths and relative paths.
 func normalizePath(p string) string {
