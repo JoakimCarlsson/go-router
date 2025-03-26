@@ -33,7 +33,7 @@ type route struct {
 type Router struct {
 	mux         *http.ServeMux
 	prefix      string
-	middlewares []MiddlewareFunc
+	middlewares []func(http.Handler) http.Handler
 	parent      *Router
 	routes      []route
 	mu          sync.RWMutex
@@ -49,6 +49,7 @@ func New() *Router {
 	return &Router{
 		mux:                http.NewServeMux(),
 		prefix:             "",
+		middlewares:        make([]func(http.Handler) http.Handler, 0),
 		routes:             make([]route, 0),
 		tags:               make([]string, 0),
 		security:           make([]metadata.SecurityRequirement, 0),
@@ -78,10 +79,22 @@ func (r *Router) WithSecurity(requirements ...map[string][]string) *Router {
 	return r
 }
 
-// Use adds middleware functions to the router.
-// Middleware functions are executed in the order they are added,
-// and apply to all routes registered after this call.
-func (r *Router) Use(middlewares ...MiddlewareFunc) {
+// Use adds standard HTTP middleware to the router.
+//
+// It accepts middleware that follows the standard Go HTTP middleware pattern:
+// func(http.Handler) http.Handler
+//
+// Example usage:
+//
+//	// Built-in middleware
+//	r.Use(cors.Default())
+//
+//	// Third-party middleware
+//	r.Use(nosurf.New)
+//
+//	// Multiple middleware
+//	r.Use(logger, recovery, cors.Default())
+func (r *Router) Use(middlewares ...func(http.Handler) http.Handler) {
 	r.middlewares = append(r.middlewares, middlewares...)
 }
 
@@ -116,7 +129,6 @@ func (r *Router) Handle(pattern string, handler HandlerFunc, opts ...RouteOption
 	method, subpath := parts[0], parts[1]
 
 	fullpath := normalizePath(path.Join(r.prefix, subpath))
-	finalHandler := r.buildMiddlewareChain(handler)
 
 	metadata := &metadata.RouteMetadata{
 		Method:     method,
@@ -143,17 +155,26 @@ func (r *Router) Handle(pattern string, handler HandlerFunc, opts ...RouteOption
 	r.routes = append(r.routes, route{
 		method:   method,
 		path:     fullpath,
-		handler:  finalHandler,
+		handler:  handler,
 		metadata: metadata,
 	})
 	r.mu.Unlock()
 
-	r.mux.HandleFunc(method+" "+fullpath, func(w http.ResponseWriter, req *http.Request) {
+	// Create a handler chain with middleware
+	var httpHandler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		ctx := acquireContext(w, req)
 		ctx.maxMultipartMemory = r.maxMultipartMemory
 		defer releaseContext(ctx)
-		finalHandler(ctx)
+		handler(ctx)
 	})
+
+	// Apply middleware in reverse order so that the first middleware
+	// in the list is the outermost wrapper around the handler
+	for i := len(r.middlewares) - 1; i >= 0; i-- {
+		httpHandler = r.middlewares[i](httpHandler)
+	}
+
+	r.mux.Handle(method+" "+fullpath, httpHandler)
 }
 
 // GET registers a new GET route with the specified path and handler.
@@ -192,21 +213,6 @@ func (r *Router) PATCH(path string, handler HandlerFunc, opts ...RouteOption) {
 func (r *Router) WithMultipartConfig(maxMemory int64) *Router {
 	r.maxMultipartMemory = maxMemory
 	return r
-}
-
-// buildMiddlewareChain builds the middleware chain for a handler.
-// It applies each middleware in reverse order so that the first middleware
-// in the list is the outermost wrapper around the handler.
-func (r *Router) buildMiddlewareChain(handler HandlerFunc) HandlerFunc {
-	if len(r.middlewares) == 0 {
-		return handler
-	}
-
-	h := handler
-	for i := len(r.middlewares) - 1; i >= 0; i-- {
-		h = r.middlewares[i](h)
-	}
-	return h
 }
 
 // ServeHTTP implements the http.Handler interface.
@@ -307,4 +313,32 @@ func normalizePath(p string) string {
 		p = "/" + p
 	}
 	return path.Clean(p)
+}
+
+// ToHTTPHandlerFunc converts a router.HandlerFunc to a standard http.HandlerFunc.
+// This enables using router handlers with standard Go HTTP servers or middleware.
+//
+// Example usage:
+//
+//	http.Handle("/api/users", router.ToHTTPHandlerFunc(myRouterHandler))
+func ToHTTPHandlerFunc(h HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		ctx := acquireContext(w, r)
+		defer releaseContext(ctx)
+		h(ctx)
+	}
+}
+
+// FromHTTPHandler converts a standard http.Handler to a router.HandlerFunc.
+// This allows you to use existing http.Handler implementations with this router.
+//
+// Example usage:
+//
+//	r := router.New()
+//	fileServer := http.FileServer(http.Dir("./static"))
+//	r.GET("/static/*filepath", router.FromHTTPHandler(fileServer))
+func FromHTTPHandler(handler http.Handler) HandlerFunc {
+	return func(c *Context) {
+		handler.ServeHTTP(c.Writer, c.Request)
+	}
 }
