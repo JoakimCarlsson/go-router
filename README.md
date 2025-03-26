@@ -121,8 +121,6 @@ func main() {
 }
 ```
 
-For more details and advanced configuration options, see the [CORS middleware documentation](router/middleware/cors/README.md).
-
 ## File Uploads
 
 Handle file uploads with built-in multipart form support:
