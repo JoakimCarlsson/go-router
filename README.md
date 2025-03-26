@@ -18,6 +18,11 @@ This router is designed with modularity in mind, allowing you to use only the co
   - Multipart form data handling
   - File upload support
 
+- **middleware**: Built-in middleware components
+  - CORS middleware with extensive configuration options
+  - Support for custom headers, origins, and methods
+  - Wildcard support for domain matching
+
 - **metadata**: Shared type definitions
   - OpenAPI/Swagger shared types
   - OAuth2 configuration
@@ -77,6 +82,39 @@ func main() {
     r.Run(":8080")
 }
 ```
+
+## CORS Middleware
+
+Configure Cross-Origin Resource Sharing (CORS) with the built-in middleware:
+
+```go
+import (
+    "github.com/joakimcarlsson/go-router/router"
+    "github.com/joakimcarlsson/go-router/router/middleware"
+)
+
+func main() {
+    r := router.New()
+    
+    // Use default CORS settings (allow all origins)
+    r.Use(middleware.CORS())
+    
+    // Or use custom CORS configuration
+    corsConfig := middleware.CORSConfig{
+        AllowOrigins:     []string{"https://example.com", "https://*.trusted-domain.com"},
+        AllowMethods:     []string{http.MethodGet, http.MethodPost, http.MethodPut},
+        AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
+        ExposeHeaders:    []string{"Content-Length", "X-Request-ID"},
+        AllowCredentials: true,
+        MaxAge:           86400, // Cache preflight response for 24 hours
+    }
+    r.Use(middleware.CORSWithConfig(corsConfig))
+    
+    // Routes...
+}
+```
+
+For more details and advanced configuration options, see the [middleware documentation](router/middleware/README.md).
 
 ## File Uploads
 
@@ -199,6 +237,7 @@ See the `_examples` directory for complete examples:
 - OAuth2 authentication
 - Swagger UI integration
 - Custom type handlers
+- CORS middleware configuration
 - Complete refactored example
 
 ## Design Goals
