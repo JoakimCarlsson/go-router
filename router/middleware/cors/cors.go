@@ -4,8 +4,6 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-
-	"github.com/joakimcarlsson/go-router/router"
 )
 
 // Options defines the configuration options for CORS middleware.
@@ -33,12 +31,12 @@ func DefaultOptions() Options {
 }
 
 // Default returns a middleware that handles CORS with default options.
-func Default() router.MiddlewareFunc {
+func Default() func(http.Handler) http.Handler {
 	return Handler(DefaultOptions())
 }
 
 // Handler returns a CORS middleware with the specified options.
-func Handler(options Options) router.MiddlewareFunc {
+func Handler(options Options) func(http.Handler) http.Handler {
 	// Normalize configurations
 	if len(options.AllowOrigins) == 0 {
 		options.AllowOrigins = []string{"*"}
@@ -59,17 +57,17 @@ func Handler(options Options) router.MiddlewareFunc {
 	// Check if wildcard is allowed
 	allowWildcard := contains(options.AllowOrigins, "*")
 
-	return func(next router.HandlerFunc) router.HandlerFunc {
-		return func(c *router.Context) {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			// Always set Vary header
-			c.SetHeader("Vary", "Origin")
+			w.Header().Set("Vary", "Origin")
 
-			origin := c.GetHeader("Origin")
-			isPreflight := c.Request.Method == http.MethodOptions
+			origin := r.Header.Get("Origin")
+			isPreflight := r.Method == http.MethodOptions
 
 			// Skip if no origin and not preflight
 			if origin == "" && !isPreflight {
-				next(c)
+				next.ServeHTTP(w, r)
 				return
 			}
 
@@ -86,49 +84,49 @@ func Handler(options Options) router.MiddlewareFunc {
 			// Process preflight requests
 			if isPreflight {
 				// Set CORS headers
-				c.SetHeader("Access-Control-Allow-Origin", allowOrigin)
-				c.SetHeader("Access-Control-Allow-Methods", allowMethods)
+				w.Header().Set("Access-Control-Allow-Origin", allowOrigin)
+				w.Header().Set("Access-Control-Allow-Methods", allowMethods)
 
 				// Handle headers
-				reqHeaders := c.GetHeader("Access-Control-Request-Headers")
+				reqHeaders := r.Header.Get("Access-Control-Request-Headers")
 				if len(options.AllowHeaders) > 0 && options.AllowHeaders[0] == "*" && reqHeaders != "" {
-					c.SetHeader("Access-Control-Allow-Headers", reqHeaders)
+					w.Header().Set("Access-Control-Allow-Headers", reqHeaders)
 				} else if len(options.AllowHeaders) > 0 {
-					c.SetHeader("Access-Control-Allow-Headers", allowHeaders)
+					w.Header().Set("Access-Control-Allow-Headers", allowHeaders)
 				} else if reqHeaders != "" {
-					c.SetHeader("Access-Control-Allow-Headers", reqHeaders)
+					w.Header().Set("Access-Control-Allow-Headers", reqHeaders)
 				}
 
 				if options.AllowCredentials {
-					c.SetHeader("Access-Control-Allow-Credentials", "true")
+					w.Header().Set("Access-Control-Allow-Credentials", "true")
 				}
 
 				if maxAge != "" {
-					c.SetHeader("Access-Control-Max-Age", maxAge)
+					w.Header().Set("Access-Control-Max-Age", maxAge)
 				}
 
 				// End preflight request if not passing through
 				if !options.OptionsPassthrough {
-					c.Status(http.StatusNoContent)
+					w.WriteHeader(http.StatusNoContent)
 					return
 				}
 			}
 
 			// Set response headers for actual request
 			if origin != "" {
-				c.SetHeader("Access-Control-Allow-Origin", allowOrigin)
+				w.Header().Set("Access-Control-Allow-Origin", allowOrigin)
 
 				if exposeHeaders != "" {
-					c.SetHeader("Access-Control-Expose-Headers", exposeHeaders)
+					w.Header().Set("Access-Control-Expose-Headers", exposeHeaders)
 				}
 
 				if options.AllowCredentials {
-					c.SetHeader("Access-Control-Allow-Credentials", "true")
+					w.Header().Set("Access-Control-Allow-Credentials", "true")
 				}
 			}
 
-			next(c)
-		}
+			next.ServeHTTP(w, r)
+		})
 	}
 }
 

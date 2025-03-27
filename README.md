@@ -121,6 +121,39 @@ func main() {
 }
 ```
 
+## Standard Middleware Compatibility
+
+The router exclusively uses standard HTTP middleware, making it compatible with the vast ecosystem of existing Go middleware:
+
+```go
+import (
+    "github.com/joakimcarlsson/go-router/router"
+    "github.com/justinas/nosurf"  // Example of a standard middleware package
+)
+
+func main() {
+    r := router.New()
+    
+    // Use any standard HTTP middleware
+    r.Use(loggingMiddleware, cors.Default())
+    
+    // Standard middleware is any function with signature:
+    // func(http.Handler) http.Handler
+    
+    // Convert a standard http.Handler to a router.HandlerFunc
+    fileServer := http.FileServer(http.Dir("./static"))
+    r.GET("/static/*filepath", router.FromHTTPHandler(fileServer))
+    
+    // Convert a router.HandlerFunc to a standard http.HandlerFunc
+    customHandler := func(c *router.Context) {
+        c.JSON(200, map[string]string{"message": "Hello"})
+    }
+    
+    // Use with standard http package
+    http.Handle("/api/hello", router.ToHTTPHandlerFunc(customHandler))
+}
+```
+
 ## File Uploads
 
 Handle file uploads with built-in multipart form support:

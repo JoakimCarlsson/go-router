@@ -2,8 +2,10 @@ package router_test
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"io"
+	"net/http"
 	"net/http/httptest"
 	"strconv"
 	"testing"
@@ -154,22 +156,25 @@ func BenchmarkRequestHandling(b *testing.B) {
 
 // BenchmarkMiddleware measures the performance of middleware execution
 func BenchmarkMiddleware(b *testing.B) {
-	// Setup simple middlewares
-	loggingMiddleware := func(next router.HandlerFunc) router.HandlerFunc {
-		return func(c *router.Context) {
+	// Setup simple middlewares using standard HTTP middleware pattern
+	stdLoggingMiddleware := func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			// Just call next handler
-			next(c)
-		}
+			next.ServeHTTP(w, r)
+		})
 	}
 
-	authMiddleware := func(next router.HandlerFunc) router.HandlerFunc {
-		return func(c *router.Context) {
+	stdAuthMiddleware := func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			// Simulate auth check
-			if c.GetHeader("Authorization") != "" {
-				c.Set("user", "authenticated")
+			if r.Header.Get("Authorization") != "" {
+				// We can't directly set user context in standard middleware
+				ctx := r.Context()
+				ctx = context.WithValue(ctx, "user", "authenticated")
+				r = r.WithContext(ctx)
 			}
-			next(c)
-		}
+			next.ServeHTTP(w, r)
+		})
 	}
 
 	b.Run("NoMiddleware", func(b *testing.B) {
@@ -191,7 +196,7 @@ func BenchmarkMiddleware(b *testing.B) {
 
 	b.Run("SingleMiddleware", func(b *testing.B) {
 		r := router.New()
-		r.Use(loggingMiddleware)
+		r.Use(stdLoggingMiddleware)
 		r.GET("/hello", func(c *router.Context) {
 			c.Writer.WriteHeader(200)
 			c.Writer.Write([]byte("Hello, World!"))
@@ -209,9 +214,9 @@ func BenchmarkMiddleware(b *testing.B) {
 
 	b.Run("MultipleMiddlewares", func(b *testing.B) {
 		r := router.New()
-		r.Use(loggingMiddleware)
-		r.Use(authMiddleware)
-		r.Use(loggingMiddleware) // Add a third middleware
+		r.Use(stdLoggingMiddleware)
+		r.Use(stdAuthMiddleware)
+		r.Use(stdLoggingMiddleware) // Add a third middleware
 		r.GET("/hello", func(c *router.Context) {
 			c.Writer.WriteHeader(200)
 			c.Writer.Write([]byte("Hello, World!"))
@@ -230,10 +235,10 @@ func BenchmarkMiddleware(b *testing.B) {
 
 	b.Run("GroupMiddlewares", func(b *testing.B) {
 		r := router.New()
-		r.Use(loggingMiddleware)
+		r.Use(stdLoggingMiddleware)
 
 		r.Group("/api", func(api *router.Router) {
-			api.Use(authMiddleware)
+			api.Use(stdAuthMiddleware)
 
 			api.GET("/hello", func(c *router.Context) {
 				c.Writer.WriteHeader(200)
@@ -300,13 +305,15 @@ func BenchmarkContextOperations(b *testing.B) {
 
 	b.Run("ContextStore", func(b *testing.B) {
 		r := router.New()
-		r.Use(func(next router.HandlerFunc) router.HandlerFunc {
-			return func(c *router.Context) {
-				c.Set("key1", "value1")
-				c.Set("key2", 123)
-				c.Set("key3", true)
-				next(c)
-			}
+		r.Use(func(next http.Handler) http.Handler {
+			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				// Store values in request context
+				ctx := r.Context()
+				ctx = context.WithValue(ctx, "key1", "value1")
+				ctx = context.WithValue(ctx, "key2", 123)
+				ctx = context.WithValue(ctx, "key3", true)
+				next.ServeHTTP(w, r.WithContext(ctx))
+			})
 		})
 
 		r.GET("/test", func(c *router.Context) {
@@ -422,24 +429,26 @@ func setupProductAPI() *router.Router {
 	r := router.New()
 
 	// Middleware for all routes
-	r.Use(func(next router.HandlerFunc) router.HandlerFunc {
-		return func(c *router.Context) {
-			c.SetHeader("X-Response-Time", "0.1ms") // Simulated response time
-			next(c)
-		}
+	r.Use(func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("X-Response-Time", "0.1ms") // Simulated response time
+			next.ServeHTTP(w, r)
+		})
 	})
 
 	// Product API
 	r.Group("/api/products", func(api *router.Router) {
 		// Auth middleware
-		api.Use(func(next router.HandlerFunc) router.HandlerFunc {
-			return func(c *router.Context) {
-				auth := c.GetHeader("Authorization")
+		api.Use(func(next http.Handler) http.Handler {
+			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				auth := r.Header.Get("Authorization")
 				if auth != "" {
-					c.Set("userID", "user-123")
+					ctx := r.Context()
+					ctx = context.WithValue(ctx, "userID", "user-123")
+					r = r.WithContext(ctx)
 				}
-				next(c)
-			}
+				next.ServeHTTP(w, r)
+			})
 		})
 
 		// Routes
