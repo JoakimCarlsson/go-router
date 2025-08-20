@@ -205,82 +205,9 @@ func (g *Generator) createSchemaReference(schemaName string) *metadata.Reference
 	}
 }
 
-// RouteMetadata contains OpenAPI documentation for a route
-// This structure remains for backward compatibility
-type RouteMetadata struct {
-	Method      string                         `json:"-"`
-	Path        string                         `json:"-"`
-	OperationID string                         `json:"operationId,omitempty"`
-	Summary     string                         `json:"summary,omitempty"`
-	Description string                         `json:"description,omitempty"`
-	Tags        []string                       `json:"tags,omitempty"`
-	Parameters  []metadata.Parameter           `json:"parameters,omitempty"`
-	RequestBody *metadata.RequestBody          `json:"requestBody,omitempty"`
-	Responses   map[string]metadata.Response   `json:"responses"`
-	Security    []metadata.SecurityRequirement `json:"security,omitempty"`
-	Deprecated  bool                           `json:"deprecated,omitempty"`
-}
-
-// WithOperationID sets the operationId for the route
-func WithOperationID(operationId string) RouteOption {
-	return func(m *RouteMetadata) {
-		m.OperationID = operationId
-	}
-}
-
-// RouteOption is a function that configures route metadata
-type RouteOption func(*RouteMetadata)
-
-// WithSummary sets the route summary
-func WithSummary(summary string) RouteOption {
-	return func(m *RouteMetadata) {
-		m.Summary = summary
-	}
-}
-
-// WithDescription sets the route description
-func WithDescription(description string) RouteOption {
-	return func(m *RouteMetadata) {
-		m.Description = description
-	}
-}
-
-// WithTags adds tags to the route
-func WithTags(tags ...string) RouteOption {
-	return func(m *RouteMetadata) {
-		m.Tags = append(m.Tags, tags...)
-	}
-}
-
-// WithParameter adds a parameter to the route
-func WithParameter(name, in, typ string, required bool, description string, example interface{}) RouteOption {
-	return func(m *RouteMetadata) {
-		m.Parameters = append(m.Parameters, metadata.Parameter{
-			Name:        name,
-			In:          in,
-			Required:    required,
-			Description: description,
-			Schema: metadata.Schema{
-				Type:    typ,
-				Example: example,
-			},
-		})
-	}
-}
-
-// WithQueryParam adds a query parameter to the route
-func WithQueryParam(name, typ string, required bool, description string, example interface{}) RouteOption {
-	return WithParameter(name, "query", typ, required, description, example)
-}
-
-// WithPathParam adds a path parameter to the route
-func WithPathParam(name, typ string, required bool, description string, example interface{}) RouteOption {
-	return WithParameter(name, "path", typ, required, description, example)
-}
-
-// WithResponse adds a response to the route
-func WithResponse(statusCode int, description string, contentType string, schema metadata.Schema) RouteOption {
-	return func(m *RouteMetadata) {
+// WithResponseSchema adds a response with content schema to the route
+func WithResponseSchema(statusCode int, description string, contentType string, schema metadata.Schema) docs.RouteOption {
+	return func(m *metadata.RouteMetadata) {
 		if m.Responses == nil {
 			m.Responses = make(map[string]metadata.Response)
 		}
@@ -294,8 +221,8 @@ func WithResponse(statusCode int, description string, contentType string, schema
 }
 
 // WithEmptyResponse adds a response without any content schema
-func WithEmptyResponse(statusCode int, description string) RouteOption {
-	return func(m *RouteMetadata) {
+func WithEmptyResponse(statusCode int, description string) docs.RouteOption {
+	return func(m *metadata.RouteMetadata) {
 		if m.Responses == nil {
 			m.Responses = make(map[string]metadata.Response)
 		}
@@ -305,10 +232,10 @@ func WithEmptyResponse(statusCode int, description string) RouteOption {
 	}
 }
 
-// WithJSONResponse adds a JSON response with schema inferred from the provided type T
-// It automatically handles both array and non-array types
-func WithJSONResponse[T any](statusCode int, description string) RouteOption {
-	return func(m *RouteMetadata) {
+// WithJSONResponseAdvanced adds a JSON response with schema inferred from the provided type T
+// It automatically handles both array and non-array types with schema references
+func WithJSONResponseAdvanced[T any](statusCode int, description string) docs.RouteOption {
+	return func(m *metadata.RouteMetadata) {
 		t := reflect.TypeOf((*T)(nil)).Elem()
 
 		if m.Responses == nil {
@@ -368,8 +295,8 @@ func WithJSONResponse[T any](statusCode int, description string) RouteOption {
 
 // WithResponseType adds a response with schema inferred from the provided type
 // It automatically detects if the type is a slice/array
-func WithResponseType[T any](statusCode int, description string, _ T) RouteOption {
-	return func(m *RouteMetadata) {
+func WithResponseType[T any](statusCode int, description string, _ T) docs.RouteOption {
+	return func(m *metadata.RouteMetadata) {
 		if m.Responses == nil {
 			m.Responses = make(map[string]metadata.Response)
 		}
@@ -437,8 +364,8 @@ func WithResponseType[T any](statusCode int, description string, _ T) RouteOptio
 }
 
 // WithRequestBody adds a request body schema to the route
-func WithRequestBody[T any](description string, required bool, _ T) RouteOption {
-	return func(m *RouteMetadata) {
+func WithRequestBody[T any](description string, required bool, _ T) docs.RouteOption {
+	return func(m *metadata.RouteMetadata) {
 		t := reflect.TypeOf((*T)(nil)).Elem()
 		schema := docs.SchemaFromType(t)
 
@@ -454,38 +381,9 @@ func WithRequestBody[T any](description string, required bool, _ T) RouteOption 
 	}
 }
 
-// WithSecurity adds security requirements to a route
-func WithSecurity(requirements ...map[string][]string) RouteOption {
-	return func(m *RouteMetadata) {
-		if m.Security == nil {
-			m.Security = make([]metadata.SecurityRequirement, 0)
-		}
-		for _, req := range requirements {
-			secReq := make(metadata.SecurityRequirement)
-			for k, v := range req {
-				secReq[k] = v
-			}
-			m.Security = append(m.Security, secReq)
-		}
-	}
-}
-
-// WithDeprecated marks an endpoint as deprecated
-func WithDeprecated(message string) RouteOption {
-	return func(m *RouteMetadata) {
-		m.Deprecated = true
-		if message != "" {
-			if m.Description != "" {
-				m.Description += "\n\n"
-			}
-			m.Description += "DEPRECATED: " + message
-		}
-	}
-}
-
 // WithResponseExample adds a response with a specific example
-func WithResponseExample[T any](statusCode int, description string, example T) RouteOption {
-	return func(m *RouteMetadata) {
+func WithResponseExample[T any](statusCode int, description string, example T) docs.RouteOption {
+	return func(m *metadata.RouteMetadata) {
 		if m.Responses == nil {
 			m.Responses = make(map[string]metadata.Response)
 		}
@@ -504,8 +402,8 @@ func WithResponseExample[T any](statusCode int, description string, example T) R
 }
 
 // WithRequestBodyExample adds a request body schema with example to the route
-func WithRequestBodyExample[T any](description string, required bool, example T) RouteOption {
-	return func(m *RouteMetadata) {
+func WithRequestBodyExample[T any](description string, required bool, example T) docs.RouteOption {
+	return func(m *metadata.RouteMetadata) {
 		t := reflect.TypeOf((*T)(nil)).Elem()
 		schema := docs.SchemaFromType(t)
 		schema.Example = example
