@@ -7,6 +7,15 @@ import (
 	"sync"
 )
 
+// Common content-type constants to avoid magic strings
+const (
+	ContentTypeJSON       = "application/json"
+	ContentTypeXML        = "application/xml"
+	ContentTypeEventStream = "text/event-stream"
+	ContentTypeHTML       = "text/html"
+	ContentTypeFormData   = "multipart/form-data"
+)
+
 // RouteMetadata contains documentation and configuration for a route.
 // This structure is used for generating OpenAPI documentation and provides
 // all the information needed to describe an API endpoint.
@@ -511,4 +520,12 @@ func (c *OAuth2Config) WithBasicAuthentication(use bool) *OAuth2Config {
 func (c *OAuth2Config) WithPKCE(use bool) *OAuth2Config {
 	c.UsePkceWithAuthorizationCodeGrant = use
 	return c
+}
+
+// EnsureResponsesMap initializes the Responses map if it's nil.
+// This is a utility function to avoid repeated nil checking and map creation.
+func EnsureResponsesMap(m *RouteMetadata) {
+	if m.Responses == nil {
+		m.Responses = make(map[string]Response)
+	}
 }

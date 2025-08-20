@@ -63,7 +63,7 @@ func (a *RouterOpenAPIAdapter) GenerateOpenAPISpec() *metadata.Spec {
 // the OpenAPI specification as JSON.
 func (a *RouterOpenAPIAdapter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	spec := a.GenerateOpenAPISpec()
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Type", metadata.ContentTypeJSON)
 	w.WriteHeader(http.StatusOK)
 	if err := WriteJSON(w, spec); err != nil {
 		http.Error(w, "Failed to write OpenAPI spec", http.StatusInternalServerError)
