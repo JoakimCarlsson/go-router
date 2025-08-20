@@ -179,13 +179,16 @@ func (r *Router) Handle(pattern string, handler HandlerFunc, opts ...RouteOption
 	r.mux.Handle(method+" "+fullpath, httpHandler)
 
 	// Always register both versions of the path (with and without trailing slash)
-	var alternatePath string
-	if len(fullpath) > 1 && fullpath[len(fullpath)-1] == '/' {
-		alternatePath = fullpath[:len(fullpath)-1]
-	} else {
-		alternatePath = fullpath + "/"
+	// Skip for root path "/" to avoid creating "//"
+	if fullpath != "/" {
+		var alternatePath string
+		if len(fullpath) > 1 && fullpath[len(fullpath)-1] == '/' {
+			alternatePath = fullpath[:len(fullpath)-1]
+		} else {
+			alternatePath = fullpath + "/"
+		}
+		r.mux.Handle(method+" "+alternatePath, httpHandler)
 	}
-	r.mux.Handle(method+" "+alternatePath, httpHandler)
 }
 
 // GET registers a new GET route with the specified path and handler.

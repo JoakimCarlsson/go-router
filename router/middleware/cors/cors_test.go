@@ -16,10 +16,8 @@ func TestCORSDefault(t *testing.T) {
 		c.Writer.Write([]byte("OK"))
 	})
 
-	// Add OPTIONS handler to match the router's behavior
-	r.Handle("OPTIONS /", func(c *router.Context) {
-		// This should never be called with default CORS middleware
-	})
+	// Auto-register OPTIONS handlers for all registered routes
+	r.AutoRegisterOptions()
 
 	// Test simple request with Origin header
 	req := httptest.NewRequest("GET", "/", nil)
@@ -70,10 +68,8 @@ func TestCORSCustom(t *testing.T) {
 		c.Writer.Write([]byte("OK"))
 	})
 
-	// Add OPTIONS handler to match the router's behavior
-	r.Handle("OPTIONS /", func(c *router.Context) {
-		// This should never be called with custom CORS middleware without OptionsPassthrough
-	})
+	// Auto-register OPTIONS handlers for all registered routes
+	r.AutoRegisterOptions()
 
 	// Test with allowed origin
 	req := httptest.NewRequest("GET", "/", nil)
@@ -217,14 +213,20 @@ func TestCORSOptionsPassthrough(t *testing.T) {
 	}))
 
 	var optionsHandlerCalled bool
-	r.Handle("OPTIONS /", func(c *router.Context) {
+	// Use a non-root path to avoid normalization issues
+	r.GET("/test", func(c *router.Context) {
+		c.Writer.WriteHeader(200)
+		c.Writer.Write([]byte("GET handler"))
+	})
+	
+	r.Handle("OPTIONS /test", func(c *router.Context) {
 		optionsHandlerCalled = true
 		c.Writer.WriteHeader(200)
 		c.Writer.Write([]byte("OPTIONS handler called"))
 	})
 
 	// Test OPTIONS request with OptionsPassthrough enabled
-	req := httptest.NewRequest("OPTIONS", "/", nil)
+	req := httptest.NewRequest("OPTIONS", "/test", nil)
 	req.Header.Set("Origin", "https://example.com")
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
@@ -309,10 +311,8 @@ func TestPreflightRequests(t *testing.T) {
 		c.Writer.Write([]byte("OK"))
 	})
 
-	// Add OPTIONS handler to match the router's behavior
-	r.Handle("OPTIONS /", func(c *router.Context) {
-		// This should never be called with CORS middleware without OptionsPassthrough
-	})
+	// Auto-register OPTIONS handlers for all registered routes
+	r.AutoRegisterOptions()
 
 	// Test proper preflight request
 	req := httptest.NewRequest("OPTIONS", "/", nil)
