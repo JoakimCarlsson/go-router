@@ -9,11 +9,11 @@ import (
 
 // Common content-type constants to avoid magic strings
 const (
-	ContentTypeJSON       = "application/json"
-	ContentTypeXML        = "application/xml"
+	ContentTypeJSON        = "application/json"
+	ContentTypeXML         = "application/xml"
 	ContentTypeEventStream = "text/event-stream"
-	ContentTypeHTML       = "text/html"
-	ContentTypeFormData   = "multipart/form-data"
+	ContentTypeHTML        = "text/html"
+	ContentTypeFormData    = "multipart/form-data"
 )
 
 // RouteMetadata contains documentation and configuration for a route.
@@ -93,8 +93,6 @@ type MediaType struct {
 
 // MarshalJSON implements json.Marshaler for MediaType to handle SchemaRef
 func (m MediaType) MarshalJSON() ([]byte, error) {
-	type Alias MediaType // Create an alias to avoid recursion in MarshalJSON
-
 	// If SchemaRef is set, serialize with the Reference instead of Schema
 	if m.SchemaRef != nil {
 		return json.Marshal(struct {

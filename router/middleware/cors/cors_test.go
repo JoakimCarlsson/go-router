@@ -13,7 +13,7 @@ func TestCORSDefault(t *testing.T) {
 	r.Use(Default())
 	r.GET("/", func(c *router.Context) {
 		c.Writer.WriteHeader(200)
-		c.Writer.Write([]byte("OK"))
+		_, _ = c.Writer.Write([]byte("OK"))
 	})
 
 	// Auto-register OPTIONS handlers for all registered routes
@@ -65,7 +65,7 @@ func TestCORSCustom(t *testing.T) {
 	}))
 	r.GET("/", func(c *router.Context) {
 		c.Writer.WriteHeader(200)
-		c.Writer.Write([]byte("OK"))
+		_, _ = c.Writer.Write([]byte("OK"))
 	})
 
 	// Auto-register OPTIONS handlers for all registered routes
@@ -135,7 +135,7 @@ func TestCORSWildcardOrigin(t *testing.T) {
 	}))
 	r.GET("/", func(c *router.Context) {
 		c.Writer.WriteHeader(200)
-		c.Writer.Write([]byte("OK"))
+		_, _ = c.Writer.Write([]byte("OK"))
 	})
 
 	// Test with subdomain that matches wildcard
@@ -171,7 +171,7 @@ func TestCORSWildcardOrigin(t *testing.T) {
 	}))
 	r2.GET("/", func(c *router.Context) {
 		c.Writer.WriteHeader(200)
-		c.Writer.Write([]byte("OK"))
+		_, _ = c.Writer.Write([]byte("OK"))
 	})
 
 	// Should match subdomain of admin.example.com
@@ -216,13 +216,13 @@ func TestCORSOptionsPassthrough(t *testing.T) {
 	// Use a non-root path to avoid normalization issues
 	r.GET("/test", func(c *router.Context) {
 		c.Writer.WriteHeader(200)
-		c.Writer.Write([]byte("GET handler"))
+		_, _ = c.Writer.Write([]byte("GET handler"))
 	})
-	
+
 	r.Handle("OPTIONS /test", func(c *router.Context) {
 		optionsHandlerCalled = true
 		c.Writer.WriteHeader(200)
-		c.Writer.Write([]byte("OPTIONS handler called"))
+		_, _ = c.Writer.Write([]byte("OPTIONS handler called"))
 	})
 
 	// Test OPTIONS request with OptionsPassthrough enabled
@@ -308,7 +308,7 @@ func TestPreflightRequests(t *testing.T) {
 	}))
 	r.GET("/", func(c *router.Context) {
 		c.Writer.WriteHeader(200)
-		c.Writer.Write([]byte("OK"))
+		_, _ = c.Writer.Write([]byte("OK"))
 	})
 
 	// Auto-register OPTIONS handlers for all registered routes

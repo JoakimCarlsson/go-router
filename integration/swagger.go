@@ -62,4 +62,3 @@ func (s *SwaggerUIIntegration) SetupRoutes(r *router.Router, specPath, uiPath st
 	// Serve Swagger UI
 	r.GET(uiPath, router.FromHTTPHandler(swagger.Handler(s.UIConfig)))
 }
-

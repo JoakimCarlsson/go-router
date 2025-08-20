@@ -15,6 +15,19 @@ import (
 	"github.com/joakimcarlsson/go-router/router"
 )
 
+// Context key types to avoid staticcheck warnings
+type contextKey string
+
+const (
+	userKey     contextKey = "user"
+	userIDKey   contextKey = "userID"
+	userIDKey2  contextKey = "user_id"
+	usernameKey contextKey = "username"
+	key1        contextKey = "key1"
+	key2        contextKey = "key2"
+	key3        contextKey = "key3"
+)
+
 // BenchmarkRouteRegistration measures the performance of registering routes
 func BenchmarkRouteRegistration(b *testing.B) {
 	b.ReportAllocs()
@@ -81,7 +94,7 @@ func BenchmarkRequestHandling(b *testing.B) {
 	// Setup handlers
 	helloHandler := func(c *router.Context) {
 		c.Writer.WriteHeader(200)
-		c.Writer.Write([]byte("Hello, World!"))
+		_, _ = c.Writer.Write([]byte("Hello, World!"))
 	}
 
 	jsonHandler := func(c *router.Context) {
@@ -171,7 +184,7 @@ func BenchmarkMiddleware(b *testing.B) {
 			if r.Header.Get("Authorization") != "" {
 				// We can't directly set user context in standard middleware
 				ctx := r.Context()
-				ctx = context.WithValue(ctx, "user", "authenticated")
+				ctx = context.WithValue(ctx, userKey, "authenticated")
 				r = r.WithContext(ctx)
 			}
 			next.ServeHTTP(w, r)
@@ -182,7 +195,7 @@ func BenchmarkMiddleware(b *testing.B) {
 		r := router.New()
 		r.GET("/hello", func(c *router.Context) {
 			c.Writer.WriteHeader(200)
-			c.Writer.Write([]byte("Hello, World!"))
+			_, _ = c.Writer.Write([]byte("Hello, World!"))
 		})
 
 		req := httptest.NewRequest("GET", "/hello", nil)
@@ -200,7 +213,7 @@ func BenchmarkMiddleware(b *testing.B) {
 		r.Use(stdLoggingMiddleware)
 		r.GET("/hello", func(c *router.Context) {
 			c.Writer.WriteHeader(200)
-			c.Writer.Write([]byte("Hello, World!"))
+			_, _ = c.Writer.Write([]byte("Hello, World!"))
 		})
 
 		req := httptest.NewRequest("GET", "/hello", nil)
@@ -220,7 +233,7 @@ func BenchmarkMiddleware(b *testing.B) {
 		r.Use(stdLoggingMiddleware) // Add a third middleware
 		r.GET("/hello", func(c *router.Context) {
 			c.Writer.WriteHeader(200)
-			c.Writer.Write([]byte("Hello, World!"))
+			_, _ = c.Writer.Write([]byte("Hello, World!"))
 		})
 
 		req := httptest.NewRequest("GET", "/hello", nil)
@@ -243,7 +256,7 @@ func BenchmarkMiddleware(b *testing.B) {
 
 			api.GET("/hello", func(c *router.Context) {
 				c.Writer.WriteHeader(200)
-				c.Writer.Write([]byte("Hello, World!"))
+				_, _ = c.Writer.Write([]byte("Hello, World!"))
 			})
 		})
 
@@ -310,9 +323,9 @@ func BenchmarkContextOperations(b *testing.B) {
 			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				// Store values in request context
 				ctx := r.Context()
-				ctx = context.WithValue(ctx, "key1", "value1")
-				ctx = context.WithValue(ctx, "key2", 123)
-				ctx = context.WithValue(ctx, "key3", true)
+				ctx = context.WithValue(ctx, key1, "value1")
+				ctx = context.WithValue(ctx, key2, 123)
+				ctx = context.WithValue(ctx, key3, true)
 				next.ServeHTTP(w, r.WithContext(ctx))
 			})
 		})
@@ -445,7 +458,7 @@ func setupProductAPI() *router.Router {
 				auth := r.Header.Get("Authorization")
 				if auth != "" {
 					ctx := r.Context()
-					ctx = context.WithValue(ctx, "userID", "user-123")
+					ctx = context.WithValue(ctx, userIDKey, "user-123")
 					r = r.WithContext(ctx)
 				}
 				next.ServeHTTP(w, r)
@@ -621,7 +634,7 @@ func createReaderFromBytes(b []byte) io.Reader {
 func TestRouter_Use(t *testing.T) {
 	t.Run("single middleware", func(t *testing.T) {
 		r := router.New()
-		
+
 		// Middleware that adds a header
 		headerMiddleware := func(next http.Handler) http.Handler {
 			return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
@@ -629,29 +642,29 @@ func TestRouter_Use(t *testing.T) {
 				next.ServeHTTP(w, req)
 			})
 		}
-		
+
 		r.Use(headerMiddleware)
 		r.GET("/test", func(c *router.Context) {
 			c.JSON(200, map[string]string{"status": "ok"})
 		})
-		
+
 		req := httptest.NewRequest("GET", "/test", nil)
 		w := httptest.NewRecorder()
-		
+
 		r.ServeHTTP(w, req)
-		
+
 		if w.Header().Get("X-Middleware") != "applied" {
 			t.Errorf("Expected middleware header to be set")
 		}
-		
+
 		if w.Code != 200 {
 			t.Errorf("Expected status 200, got %d", w.Code)
 		}
 	})
-	
+
 	t.Run("multiple middleware", func(t *testing.T) {
 		r := router.New()
-		
+
 		// Multiple middleware that modify request/response
 		middleware1 := func(next http.Handler) http.Handler {
 			return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
@@ -659,31 +672,31 @@ func TestRouter_Use(t *testing.T) {
 				next.ServeHTTP(w, req)
 			})
 		}
-		
+
 		middleware2 := func(next http.Handler) http.Handler {
 			return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 				w.Header().Set("X-Middleware-2", "second")
 				next.ServeHTTP(w, req)
 			})
 		}
-		
+
 		middleware3 := func(next http.Handler) http.Handler {
 			return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 				w.Header().Set("X-Middleware-3", "third")
 				next.ServeHTTP(w, req)
 			})
 		}
-		
+
 		r.Use(middleware1, middleware2, middleware3)
 		r.GET("/test", func(c *router.Context) {
 			c.JSON(200, map[string]string{"status": "ok"})
 		})
-		
+
 		req := httptest.NewRequest("GET", "/test", nil)
 		w := httptest.NewRecorder()
-		
+
 		r.ServeHTTP(w, req)
-		
+
 		// All middleware should have been applied
 		if w.Header().Get("X-Middleware-1") != "first" {
 			t.Errorf("Expected first middleware header to be set")
@@ -695,12 +708,12 @@ func TestRouter_Use(t *testing.T) {
 			t.Errorf("Expected third middleware header to be set")
 		}
 	})
-	
+
 	t.Run("middleware execution order", func(t *testing.T) {
 		r := router.New()
-		
+
 		var executionOrder []string
-		
+
 		// Middleware that tracks execution order
 		middleware1 := func(next http.Handler) http.Handler {
 			return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
@@ -709,7 +722,7 @@ func TestRouter_Use(t *testing.T) {
 				executionOrder = append(executionOrder, "after-1")
 			})
 		}
-		
+
 		middleware2 := func(next http.Handler) http.Handler {
 			return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 				executionOrder = append(executionOrder, "before-2")
@@ -717,122 +730,122 @@ func TestRouter_Use(t *testing.T) {
 				executionOrder = append(executionOrder, "after-2")
 			})
 		}
-		
+
 		r.Use(middleware1, middleware2)
 		r.GET("/test", func(c *router.Context) {
 			executionOrder = append(executionOrder, "handler")
 			c.JSON(200, map[string]string{"status": "ok"})
 		})
-		
+
 		req := httptest.NewRequest("GET", "/test", nil)
 		w := httptest.NewRecorder()
-		
+
 		r.ServeHTTP(w, req)
-		
+
 		expectedOrder := []string{"before-1", "before-2", "handler", "after-2", "after-1"}
 		if len(executionOrder) != len(expectedOrder) {
 			t.Fatalf("Expected %d execution steps, got %d", len(expectedOrder), len(executionOrder))
 		}
-		
+
 		for i, expected := range expectedOrder {
 			if executionOrder[i] != expected {
 				t.Errorf("Expected execution order[%d] to be '%s', got '%s'", i, expected, executionOrder[i])
 			}
 		}
 	})
-	
+
 	t.Run("middleware can modify request", func(t *testing.T) {
 		r := router.New()
-		
+
 		// Middleware that adds authentication info to context
 		authMiddleware := func(next http.Handler) http.Handler {
 			return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-				ctx := context.WithValue(req.Context(), "user_id", "123")
-				ctx = context.WithValue(ctx, "username", "testuser")
+				ctx := context.WithValue(req.Context(), userIDKey2, "123")
+				ctx = context.WithValue(ctx, usernameKey, "testuser")
 				next.ServeHTTP(w, req.WithContext(ctx))
 			})
 		}
-		
+
 		r.Use(authMiddleware)
 		r.GET("/profile", func(c *router.Context) {
-			userID := c.Request.Context().Value("user_id")
-			username := c.Request.Context().Value("username")
-			
+			userID := c.Request.Context().Value(userIDKey2)
+			username := c.Request.Context().Value(usernameKey)
+
 			c.JSON(200, map[string]interface{}{
 				"user_id":  userID,
 				"username": username,
 			})
 		})
-		
+
 		req := httptest.NewRequest("GET", "/profile", nil)
 		w := httptest.NewRecorder()
-		
+
 		r.ServeHTTP(w, req)
-		
+
 		if w.Code != 200 {
 			t.Errorf("Expected status 200, got %d", w.Code)
 		}
-		
+
 		var response map[string]interface{}
 		if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
 			t.Errorf("Failed to parse JSON response: %v", err)
 		}
-		
+
 		if response["user_id"] != "123" {
 			t.Errorf("Expected user_id to be '123', got %v", response["user_id"])
 		}
-		
+
 		if response["username"] != "testuser" {
 			t.Errorf("Expected username to be 'testuser', got %v", response["username"])
 		}
 	})
-	
+
 	t.Run("middleware can short-circuit request", func(t *testing.T) {
 		r := router.New()
-		
+
 		// Middleware that blocks unauthorized requests
 		authMiddleware := func(next http.Handler) http.Handler {
 			return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 				authHeader := req.Header.Get("Authorization")
 				if authHeader != "Bearer valid-token" {
 					w.WriteHeader(http.StatusUnauthorized)
-					w.Write([]byte("Unauthorized"))
+					_, _ = w.Write([]byte("Unauthorized"))
 					return // Short-circuit, don't call next handler
 				}
 				next.ServeHTTP(w, req)
 			})
 		}
-		
+
 		r.Use(authMiddleware)
 		r.GET("/protected", func(c *router.Context) {
 			c.JSON(200, map[string]string{"message": "Access granted"})
 		})
-		
+
 		// Test without valid token
 		req1 := httptest.NewRequest("GET", "/protected", nil)
 		w1 := httptest.NewRecorder()
-		
+
 		r.ServeHTTP(w1, req1)
-		
+
 		if w1.Code != 401 {
 			t.Errorf("Expected status 401, got %d", w1.Code)
 		}
-		
+
 		if w1.Body.String() != "Unauthorized" {
 			t.Errorf("Expected 'Unauthorized' response, got '%s'", w1.Body.String())
 		}
-		
+
 		// Test with valid token
 		req2 := httptest.NewRequest("GET", "/protected", nil)
 		req2.Header.Set("Authorization", "Bearer valid-token")
 		w2 := httptest.NewRecorder()
-		
+
 		r.ServeHTTP(w2, req2)
-		
+
 		if w2.Code != 200 {
 			t.Errorf("Expected status 200, got %d", w2.Code)
 		}
-		
+
 		if !strings.Contains(w2.Body.String(), "Access granted") {
 			t.Errorf("Expected successful response, got '%s'", w2.Body.String())
 		}
@@ -843,99 +856,99 @@ func TestRouter_Use(t *testing.T) {
 func TestRouter_Group(t *testing.T) {
 	t.Run("simple group", func(t *testing.T) {
 		r := router.New()
-		
+
 		r.Group("/api", func(api *router.Router) {
 			api.GET("/users", func(c *router.Context) {
 				c.JSON(200, []string{"user1", "user2"})
 			})
-			
+
 			api.POST("/users", func(c *router.Context) {
 				c.JSON(201, map[string]string{"status": "created"})
 			})
 		})
-		
+
 		// Test GET /api/users
 		req1 := httptest.NewRequest("GET", "/api/users", nil)
 		w1 := httptest.NewRecorder()
 		r.ServeHTTP(w1, req1)
-		
+
 		if w1.Code != 200 {
 			t.Errorf("Expected status 200, got %d", w1.Code)
 		}
-		
+
 		// Test POST /api/users
 		req2 := httptest.NewRequest("POST", "/api/users", nil)
 		w2 := httptest.NewRecorder()
 		r.ServeHTTP(w2, req2)
-		
+
 		if w2.Code != 201 {
 			t.Errorf("Expected status 201, got %d", w2.Code)
 		}
 	})
-	
+
 	t.Run("nested groups", func(t *testing.T) {
 		r := router.New()
-		
+
 		r.Group("/api", func(api *router.Router) {
 			api.GET("/health", func(c *router.Context) {
 				c.JSON(200, map[string]string{"status": "ok"})
 			})
-			
+
 			api.Group("/v1", func(v1 *router.Router) {
 				v1.GET("/users", func(c *router.Context) {
 					c.JSON(200, []string{"user1", "user2"})
 				})
-				
+
 				v1.Group("/admin", func(admin *router.Router) {
 					admin.GET("/settings", func(c *router.Context) {
 						c.JSON(200, map[string]string{"role": "admin"})
 					})
 				})
 			})
-			
+
 			api.Group("/v2", func(v2 *router.Router) {
 				v2.GET("/users", func(c *router.Context) {
 					c.JSON(200, []string{"user1", "user2", "user3"})
 				})
 			})
 		})
-		
+
 		// Test /api/health
 		req1 := httptest.NewRequest("GET", "/api/health", nil)
 		w1 := httptest.NewRecorder()
 		r.ServeHTTP(w1, req1)
-		
+
 		if w1.Code != 200 {
 			t.Errorf("Expected status 200 for /api/health, got %d", w1.Code)
 		}
-		
+
 		// Test /api/v1/users
 		req2 := httptest.NewRequest("GET", "/api/v1/users", nil)
 		w2 := httptest.NewRecorder()
 		r.ServeHTTP(w2, req2)
-		
+
 		if w2.Code != 200 {
 			t.Errorf("Expected status 200 for /api/v1/users, got %d", w2.Code)
 		}
-		
+
 		// Test /api/v1/admin/settings
 		req3 := httptest.NewRequest("GET", "/api/v1/admin/settings", nil)
 		w3 := httptest.NewRecorder()
 		r.ServeHTTP(w3, req3)
-		
+
 		if w3.Code != 200 {
 			t.Errorf("Expected status 200 for /api/v1/admin/settings, got %d", w3.Code)
 		}
-		
+
 		// Test /api/v2/users (different from v1)
 		req4 := httptest.NewRequest("GET", "/api/v2/users", nil)
 		w4 := httptest.NewRecorder()
 		r.ServeHTTP(w4, req4)
-		
+
 		if w4.Code != 200 {
 			t.Errorf("Expected status 200 for /api/v2/users, got %d", w4.Code)
 		}
-		
+
 		// Verify that v2 returns different data than v1
 		var v2Response []string
 		if err := json.Unmarshal(w4.Body.Bytes(), &v2Response); err != nil {
@@ -944,10 +957,10 @@ func TestRouter_Group(t *testing.T) {
 			t.Errorf("Expected v2 to return 3 users, got %d", len(v2Response))
 		}
 	})
-	
+
 	t.Run("groups inherit parent middleware", func(t *testing.T) {
 		r := router.New()
-		
+
 		// Add global middleware
 		r.Use(func(next http.Handler) http.Handler {
 			return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
@@ -955,7 +968,7 @@ func TestRouter_Group(t *testing.T) {
 				next.ServeHTTP(w, req)
 			})
 		})
-		
+
 		r.Group("/api", func(api *router.Router) {
 			// Add API-specific middleware
 			api.Use(func(next http.Handler) http.Handler {
@@ -964,11 +977,11 @@ func TestRouter_Group(t *testing.T) {
 					next.ServeHTTP(w, req)
 				})
 			})
-			
+
 			api.GET("/test", func(c *router.Context) {
 				c.JSON(200, map[string]string{"status": "ok"})
 			})
-			
+
 			api.Group("/v1", func(v1 *router.Router) {
 				// Add v1-specific middleware
 				v1.Use(func(next http.Handler) http.Handler {
@@ -977,47 +990,47 @@ func TestRouter_Group(t *testing.T) {
 						next.ServeHTTP(w, req)
 					})
 				})
-				
+
 				v1.GET("/nested", func(c *router.Context) {
 					c.JSON(200, map[string]string{"version": "v1"})
 				})
 			})
 		})
-		
+
 		// Test /api/test (should have global + api middleware)
 		req1 := httptest.NewRequest("GET", "/api/test", nil)
 		w1 := httptest.NewRecorder()
 		r.ServeHTTP(w1, req1)
-		
+
 		if w1.Header().Get("X-Global") != "global" {
 			t.Errorf("Expected global middleware header")
 		}
-		
+
 		if w1.Header().Get("X-API") != "api" {
 			t.Errorf("Expected API middleware header")
 		}
-		
+
 		// Test /api/v1/nested (should have global + api + v1 middleware)
 		req2 := httptest.NewRequest("GET", "/api/v1/nested", nil)
 		w2 := httptest.NewRecorder()
 		r.ServeHTTP(w2, req2)
-		
+
 		if w2.Header().Get("X-Global") != "global" {
 			t.Errorf("Expected global middleware header in nested route")
 		}
-		
+
 		if w2.Header().Get("X-API") != "api" {
 			t.Errorf("Expected API middleware header in nested route")
 		}
-		
+
 		if w2.Header().Get("X-V1") != "v1" {
 			t.Errorf("Expected V1 middleware header in nested route")
 		}
 	})
-	
+
 	t.Run("group with path parameters", func(t *testing.T) {
 		r := router.New()
-		
+
 		r.Group("/api/v1", func(v1 *router.Router) {
 			v1.GET("/users/{id}", func(c *router.Context) {
 				userID := c.Param("id")
@@ -1026,7 +1039,7 @@ func TestRouter_Group(t *testing.T) {
 					"version": "v1",
 				})
 			})
-			
+
 			v1.GET("/users/{id}/posts/{postId}", func(c *router.Context) {
 				userID := c.Param("id")
 				postID := c.Param("postId")
@@ -1036,88 +1049,88 @@ func TestRouter_Group(t *testing.T) {
 				})
 			})
 		})
-		
+
 		// Test single parameter
 		req1 := httptest.NewRequest("GET", "/api/v1/users/123", nil)
 		w1 := httptest.NewRecorder()
 		r.ServeHTTP(w1, req1)
-		
+
 		if w1.Code != 200 {
 			t.Errorf("Expected status 200, got %d", w1.Code)
 		}
-		
+
 		var response1 map[string]string
 		if err := json.Unmarshal(w1.Body.Bytes(), &response1); err != nil {
 			t.Errorf("Failed to parse response: %v", err)
 		}
-		
+
 		if response1["user_id"] != "123" {
 			t.Errorf("Expected user_id to be '123', got '%s'", response1["user_id"])
 		}
-		
+
 		// Test multiple parameters
 		req2 := httptest.NewRequest("GET", "/api/v1/users/456/posts/789", nil)
 		w2 := httptest.NewRecorder()
 		r.ServeHTTP(w2, req2)
-		
+
 		if w2.Code != 200 {
 			t.Errorf("Expected status 200, got %d", w2.Code)
 		}
-		
+
 		var response2 map[string]string
 		if err := json.Unmarshal(w2.Body.Bytes(), &response2); err != nil {
 			t.Errorf("Failed to parse response: %v", err)
 		}
-		
+
 		if response2["user_id"] != "456" {
 			t.Errorf("Expected user_id to be '456', got '%s'", response2["user_id"])
 		}
-		
+
 		if response2["post_id"] != "789" {
 			t.Errorf("Expected post_id to be '789', got '%s'", response2["post_id"])
 		}
 	})
-	
+
 	t.Run("empty group prefix", func(t *testing.T) {
 		r := router.New()
-		
+
 		r.Group("", func(group *router.Router) {
 			group.GET("/test", func(c *router.Context) {
 				c.JSON(200, map[string]string{"group": "empty"})
 			})
 		})
-		
+
 		req := httptest.NewRequest("GET", "/test", nil)
 		w := httptest.NewRecorder()
 		r.ServeHTTP(w, req)
-		
+
 		if w.Code != 200 {
 			t.Errorf("Expected status 200, got %d", w.Code)
 		}
 	})
-	
+
 	t.Run("group with trailing slash", func(t *testing.T) {
 		r := router.New()
-		
+
 		r.Group("/api/", func(api *router.Router) {
 			api.GET("/users", func(c *router.Context) {
 				c.JSON(200, map[string]string{"path": "with_trailing_slash"})
 			})
 		})
-		
+
 		// Both /api/users and /api/users/ should work due to path normalization
 		req1 := httptest.NewRequest("GET", "/api/users", nil)
 		w1 := httptest.NewRecorder()
 		r.ServeHTTP(w1, req1)
-		
+
 		if w1.Code != 200 {
 			t.Errorf("Expected status 200 for /api/users, got %d", w1.Code)
 		}
-		
+
 		req2 := httptest.NewRequest("GET", "/api/users/", nil)
 		w2 := httptest.NewRecorder()
 		r.ServeHTTP(w2, req2)
-		
+
 		if w2.Code != 200 {
 			t.Errorf("Expected status 200 for /api/users/, got %d", w2.Code)
 		}

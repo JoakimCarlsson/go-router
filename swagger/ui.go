@@ -239,6 +239,6 @@ func Handler(config UIConfig) http.HandlerFunc {
 
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.WriteHeader(http.StatusOK)
-		tmpl.Execute(w, data)
+		_ = tmpl.Execute(w, data)
 	}
 }
