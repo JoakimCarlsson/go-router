@@ -16,6 +16,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/joakimcarlsson/go-router/metadata"
 )
 
 // Context represents the context of an HTTP request, including the request and response writer.
@@ -438,14 +440,14 @@ func clearInterfaceMap(m map[string]interface{}) {
 
 // Negotiate performs content negotiation and returns the most appropriate content type
 // based on the Accept header and the offered content types.
-// If no matching content type is found, it returns the first offered type or "application/json" by default.
+// If no matching content type is found, it returns the first offered type or metadata.ContentTypeJSON by default.
 func (c *Context) Negotiate(offered ...string) string {
 	accept := c.GetHeader("Accept")
 	if accept == "" {
 		if len(offered) > 0 {
 			return offered[0]
 		}
-		return "application/json"
+		return metadata.ContentTypeJSON
 	}
 
 	accepts := strings.Split(accept, ",")
@@ -464,8 +466,8 @@ func (c *Context) Negotiate(offered ...string) string {
 // Respond sends a response with content negotiation.
 // It chooses between JSON and XML based on the Accept header.
 func (c *Context) Respond(code int, obj interface{}) {
-	switch c.Negotiate("application/json", "application/xml") {
-	case "application/xml":
+	switch c.Negotiate(metadata.ContentTypeJSON, metadata.ContentTypeXML) {
+	case metadata.ContentTypeXML:
 		c.XML(code, obj)
 	default:
 		c.JSON(code, obj)
@@ -583,7 +585,7 @@ func (c *Context) InitSSE() {
 	if c.sseInitialized {
 		return
 	}
-	c.Writer.Header().Set("Content-Type", "text/event-stream")
+	c.Writer.Header().Set("Content-Type", metadata.ContentTypeEventStream)
 	c.Writer.Header().Set("Cache-Control", "no-cache")
 	c.Writer.Header().Set("Connection", "keep-alive")
 	c.Writer.Header().Set("X-Accel-Buffering", "no")

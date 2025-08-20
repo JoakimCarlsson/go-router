@@ -56,16 +56,7 @@ func WithTags(tags ...string) RouteOption {
 //   - example: An example value for the parameter
 func WithParameter(name, in, typ string, required bool, description string, example interface{}) RouteOption {
 	return func(m *metadata.RouteMetadata) {
-		m.Parameters = append(m.Parameters, metadata.Parameter{
-			Name:        name,
-			In:          in,
-			Required:    required,
-			Description: description,
-			Schema: metadata.Schema{
-				Type:    typ,
-				Example: example,
-			},
-		})
+		metadata.AddParameter(m, name, in, typ, required, description, example)
 	}
 }
 
@@ -106,17 +97,12 @@ func WithPathParam(name, typ string, required bool, description string, example 
 //   - example: An example value for the parameter
 func WithFormattedPathParam(name, format string, required bool, description string, example interface{}) RouteOption {
 	return func(m *metadata.RouteMetadata) {
-		m.Parameters = append(m.Parameters, metadata.Parameter{
-			Name:        name,
-			In:          "path",
-			Required:    required,
-			Description: description,
-			Schema: metadata.Schema{
-				Type:    "string",
-				Format:  format,
-				Example: example,
-			},
-		})
+		schema := metadata.Schema{
+			Type:    "string",
+			Format:  format,
+			Example: example,
+		}
+		metadata.AddParameterWithSchema(m, name, "path", required, description, schema)
 	}
 }
 
@@ -131,17 +117,12 @@ func WithFormattedPathParam(name, format string, required bool, description stri
 //   - example: An example value for the parameter
 func WithRegexPathParam(name, pattern string, required bool, description string, example interface{}) RouteOption {
 	return func(m *metadata.RouteMetadata) {
-		m.Parameters = append(m.Parameters, metadata.Parameter{
-			Name:        name,
-			In:          "path",
-			Required:    required,
-			Description: description + "\n\nMust match pattern: `" + pattern + "`",
-			Schema: metadata.Schema{
-				Type:    "string",
-				Pattern: pattern,
-				Example: example,
-			},
-		})
+		schema := metadata.Schema{
+			Type:    "string",
+			Pattern: pattern,
+			Example: example,
+		}
+		metadata.AddParameterWithSchema(m, name, "path", required, description+"\n\nMust match pattern: `"+pattern+"`", schema)
 	}
 }
 
@@ -159,22 +140,10 @@ func WithNumericPathParam(name string, required bool, description string, exampl
 		schema := metadata.Schema{
 			Type:    "number",
 			Example: example,
+			Minimum: minimum,
+			Maximum: maximum,
 		}
-
-		if minimum != nil {
-			schema.Minimum = minimum
-		}
-		if maximum != nil {
-			schema.Maximum = maximum
-		}
-
-		m.Parameters = append(m.Parameters, metadata.Parameter{
-			Name:        name,
-			In:          "path",
-			Required:    required,
-			Description: description,
-			Schema:      schema,
-		})
+		metadata.AddParameterWithSchema(m, name, "path", required, description, schema)
 	}
 }
 
@@ -391,7 +360,7 @@ func WithHeaderParam(name string, required bool, description string, example int
 // This defines the schema and requirements for the request body.
 //
 // Parameters:
-//   - contentType: The media type of the request body (e.g., "application/json")
+//   - contentType: The media type of the request body (e.g., metadata.ContentTypeJSON)
 //   - schema: The schema describing the request body structure
 //   - required: Whether the request body is required
 //   - description: A description of the request body
@@ -418,16 +387,9 @@ func WithRequestBody(contentType string, schema metadata.Schema, required bool, 
 //   - description: A description of the request body
 func WithJSONRequestBody[T any](required bool, description string) RouteOption {
 	return func(m *metadata.RouteMetadata) {
-		t := reflect.TypeOf((*T)(nil)).Elem()
+		t := GetTypeFromGeneric[T]()
 		schema := SchemaFromType(t)
-
-		m.RequestBody = &metadata.RequestBody{
-			Description: description,
-			Required:    required,
-			Content: map[string]metadata.MediaType{
-				"application/json": {Schema: schema},
-			},
-		}
+		metadata.AddJSONRequestBody(m, description, required, schema)
 	}
 }
 
@@ -495,7 +457,7 @@ func WithMultipartFormData(description string, formFields map[string]FormFieldSp
 			Description: description,
 			Required:    len(requiredFields) > 0, // RequestBody is required if any field is required
 			Content: map[string]metadata.MediaType{
-				"multipart/form-data": {Schema: schema},
+				metadata.ContentTypeFormData: {Schema: schema},
 			},
 		}
 	}
@@ -518,7 +480,7 @@ func WithMultipartFormData(description string, formFields map[string]FormFieldSp
 //	}
 func WithMultipartFormStruct[T any](description string) RouteOption {
 	return func(m *metadata.RouteMetadata) {
-		t := reflect.TypeOf((*T)(nil)).Elem()
+		t := GetTypeFromGeneric[T]()
 		properties := make(map[string]metadata.Schema)
 		requiredFields := make([]string, 0)
 
@@ -586,7 +548,7 @@ func WithMultipartFormStruct[T any](description string) RouteOption {
 			Description: description,
 			Required:    len(requiredFields) > 0,
 			Content: map[string]metadata.MediaType{
-				"multipart/form-data": {Schema: schema},
+				metadata.ContentTypeFormData: {Schema: schema},
 			},
 		}
 	}
@@ -600,13 +562,7 @@ func WithMultipartFormStruct[T any](description string) RouteOption {
 //   - description: A description of the response
 func WithResponse(statusCode int, description string) RouteOption {
 	return func(m *metadata.RouteMetadata) {
-		code := metadata.StatusCodeToString(statusCode)
-		if m.Responses == nil {
-			m.Responses = make(map[string]metadata.Response)
-		}
-		m.Responses[code] = metadata.Response{
-			Description: description,
-		}
+		metadata.AddSimpleResponse(m, statusCode, description)
 	}
 }
 
@@ -621,19 +577,9 @@ func WithResponse(statusCode int, description string) RouteOption {
 //   - description: A description of the response
 func WithJSONResponse[T any](statusCode int, description string) RouteOption {
 	return func(m *metadata.RouteMetadata) {
-		t := reflect.TypeOf((*T)(nil)).Elem()
+		t := GetTypeFromGeneric[T]()
 		schema := SchemaFromType(t)
-
-		code := metadata.StatusCodeToString(statusCode)
-		if m.Responses == nil {
-			m.Responses = make(map[string]metadata.Response)
-		}
-		m.Responses[code] = metadata.Response{
-			Description: description,
-			Content: map[string]metadata.MediaType{
-				"application/json": {Schema: schema},
-			},
-		}
+		metadata.AddJSONResponse(m, statusCode, description, schema)
 	}
 }
 

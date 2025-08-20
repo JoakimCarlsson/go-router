@@ -1,8 +1,6 @@
 package openapi
 
 import (
-	"reflect"
-	"strconv"
 	"strings"
 
 	"github.com/joakimcarlsson/go-router/docs"
@@ -205,136 +203,38 @@ func (g *Generator) createSchemaReference(schemaName string) *metadata.Reference
 	}
 }
 
-// RouteMetadata contains OpenAPI documentation for a route
-// This structure remains for backward compatibility
-type RouteMetadata struct {
-	Method      string                         `json:"-"`
-	Path        string                         `json:"-"`
-	OperationID string                         `json:"operationId,omitempty"`
-	Summary     string                         `json:"summary,omitempty"`
-	Description string                         `json:"description,omitempty"`
-	Tags        []string                       `json:"tags,omitempty"`
-	Parameters  []metadata.Parameter           `json:"parameters,omitempty"`
-	RequestBody *metadata.RequestBody          `json:"requestBody,omitempty"`
-	Responses   map[string]metadata.Response   `json:"responses"`
-	Security    []metadata.SecurityRequirement `json:"security,omitempty"`
-	Deprecated  bool                           `json:"deprecated,omitempty"`
-}
-
-// WithOperationID sets the operationId for the route
-func WithOperationID(operationId string) RouteOption {
-	return func(m *RouteMetadata) {
-		m.OperationID = operationId
-	}
-}
-
-// RouteOption is a function that configures route metadata
-type RouteOption func(*RouteMetadata)
-
-// WithSummary sets the route summary
-func WithSummary(summary string) RouteOption {
-	return func(m *RouteMetadata) {
-		m.Summary = summary
-	}
-}
-
-// WithDescription sets the route description
-func WithDescription(description string) RouteOption {
-	return func(m *RouteMetadata) {
-		m.Description = description
-	}
-}
-
-// WithTags adds tags to the route
-func WithTags(tags ...string) RouteOption {
-	return func(m *RouteMetadata) {
-		m.Tags = append(m.Tags, tags...)
-	}
-}
-
-// WithParameter adds a parameter to the route
-func WithParameter(name, in, typ string, required bool, description string, example interface{}) RouteOption {
-	return func(m *RouteMetadata) {
-		m.Parameters = append(m.Parameters, metadata.Parameter{
-			Name:        name,
-			In:          in,
-			Required:    required,
-			Description: description,
-			Schema: metadata.Schema{
-				Type:    typ,
-				Example: example,
-			},
-		})
-	}
-}
-
-// WithQueryParam adds a query parameter to the route
-func WithQueryParam(name, typ string, required bool, description string, example interface{}) RouteOption {
-	return WithParameter(name, "query", typ, required, description, example)
-}
-
-// WithPathParam adds a path parameter to the route
-func WithPathParam(name, typ string, required bool, description string, example interface{}) RouteOption {
-	return WithParameter(name, "path", typ, required, description, example)
-}
-
-// WithResponse adds a response to the route
-func WithResponse(statusCode int, description string, contentType string, schema metadata.Schema) RouteOption {
-	return func(m *RouteMetadata) {
-		if m.Responses == nil {
-			m.Responses = make(map[string]metadata.Response)
+// WithResponseSchema adds a response with content schema to the route
+func WithResponseSchema(statusCode int, description string, contentType string, schema metadata.Schema) docs.RouteOption {
+	return func(m *metadata.RouteMetadata) {
+		content := map[string]metadata.MediaType{
+			contentType: {Schema: schema},
 		}
-		m.Responses[strconv.Itoa(statusCode)] = metadata.Response{
-			Description: description,
-			Content: map[string]metadata.MediaType{
-				contentType: {Schema: schema},
-			},
-		}
+		metadata.AddResponse(m, statusCode, description, content)
 	}
 }
 
 // WithEmptyResponse adds a response without any content schema
-func WithEmptyResponse(statusCode int, description string) RouteOption {
-	return func(m *RouteMetadata) {
-		if m.Responses == nil {
-			m.Responses = make(map[string]metadata.Response)
-		}
-		m.Responses[strconv.Itoa(statusCode)] = metadata.Response{
-			Description: description,
-		}
+func WithEmptyResponse(statusCode int, description string) docs.RouteOption {
+	return func(m *metadata.RouteMetadata) {
+		metadata.AddSimpleResponse(m, statusCode, description)
 	}
 }
 
-// WithJSONResponse adds a JSON response with schema inferred from the provided type T
-// It automatically handles both array and non-array types
-func WithJSONResponse[T any](statusCode int, description string) RouteOption {
-	return func(m *RouteMetadata) {
-		t := reflect.TypeOf((*T)(nil)).Elem()
+// WithJSONResponseAdvanced adds a JSON response with schema inferred from the provided type T
+// It automatically handles both array and non-array types with schema references
+func WithJSONResponseAdvanced[T any](statusCode int, description string) docs.RouteOption {
+	return func(m *metadata.RouteMetadata) {
+		t := docs.GetTypeFromGeneric[T]()
 
-		if m.Responses == nil {
-			m.Responses = make(map[string]metadata.Response)
-		}
+		metadata.EnsureResponsesMap(m)
 
 		// Special handling for array types
-		if t.Kind() == reflect.Slice || t.Kind() == reflect.Array {
+		if docs.IsArrayType(t) {
 			elemType := t.Elem()
 			// Register the element type to ensure it appears in components
 			itemTypeName := metadata.RegisterType(elemType)
 			sanitizedName := metadata.SanitizeSchemaName(itemTypeName)
-
-			m.Responses[strconv.Itoa(statusCode)] = metadata.Response{
-				Description: description,
-				Content: map[string]metadata.MediaType{
-					"application/json": {
-						Schema: metadata.Schema{
-							Type: "array",
-							Items: &metadata.Schema{
-								Ref: "#/components/schemas/" + sanitizedName,
-							},
-						},
-					},
-				},
-			}
+			metadata.AddArrayJSONResponse(m, statusCode, description, sanitizedName)
 			return
 		}
 
@@ -342,171 +242,55 @@ func WithJSONResponse[T any](statusCode int, description string) RouteOption {
 		schema := docs.SchemaFromType(t)
 		if schema.Type == "object" && schema.Properties != nil && schema.TypeName != "" {
 			// Use reference for object types
-			m.Responses[strconv.Itoa(statusCode)] = metadata.Response{
-				Description: description,
-				Content: map[string]metadata.MediaType{
-					"application/json": {
-						SchemaRef: &metadata.Reference{
-							Ref: "#/components/schemas/" + metadata.SanitizeSchemaName(schema.TypeName),
-						},
-					},
-				},
+			ref := &metadata.Reference{
+				Ref: "#/components/schemas/" + metadata.SanitizeSchemaName(schema.TypeName),
 			}
+			metadata.AddJSONResponseWithRef(m, statusCode, description, ref)
 		} else {
 			// Use inline schema for primitive types
-			m.Responses[strconv.Itoa(statusCode)] = metadata.Response{
-				Description: description,
-				Content: map[string]metadata.MediaType{
-					"application/json": {
-						Schema: schema,
-					},
-				},
-			}
+			metadata.AddJSONResponse(m, statusCode, description, schema)
 		}
 	}
 }
 
 // WithResponseType adds a response with schema inferred from the provided type
-// It automatically detects if the type is a slice/array
-func WithResponseType[T any](statusCode int, description string, _ T) RouteOption {
-	return func(m *RouteMetadata) {
-		if m.Responses == nil {
-			m.Responses = make(map[string]metadata.Response)
-		}
-
-		t := reflect.TypeOf((*T)(nil)).Elem()
-
-		if t.Kind() == reflect.Slice || t.Kind() == reflect.Array {
-			elemType := t.Elem()
-			itemSchema := docs.SchemaFromType(elemType)
-
-			if itemSchema.Type == "object" && itemSchema.Properties != nil && itemSchema.TypeName != "" {
-				m.Responses[strconv.Itoa(statusCode)] = metadata.Response{
-					Description: description,
-					Content: map[string]metadata.MediaType{
-						"application/json": {
-							Schema: metadata.Schema{
-								Type: "array",
-								Items: &metadata.Schema{
-									Ref: "#/components/schemas/" + itemSchema.TypeName,
-								},
-							},
-						},
-					},
-				}
-			} else {
-				// For primitive type arrays, use the schema directly
-				m.Responses[strconv.Itoa(statusCode)] = metadata.Response{
-					Description: description,
-					Content: map[string]metadata.MediaType{
-						"application/json": {
-							Schema: metadata.Schema{
-								Type:  "array",
-								Items: &itemSchema,
-							},
-						},
-					},
-				}
-			}
-		} else {
-			schema := docs.SchemaFromType(t)
-			schemaName := schema.TypeName
-
-			if schema.Type == "object" && schema.Properties != nil && schemaName != "" {
-				m.Responses[strconv.Itoa(statusCode)] = metadata.Response{
-					Description: description,
-					Content: map[string]metadata.MediaType{
-						"application/json": {
-							SchemaRef: &metadata.Reference{
-								Ref: "#/components/schemas/" + schemaName,
-							},
-						},
-					},
-				}
-			} else {
-				// For primitive types, use the schema directly
-				m.Responses[strconv.Itoa(statusCode)] = metadata.Response{
-					Description: description,
-					Content: map[string]metadata.MediaType{
-						"application/json": {Schema: schema},
-					},
-				}
-			}
-		}
-	}
+// It automatically detects if the type is a slice/array.
+// This is functionally identical to WithJSONResponseAdvanced.
+func WithResponseType[T any](statusCode int, description string, _ T) docs.RouteOption {
+	return WithJSONResponseAdvanced[T](statusCode, description)
 }
 
 // WithRequestBody adds a request body schema to the route
-func WithRequestBody[T any](description string, required bool, _ T) RouteOption {
-	return func(m *RouteMetadata) {
-		t := reflect.TypeOf((*T)(nil)).Elem()
+func WithRequestBody[T any](description string, required bool, _ T) docs.RouteOption {
+	return func(m *metadata.RouteMetadata) {
+		t := docs.GetTypeFromGeneric[T]()
 		schema := docs.SchemaFromType(t)
-
-		m.RequestBody = &metadata.RequestBody{
-			Description: description,
-			Required:    required,
-			Content: map[string]metadata.MediaType{
-				"application/json": {
-					Schema: schema,
-				},
-			},
-		}
-	}
-}
-
-// WithSecurity adds security requirements to a route
-func WithSecurity(requirements ...map[string][]string) RouteOption {
-	return func(m *RouteMetadata) {
-		if m.Security == nil {
-			m.Security = make([]metadata.SecurityRequirement, 0)
-		}
-		for _, req := range requirements {
-			secReq := make(metadata.SecurityRequirement)
-			for k, v := range req {
-				secReq[k] = v
-			}
-			m.Security = append(m.Security, secReq)
-		}
-	}
-}
-
-// WithDeprecated marks an endpoint as deprecated
-func WithDeprecated(message string) RouteOption {
-	return func(m *RouteMetadata) {
-		m.Deprecated = true
-		if message != "" {
-			if m.Description != "" {
-				m.Description += "\n\n"
-			}
-			m.Description += "DEPRECATED: " + message
-		}
+		metadata.AddJSONRequestBody(m, description, required, schema)
 	}
 }
 
 // WithResponseExample adds a response with a specific example
-func WithResponseExample[T any](statusCode int, description string, example T) RouteOption {
-	return func(m *RouteMetadata) {
-		if m.Responses == nil {
-			m.Responses = make(map[string]metadata.Response)
-		}
+func WithResponseExample[T any](statusCode int, description string, example T) docs.RouteOption {
+	return func(m *metadata.RouteMetadata) {
+		metadata.EnsureResponsesMap(m)
 
-		t := reflect.TypeOf((*T)(nil)).Elem()
+		t := docs.GetTypeFromGeneric[T]()
 		schema := docs.SchemaFromType(t)
 		schema.Example = example
 
-		m.Responses[strconv.Itoa(statusCode)] = metadata.Response{
+		m.Responses[metadata.StatusCodeToString(statusCode)] = metadata.Response{
 			Description: description,
 			Content: map[string]metadata.MediaType{
-				"application/json": {Schema: schema},
+				metadata.ContentTypeJSON: {Schema: schema},
 			},
 		}
 	}
 }
 
 // WithRequestBodyExample adds a request body schema with example to the route
-func WithRequestBodyExample[T any](description string, required bool, example T) RouteOption {
-	return func(m *RouteMetadata) {
-		t := reflect.TypeOf((*T)(nil)).Elem()
+func WithRequestBodyExample[T any](description string, required bool, example T) docs.RouteOption {
+	return func(m *metadata.RouteMetadata) {
+		t := docs.GetTypeFromGeneric[T]()
 		schema := docs.SchemaFromType(t)
 		schema.Example = example
 
@@ -514,7 +298,7 @@ func WithRequestBodyExample[T any](description string, required bool, example T)
 			Description: description,
 			Required:    required,
 			Content: map[string]metadata.MediaType{
-				"application/json": {
+				metadata.ContentTypeJSON: {
 					Schema: schema,
 				},
 			},

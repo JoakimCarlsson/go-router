@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/joakimcarlsson/go-router/docs"
 	"github.com/joakimcarlsson/go-router/integration"
+	"github.com/joakimcarlsson/go-router/metadata"
 	"github.com/joakimcarlsson/go-router/openapi"
 	"github.com/joakimcarlsson/go-router/router"
 	"github.com/joakimcarlsson/go-router/swagger"
@@ -162,8 +163,21 @@ func main() {
 	store := NewProductStore()
 	r := router.New()
 
-	// Logger middleware
-	r.Use(loggerMiddleware)
+	r.Use(func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+			start := time.Now()
+
+			next.ServeHTTP(w, req)
+
+			duration := time.Since(start)
+			fmt.Printf("[%s] %s %s - (%v)\n",
+				time.Now().Format("2006-01-02 15:04:05"),
+				req.Method,
+				req.URL.Path,
+				duration,
+			)
+		})
+	})
 
 	// Public endpoints
 	r.GET("/health", healthCheck,
@@ -208,7 +222,7 @@ func main() {
 		docs.WithTags("Products"),
 		docs.WithSummary("Get product by ID"),
 		docs.WithDescription("Returns a specific product by its ID"),
-		docs.WithPathParam("id", "string", true, "Product ID", "1"),
+		docs.WithPathParam("id", "string", true, "Product ID", "6B29FC40-CA47-1067-B31D-00DD010662DA"),
 		docs.WithResponse(200, "Product found"),
 		docs.WithJSONResponse[Product](200, "Product details"),
 		docs.WithResponse(404, "Product not found"),
@@ -218,7 +232,7 @@ func main() {
 		docs.WithTags("Products"),
 		docs.WithSummary("Update product"),
 		docs.WithDescription("Updates an existing product"),
-		docs.WithPathParam("id", "string", true, "Product ID", "1"),
+		docs.WithPathParam("id", "string", true, "Product ID", "6B29FC40-CA47-1067-B31D-00DD010662DA"),
 		docs.WithJSONRequestBody[NewProductRequest](true, "Updated product information"),
 		docs.WithResponse(200, "Product updated successfully"),
 		docs.WithJSONResponse[Product](200, "Updated product"),
@@ -230,13 +244,13 @@ func main() {
 		docs.WithTags("Products"),
 		docs.WithSummary("Delete product"),
 		docs.WithDescription("Deletes a product from the catalog"),
-		docs.WithPathParam("id", "string", true, "Product ID", "1"),
+		docs.WithPathParam("id", "string", true, "Product ID", "6B29FC40-CA47-1067-B31D-00DD010662DA"),
 		docs.WithResponse(204, "Product deleted successfully"),
 		docs.WithResponse(404, "Product not found"),
 	)
 
 	// Create OpenAPI generator
-	generator := openapi.NewGenerator(openapi.Info{
+	generator := openapi.NewGenerator(metadata.Info{
 		Title:       "Product Catalog API",
 		Version:     "1.0.0",
 		Description: "A sample product catalog API built with go-router",
@@ -255,26 +269,6 @@ func main() {
 	fmt.Println("Server starting on http://localhost:8080")
 	fmt.Println("API documentation available at http://localhost:8080/docs")
 	log.Fatal(http.ListenAndServe(":8080", r))
-}
-
-// Middleware for logging requests
-func loggerMiddleware(next router.HandlerFunc) router.HandlerFunc {
-	return func(c *router.Context) {
-		start := time.Now()
-
-		// Process request
-		next(c)
-
-		// Log after request is processed
-		duration := time.Since(start)
-		fmt.Printf("[%s] %s %s - %d (%v)\n",
-			time.Now().Format("2006-01-02 15:04:05"),
-			c.Request.Method,
-			c.Request.URL.Path,
-			c.StatusCode,
-			duration,
-		)
-	}
 }
 
 // Handler implementations

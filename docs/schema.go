@@ -280,3 +280,15 @@ func generateExample(t reflect.Type) interface{} {
 
 	return example
 }
+
+// GetTypeFromGeneric extracts the reflect.Type from a generic type parameter T.
+// This is a utility function to reduce the boilerplate of reflect.TypeOf((*T)(nil)).Elem().
+func GetTypeFromGeneric[T any]() reflect.Type {
+	return reflect.TypeOf((*T)(nil)).Elem()
+}
+
+// IsArrayType checks if a reflect.Type is a slice or array.
+// This is a utility function to reduce repeated slice/array checking.
+func IsArrayType(t reflect.Type) bool {
+	return t.Kind() == reflect.Slice || t.Kind() == reflect.Array
+}

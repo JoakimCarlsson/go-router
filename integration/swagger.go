@@ -54,20 +54,12 @@ func (s *SwaggerUIIntegration) WithUIConfig(config swagger.UIConfig) *SwaggerUII
 //   - uiPath: The path to serve the Swagger UI (e.g., "/docs")
 func (s *SwaggerUIIntegration) SetupRoutes(r *router.Router, specPath, uiPath string) {
 	// Serve OpenAPI JSON
-	r.GET(specPath, wrapHandler(s.OpenAPIAdapter.ServeHTTP))
+	r.GET(specPath, router.FromHTTPHandler(http.HandlerFunc(s.OpenAPIAdapter.ServeHTTP)))
 
 	// Configure UI to use the correct spec path
 	s.UIConfig.SpecURL = specPath
 
 	// Serve Swagger UI
-	r.GET(uiPath, wrapHandler(swagger.Handler(s.UIConfig)))
+	r.GET(uiPath, router.FromHTTPHandler(swagger.Handler(s.UIConfig)))
 }
 
-// wrapHandler converts an http.HandlerFunc to a router.HandlerFunc.
-// This is a helper function to bridge between the standard library's http
-// package and the router's custom handler type.
-func wrapHandler(h http.HandlerFunc) router.HandlerFunc {
-	return func(c *router.Context) {
-		h(c.Writer, c.Request)
-	}
-}
