@@ -208,7 +208,7 @@ func main() {
 		docs.WithTags("Products"),
 		docs.WithSummary("Get product by ID"),
 		docs.WithDescription("Returns a specific product by its ID"),
-		docs.WithPathParam("id", "string", true, "Product ID", "1"),
+		docs.WithPathParam("id", "string", true, "Product ID", "6B29FC40-CA47-1067-B31D-00DD010662DA"),
 		docs.WithResponse(200, "Product found"),
 		docs.WithJSONResponse[Product](200, "Product details"),
 		docs.WithResponse(404, "Product not found"),
@@ -218,7 +218,7 @@ func main() {
 		docs.WithTags("Products"),
 		docs.WithSummary("Update product"),
 		docs.WithDescription("Updates an existing product"),
-		docs.WithPathParam("id", "string", true, "Product ID", "1"),
+		docs.WithPathParam("id", "string", true, "Product ID", "6B29FC40-CA47-1067-B31D-00DD010662DA"),
 		docs.WithJSONRequestBody[NewProductRequest](true, "Updated product information"),
 		docs.WithResponse(200, "Product updated successfully"),
 		docs.WithJSONResponse[Product](200, "Updated product"),
@@ -230,7 +230,7 @@ func main() {
 		docs.WithTags("Products"),
 		docs.WithSummary("Delete product"),
 		docs.WithDescription("Deletes a product from the catalog"),
-		docs.WithPathParam("id", "string", true, "Product ID", "1"),
+		docs.WithPathParam("id", "string", true, "Product ID", "6B29FC40-CA47-1067-B31D-00DD010662DA"),
 		docs.WithResponse(204, "Product deleted successfully"),
 		docs.WithResponse(404, "Product not found"),
 	)
@@ -254,7 +254,7 @@ func main() {
 
 	fmt.Println("Server starting on http://localhost:8080")
 	fmt.Println("API documentation available at http://localhost:8080/docs")
-	log.Fatal(http.ListenAndServe(":8080", r))
+	log.Fatal(http.ListenAndServe(":1337", r))
 }
 
 // Middleware for logging requests
