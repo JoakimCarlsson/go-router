@@ -9,11 +9,11 @@ import (
 
 // Common content-type constants to avoid magic strings
 const (
-	ContentTypeJSON       = "application/json"
-	ContentTypeXML        = "application/xml"
+	ContentTypeJSON        = "application/json"
+	ContentTypeXML         = "application/xml"
 	ContentTypeEventStream = "text/event-stream"
-	ContentTypeHTML       = "text/html"
-	ContentTypeFormData   = "multipart/form-data"
+	ContentTypeHTML        = "text/html"
+	ContentTypeFormData    = "multipart/form-data"
 )
 
 // RouteMetadata contains documentation and configuration for a route.

@@ -15,11 +15,11 @@ func TestRouteMetadata_JSON(t *testing.T) {
 		Deprecated:  false,
 		Parameters: []Parameter{
 			{
-				Name:     "id",
-				In:       "path",
-				Required: true,
+				Name:        "id",
+				In:          "path",
+				Required:    true,
 				Description: "User ID",
-				Schema:   Schema{Type: "string", Format: "uuid"},
+				Schema:      Schema{Type: "string", Format: "uuid"},
 			},
 		},
 		Responses: map[string]Response{

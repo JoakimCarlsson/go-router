@@ -218,7 +218,7 @@ func TestCORSOptionsPassthrough(t *testing.T) {
 		c.Writer.WriteHeader(200)
 		_, _ = c.Writer.Write([]byte("GET handler"))
 	})
-	
+
 	r.Handle("OPTIONS /test", func(c *router.Context) {
 		optionsHandlerCalled = true
 		c.Writer.WriteHeader(200)
