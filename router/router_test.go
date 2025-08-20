@@ -15,6 +15,19 @@ import (
 	"github.com/joakimcarlsson/go-router/router"
 )
 
+// Context key types to avoid staticcheck warnings
+type contextKey string
+
+const (
+	userKey     contextKey = "user"
+	userIDKey   contextKey = "userID"
+	userIDKey2  contextKey = "user_id"
+	usernameKey contextKey = "username"
+	key1        contextKey = "key1"
+	key2        contextKey = "key2"
+	key3        contextKey = "key3"
+)
+
 // BenchmarkRouteRegistration measures the performance of registering routes
 func BenchmarkRouteRegistration(b *testing.B) {
 	b.ReportAllocs()
@@ -81,7 +94,7 @@ func BenchmarkRequestHandling(b *testing.B) {
 	// Setup handlers
 	helloHandler := func(c *router.Context) {
 		c.Writer.WriteHeader(200)
-		c.Writer.Write([]byte("Hello, World!"))
+		_, _ = c.Writer.Write([]byte("Hello, World!"))
 	}
 
 	jsonHandler := func(c *router.Context) {
@@ -171,7 +184,7 @@ func BenchmarkMiddleware(b *testing.B) {
 			if r.Header.Get("Authorization") != "" {
 				// We can't directly set user context in standard middleware
 				ctx := r.Context()
-				ctx = context.WithValue(ctx, "user", "authenticated")
+				ctx = context.WithValue(ctx, userKey, "authenticated")
 				r = r.WithContext(ctx)
 			}
 			next.ServeHTTP(w, r)
@@ -182,7 +195,7 @@ func BenchmarkMiddleware(b *testing.B) {
 		r := router.New()
 		r.GET("/hello", func(c *router.Context) {
 			c.Writer.WriteHeader(200)
-			c.Writer.Write([]byte("Hello, World!"))
+			_, _ = c.Writer.Write([]byte("Hello, World!"))
 		})
 
 		req := httptest.NewRequest("GET", "/hello", nil)
@@ -200,7 +213,7 @@ func BenchmarkMiddleware(b *testing.B) {
 		r.Use(stdLoggingMiddleware)
 		r.GET("/hello", func(c *router.Context) {
 			c.Writer.WriteHeader(200)
-			c.Writer.Write([]byte("Hello, World!"))
+			_, _ = c.Writer.Write([]byte("Hello, World!"))
 		})
 
 		req := httptest.NewRequest("GET", "/hello", nil)
@@ -220,7 +233,7 @@ func BenchmarkMiddleware(b *testing.B) {
 		r.Use(stdLoggingMiddleware) // Add a third middleware
 		r.GET("/hello", func(c *router.Context) {
 			c.Writer.WriteHeader(200)
-			c.Writer.Write([]byte("Hello, World!"))
+			_, _ = c.Writer.Write([]byte("Hello, World!"))
 		})
 
 		req := httptest.NewRequest("GET", "/hello", nil)
@@ -243,7 +256,7 @@ func BenchmarkMiddleware(b *testing.B) {
 
 			api.GET("/hello", func(c *router.Context) {
 				c.Writer.WriteHeader(200)
-				c.Writer.Write([]byte("Hello, World!"))
+				_, _ = c.Writer.Write([]byte("Hello, World!"))
 			})
 		})
 
@@ -310,9 +323,9 @@ func BenchmarkContextOperations(b *testing.B) {
 			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				// Store values in request context
 				ctx := r.Context()
-				ctx = context.WithValue(ctx, "key1", "value1")
-				ctx = context.WithValue(ctx, "key2", 123)
-				ctx = context.WithValue(ctx, "key3", true)
+				ctx = context.WithValue(ctx, key1, "value1")
+				ctx = context.WithValue(ctx, key2, 123)
+				ctx = context.WithValue(ctx, key3, true)
 				next.ServeHTTP(w, r.WithContext(ctx))
 			})
 		})
@@ -445,7 +458,7 @@ func setupProductAPI() *router.Router {
 				auth := r.Header.Get("Authorization")
 				if auth != "" {
 					ctx := r.Context()
-					ctx = context.WithValue(ctx, "userID", "user-123")
+					ctx = context.WithValue(ctx, userIDKey, "user-123")
 					r = r.WithContext(ctx)
 				}
 				next.ServeHTTP(w, r)
@@ -747,16 +760,16 @@ func TestRouter_Use(t *testing.T) {
 		// Middleware that adds authentication info to context
 		authMiddleware := func(next http.Handler) http.Handler {
 			return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-				ctx := context.WithValue(req.Context(), "user_id", "123")
-				ctx = context.WithValue(ctx, "username", "testuser")
+				ctx := context.WithValue(req.Context(), userIDKey2, "123")
+				ctx = context.WithValue(ctx, usernameKey, "testuser")
 				next.ServeHTTP(w, req.WithContext(ctx))
 			})
 		}
 		
 		r.Use(authMiddleware)
 		r.GET("/profile", func(c *router.Context) {
-			userID := c.Request.Context().Value("user_id")
-			username := c.Request.Context().Value("username")
+			userID := c.Request.Context().Value(userIDKey2)
+			username := c.Request.Context().Value(usernameKey)
 			
 			c.JSON(200, map[string]interface{}{
 				"user_id":  userID,
@@ -796,7 +809,7 @@ func TestRouter_Use(t *testing.T) {
 				authHeader := req.Header.Get("Authorization")
 				if authHeader != "Bearer valid-token" {
 					w.WriteHeader(http.StatusUnauthorized)
-					w.Write([]byte("Unauthorized"))
+					_, _ = w.Write([]byte("Unauthorized"))
 					return // Short-circuit, don't call next handler
 				}
 				next.ServeHTTP(w, req)

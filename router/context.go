@@ -201,7 +201,7 @@ func (c *Context) JSON(code int, obj interface{}) {
 
 	c.SetHeader("Content-Type", "application/json; charset=utf-8")
 	c.Status(code)
-	c.Writer.Write(container.Buffer.Bytes())
+	_, _ = c.Writer.Write(container.Buffer.Bytes())
 	jsonEncoderPool.Put(container)
 }
 
@@ -220,7 +220,7 @@ func (c *Context) XML(code int, obj interface{}) {
 
 	c.SetHeader("Content-Type", "application/xml; charset=utf-8")
 	c.Status(code)
-	c.Writer.Write(container.Buffer.Bytes())
+	_, _ = c.Writer.Write(container.Buffer.Bytes())
 	xmlEncoderPool.Put(container)
 }
 
@@ -228,7 +228,7 @@ func (c *Context) XML(code int, obj interface{}) {
 func (c *Context) Data(code int, contentType string, data []byte) {
 	c.SetHeader("Content-Type", contentType)
 	c.Status(code)
-	c.Writer.Write(data)
+	_, _ = c.Writer.Write(data)
 }
 
 // File serves a file response using http.ServeFile.

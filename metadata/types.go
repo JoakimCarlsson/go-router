@@ -93,8 +93,6 @@ type MediaType struct {
 
 // MarshalJSON implements json.Marshaler for MediaType to handle SchemaRef
 func (m MediaType) MarshalJSON() ([]byte, error) {
-	type Alias MediaType // Create an alias to avoid recursion in MarshalJSON
-
 	// If SchemaRef is set, serialize with the Reference instead of Schema
 	if m.SchemaRef != nil {
 		return json.Marshal(struct {
