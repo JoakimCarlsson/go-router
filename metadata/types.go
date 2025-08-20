@@ -529,3 +529,86 @@ func EnsureResponsesMap(m *RouteMetadata) {
 		m.Responses = make(map[string]Response)
 	}
 }
+
+// AddResponse is a universal helper for adding responses to RouteMetadata.
+// This consolidates the repeated pattern of creating Response structs.
+func AddResponse(m *RouteMetadata, statusCode int, description string, content map[string]MediaType) {
+	EnsureResponsesMap(m)
+	m.Responses[StatusCodeToString(statusCode)] = Response{
+		Description: description,
+		Content:     content,
+	}
+}
+
+// AddSimpleResponse adds a response without any content.
+func AddSimpleResponse(m *RouteMetadata, statusCode int, description string) {
+	AddResponse(m, statusCode, description, nil)
+}
+
+// AddJSONResponse adds a response with JSON content.
+func AddJSONResponse(m *RouteMetadata, statusCode int, description string, schema Schema) {
+	content := map[string]MediaType{
+		ContentTypeJSON: {Schema: schema},
+	}
+	AddResponse(m, statusCode, description, content)
+}
+
+// AddJSONResponseWithRef adds a response with JSON content using a schema reference.
+func AddJSONResponseWithRef(m *RouteMetadata, statusCode int, description string, ref *Reference) {
+	content := map[string]MediaType{
+		ContentTypeJSON: {SchemaRef: ref},
+	}
+	AddResponse(m, statusCode, description, content)
+}
+
+// AddParameter is a universal helper for adding parameters to RouteMetadata.
+func AddParameter(m *RouteMetadata, name, in, typ string, required bool, description string, example interface{}) {
+	schema := Schema{
+		Type:    typ,
+		Example: example,
+	}
+	m.Parameters = append(m.Parameters, Parameter{
+		Name:        name,
+		In:          in,
+		Required:    required,
+		Description: description,
+		Schema:      schema,
+	})
+}
+
+// AddParameterWithSchema adds a parameter with a full schema specification.
+func AddParameterWithSchema(m *RouteMetadata, name, in string, required bool, description string, schema Schema) {
+	m.Parameters = append(m.Parameters, Parameter{
+		Name:        name,
+		In:          in,
+		Required:    required,
+		Description: description,
+		Schema:      schema,
+	})
+}
+
+// AddArrayJSONResponse adds a JSON response for array types with schema references.
+func AddArrayJSONResponse(m *RouteMetadata, statusCode int, description string, itemSchemaRef string) {
+	content := map[string]MediaType{
+		ContentTypeJSON: {
+			Schema: Schema{
+				Type: "array",
+				Items: &Schema{
+					Ref: "#/components/schemas/" + itemSchemaRef,
+				},
+			},
+		},
+	}
+	AddResponse(m, statusCode, description, content)
+}
+
+// AddJSONRequestBody adds a JSON request body to the route metadata.
+func AddJSONRequestBody(m *RouteMetadata, description string, required bool, schema Schema) {
+	m.RequestBody = &RequestBody{
+		Description: description,
+		Required:    required,
+		Content: map[string]MediaType{
+			ContentTypeJSON: {Schema: schema},
+		},
+	}
+}

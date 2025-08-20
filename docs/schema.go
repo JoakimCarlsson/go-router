@@ -290,5 +290,5 @@ func GetTypeFromGeneric[T any]() reflect.Type {
 // IsArrayType checks if a reflect.Type is a slice or array.
 // This is a utility function to reduce repeated slice/array checking.
 func IsArrayType(t reflect.Type) bool {
-	return IsArrayType(t)
+	return t.Kind() == reflect.Slice || t.Kind() == reflect.Array
 }

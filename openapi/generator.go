@@ -206,23 +206,17 @@ func (g *Generator) createSchemaReference(schemaName string) *metadata.Reference
 // WithResponseSchema adds a response with content schema to the route
 func WithResponseSchema(statusCode int, description string, contentType string, schema metadata.Schema) docs.RouteOption {
 	return func(m *metadata.RouteMetadata) {
-		metadata.EnsureResponsesMap(m)
-		m.Responses[metadata.StatusCodeToString(statusCode)] = metadata.Response{
-			Description: description,
-			Content: map[string]metadata.MediaType{
-				contentType: {Schema: schema},
-			},
+		content := map[string]metadata.MediaType{
+			contentType: {Schema: schema},
 		}
+		metadata.AddResponse(m, statusCode, description, content)
 	}
 }
 
 // WithEmptyResponse adds a response without any content schema
 func WithEmptyResponse(statusCode int, description string) docs.RouteOption {
 	return func(m *metadata.RouteMetadata) {
-		metadata.EnsureResponsesMap(m)
-		m.Responses[metadata.StatusCodeToString(statusCode)] = metadata.Response{
-			Description: description,
-		}
+		metadata.AddSimpleResponse(m, statusCode, description)
 	}
 }
 
@@ -240,20 +234,7 @@ func WithJSONResponseAdvanced[T any](statusCode int, description string) docs.Ro
 			// Register the element type to ensure it appears in components
 			itemTypeName := metadata.RegisterType(elemType)
 			sanitizedName := metadata.SanitizeSchemaName(itemTypeName)
-
-			m.Responses[metadata.StatusCodeToString(statusCode)] = metadata.Response{
-				Description: description,
-				Content: map[string]metadata.MediaType{
-					metadata.ContentTypeJSON: {
-						Schema: metadata.Schema{
-							Type: "array",
-							Items: &metadata.Schema{
-								Ref: "#/components/schemas/" + sanitizedName,
-							},
-						},
-					},
-				},
-			}
+			metadata.AddArrayJSONResponse(m, statusCode, description, sanitizedName)
 			return
 		}
 
@@ -261,96 +242,22 @@ func WithJSONResponseAdvanced[T any](statusCode int, description string) docs.Ro
 		schema := docs.SchemaFromType(t)
 		if schema.Type == "object" && schema.Properties != nil && schema.TypeName != "" {
 			// Use reference for object types
-			m.Responses[metadata.StatusCodeToString(statusCode)] = metadata.Response{
-				Description: description,
-				Content: map[string]metadata.MediaType{
-					metadata.ContentTypeJSON: {
-						SchemaRef: &metadata.Reference{
-							Ref: "#/components/schemas/" + metadata.SanitizeSchemaName(schema.TypeName),
-						},
-					},
-				},
+			ref := &metadata.Reference{
+				Ref: "#/components/schemas/" + metadata.SanitizeSchemaName(schema.TypeName),
 			}
+			metadata.AddJSONResponseWithRef(m, statusCode, description, ref)
 		} else {
 			// Use inline schema for primitive types
-			m.Responses[metadata.StatusCodeToString(statusCode)] = metadata.Response{
-				Description: description,
-				Content: map[string]metadata.MediaType{
-					metadata.ContentTypeJSON: {
-						Schema: schema,
-					},
-				},
-			}
+			metadata.AddJSONResponse(m, statusCode, description, schema)
 		}
 	}
 }
 
 // WithResponseType adds a response with schema inferred from the provided type
-// It automatically detects if the type is a slice/array
+// It automatically detects if the type is a slice/array.
+// This is functionally identical to WithJSONResponseAdvanced.
 func WithResponseType[T any](statusCode int, description string, _ T) docs.RouteOption {
-	return func(m *metadata.RouteMetadata) {
-		metadata.EnsureResponsesMap(m)
-
-		t := docs.GetTypeFromGeneric[T]()
-
-		if docs.IsArrayType(t) {
-			elemType := t.Elem()
-			itemSchema := docs.SchemaFromType(elemType)
-
-			if itemSchema.Type == "object" && itemSchema.Properties != nil && itemSchema.TypeName != "" {
-				m.Responses[metadata.StatusCodeToString(statusCode)] = metadata.Response{
-					Description: description,
-					Content: map[string]metadata.MediaType{
-						metadata.ContentTypeJSON: {
-							Schema: metadata.Schema{
-								Type: "array",
-								Items: &metadata.Schema{
-									Ref: "#/components/schemas/" + itemSchema.TypeName,
-								},
-							},
-						},
-					},
-				}
-			} else {
-				// For primitive type arrays, use the schema directly
-				m.Responses[metadata.StatusCodeToString(statusCode)] = metadata.Response{
-					Description: description,
-					Content: map[string]metadata.MediaType{
-						metadata.ContentTypeJSON: {
-							Schema: metadata.Schema{
-								Type:  "array",
-								Items: &itemSchema,
-							},
-						},
-					},
-				}
-			}
-		} else {
-			schema := docs.SchemaFromType(t)
-			schemaName := schema.TypeName
-
-			if schema.Type == "object" && schema.Properties != nil && schemaName != "" {
-				m.Responses[metadata.StatusCodeToString(statusCode)] = metadata.Response{
-					Description: description,
-					Content: map[string]metadata.MediaType{
-						metadata.ContentTypeJSON: {
-							SchemaRef: &metadata.Reference{
-								Ref: "#/components/schemas/" + schemaName,
-							},
-						},
-					},
-				}
-			} else {
-				// For primitive types, use the schema directly
-				m.Responses[metadata.StatusCodeToString(statusCode)] = metadata.Response{
-					Description: description,
-					Content: map[string]metadata.MediaType{
-						metadata.ContentTypeJSON: {Schema: schema},
-					},
-				}
-			}
-		}
-	}
+	return WithJSONResponseAdvanced[T](statusCode, description)
 }
 
 // WithRequestBody adds a request body schema to the route
@@ -358,16 +265,7 @@ func WithRequestBody[T any](description string, required bool, _ T) docs.RouteOp
 	return func(m *metadata.RouteMetadata) {
 		t := docs.GetTypeFromGeneric[T]()
 		schema := docs.SchemaFromType(t)
-
-		m.RequestBody = &metadata.RequestBody{
-			Description: description,
-			Required:    required,
-			Content: map[string]metadata.MediaType{
-				metadata.ContentTypeJSON: {
-					Schema: schema,
-				},
-			},
-		}
+		metadata.AddJSONRequestBody(m, description, required, schema)
 	}
 }
 
