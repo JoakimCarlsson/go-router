@@ -24,8 +24,21 @@ func main() {
 	productStore := store.NewProductStore()
 	r := router.New()
 
-	// Logger middleware
-	r.Use(loggerMiddleware)
+	r.Use(func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+			start := time.Now()
+
+			next.ServeHTTP(w, req)
+
+			duration := time.Since(start)
+			fmt.Printf("[%s] %s %s - (%v)\n",
+				time.Now().Format("2006-01-02 15:04:05"),
+				req.Method,
+				req.URL.Path,
+				duration,
+			)
+		})
+	})
 
 	// Public endpoints
 	r.GET("/health", health.Handler(), health.RouteOptions()...)
@@ -56,25 +69,5 @@ func main() {
 
 	fmt.Println("Server starting on http://localhost:8080")
 	fmt.Println("API documentation available at http://localhost:8080/docs")
-	log.Fatal(http.ListenAndServe(":8080", r))
-}
-
-// Middleware for logging requests
-func loggerMiddleware(next router.HandlerFunc) router.HandlerFunc {
-	return func(c *router.Context) {
-		start := time.Now()
-
-		// Process request
-		next(c)
-
-		// Log after request is processed
-		duration := time.Since(start)
-		fmt.Printf("[%s] %s %s - %d (%v)\n",
-			time.Now().Format("2006-01-02 15:04:05"),
-			c.Request.Method,
-			c.Request.URL.Path,
-			c.StatusCode,
-			duration,
-		)
-	}
+	log.Fatal(http.ListenAndServe(":8085", r))
 }
