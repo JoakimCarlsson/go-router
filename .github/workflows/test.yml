@@ -36,19 +36,17 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        test-tags: ["", "-race", "-coverprofile=coverage.out"]
         include:
           - os: ubuntu-latest
             go-build: ~/.cache/go-build
           - os: macos-latest
             go-build: ~/Library/Caches/go-build
           - os: windows-latest
-            go-build: ~\AppData\Local\go-build
-    name: ${{ matrix.os }} @ Go 1.22 ${{ matrix.test-tags }}
+            go-build: ~\\AppData\\Local\\go-build
+    name: ${{ matrix.os }} @ Go 1.22
     runs-on: ${{ matrix.os }}
     env:
       GO111MODULE: on
-      TESTTAGS: ${{ matrix.test-tags }}
       GOPROXY: https://proxy.golang.org
     steps:
       - name: Set up Go 1.22
@@ -72,11 +70,30 @@ jobs:
             ${{ runner.os }}-go-
 
       - name: Run Tests
-        run: go test -v ${{ matrix.test-tags }} ./...
+        run: go test -v ./...
 
+      - name: Run Race Tests
+        run: go test -v -race ./...
+
+  coverage:
+    needs: lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up Go 1.22
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+      
+      - name: Checkout Code
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.ref }}
+      
+      - name: Run Tests with Coverage
+        run: go test -v -coverprofile=coverage.out ./...
+      
       - name: Upload coverage to Codecov
-        if: matrix.test-tags == '-coverprofile=coverage.out'
         uses: codecov/codecov-action@v4
         with:
           file: ./coverage.out
-          flags: ${{ matrix.os }},go-1.22,${{ matrix.test-tags }}
+          flags: coverage
