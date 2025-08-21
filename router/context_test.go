@@ -830,7 +830,7 @@ func newContext(w http.ResponseWriter, r *http.Request, startTime time.Time) *Co
 	ctx := &Context{
 		Writer:             w,
 		Request:            r,
-		StartTime:          startTime,
+		startTime:          startTime,
 		StatusCode:         200,
 		store:              make(map[string]interface{}),
 		maxMultipartMemory: 32 << 20, // 32 MB

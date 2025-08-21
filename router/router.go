@@ -28,6 +28,40 @@ type route struct {
 	metadata *metadata.RouteMetadata
 }
 
+// handlerWrapper wraps a HandlerFunc to be compatible with http.Handler
+// This is reused to avoid allocation overhead of anonymous functions
+type handlerWrapper struct {
+	handler              HandlerFunc
+	maxMultipartMemory   int64
+}
+
+func (hw *handlerWrapper) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	ctx := contextPool.Get().(*Context)
+	// Inline initialization for maximum speed
+	ctx.Writer = w
+	ctx.Request = req
+	ctx.ctx = req.Context()
+	ctx.startTimeSet = false
+	ctx.StatusCode = 200 // Default to 200 OK
+	ctx.maxMultipartMemory = hw.maxMultipartMemory
+	ctx.sseInitialized = false
+	ctx.queryCache = nil
+	ctx.statusWritten = false
+	
+	hw.handler(ctx)
+	
+	// Optimized cleanup
+	ctx.Writer = nil
+	ctx.Request = nil
+	ctx.queryCache = nil
+	ctx.statusWritten = false
+	if len(ctx.store) > 0 {
+		clearInterfaceMap(ctx.store)
+	}
+	contextPool.Put(ctx)
+}
+
+
 // Router is the main HTTP router that registers routes and dispatches requests to handlers.
 // It supports middleware, route groups, and OpenAPI documentation generation.
 type Router struct {
@@ -162,13 +196,11 @@ func (r *Router) Handle(pattern string, handler HandlerFunc, opts ...RouteOption
 	})
 	r.mu.Unlock()
 
-	// Create a handler chain with middleware
-	var httpHandler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		ctx := acquireContext(w, req)
-		ctx.maxMultipartMemory = r.maxMultipartMemory
-		defer releaseContext(ctx)
-		handler(ctx)
-	})
+	// Create a handler chain with middleware using efficient wrapper
+	var httpHandler http.Handler = &handlerWrapper{
+		handler:            handler,
+		maxMultipartMemory: r.maxMultipartMemory,
+	}
 
 	// Apply middleware in reverse order so that the first middleware
 	// in the list is the outermost wrapper around the handler
