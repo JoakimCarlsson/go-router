@@ -26,3 +26,5 @@ go.work.sum
 
 # benchmark
 *.prof
+
+/benchmark_results

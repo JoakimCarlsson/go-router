@@ -3,8 +3,7 @@
 
 param(
     [switch]$Quick,
-    [switch]$EnableProfiling,
-    [switch]$Compare
+    [switch]$EnableProfiling
 )
 
 $RootDir = Split-Path $PSScriptRoot -Parent
@@ -27,11 +26,11 @@ if ($Quick) {
 } else {
     # Basic benchmark run
     Write-Host "Running basic benchmarks..." -ForegroundColor Cyan
-    go test -bench=. -benchmem | Tee-Object -FilePath "$ResultsDir/basic_$Timestamp.txt"
+    go test -bench="Benchmark.*" -benchmem | Tee-Object -FilePath "$ResultsDir/basic_$Timestamp.txt"
 
     # Extended benchmark run for statistical significance
     Write-Host "Running extended benchmarks (5 iterations)..." -ForegroundColor Cyan
-    go test -bench=. -benchmem -count=5 | Tee-Object -FilePath "$ResultsDir/extended_$Timestamp.txt"
+    go test -bench="Benchmark.*" -benchmem -count=5 | Tee-Object -FilePath "$ResultsDir/extended_$Timestamp.txt"
 }
 
 if ($EnableProfiling) {
@@ -44,11 +43,6 @@ if ($EnableProfiling) {
     go test -bench=BenchmarkRouter_MemoryAllocation -benchmem -memprofile="$ResultsDir/mem_$Timestamp.prof" | Tee-Object -FilePath "$ResultsDir/mem_bench_$Timestamp.txt"
 }
 
-if ($Compare) {
-    # Comparison benchmarks
-    Write-Host "Running comparison benchmarks..." -ForegroundColor Cyan
-    go test -bench=BenchmarkComparison_ -benchmem | Tee-Object -FilePath "$ResultsDir/comparison_$Timestamp.txt"
-}
 
 # Concurrent benchmarks with different GOMAXPROCS
 if (-not $Quick) {
@@ -60,9 +54,6 @@ if (-not $Quick) {
     }
     Remove-Item Env:GOMAXPROCS -ErrorAction SilentlyContinue
 }
-
-# Return to original directory
-Set-Location $RootDir
 
 Write-Host "Benchmark suite completed!" -ForegroundColor Green
 Write-Host ""
@@ -81,10 +72,6 @@ if ($EnableProfiling) {
     Write-Host "   Mem Profile: benchmark_results/mem_$Timestamp.prof" -ForegroundColor White
 }
 
-if ($Compare) {
-    Write-Host "   Comparison:  benchmark_results/comparison_$Timestamp.txt" -ForegroundColor White
-}
-
 if ($EnableProfiling) {
     Write-Host ""
     Write-Host "To analyze profiles:" -ForegroundColor Yellow
@@ -94,7 +81,5 @@ if ($EnableProfiling) {
 
 Write-Host ""
 Write-Host "Performance Summary:" -ForegroundColor Yellow
-if ($Compare) {
-    Write-Host "   Check comparison_$Timestamp.txt for performance vs standard library" -ForegroundColor White
-}
 Write-Host "   Check basic_$Timestamp.txt for detailed router performance metrics" -ForegroundColor White
+Write-Host "   Comparison benchmarks are included in the basic results" -ForegroundColor White
