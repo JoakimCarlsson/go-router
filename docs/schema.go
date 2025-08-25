@@ -11,6 +11,11 @@ import (
 
 // SchemaFromType generates a metadata Schema from a Go type
 func SchemaFromType(t reflect.Type) metadata.Schema {
+	return schemaFromTypeWithCycle(t, make(map[string]bool))
+}
+
+// schemaFromTypeWithCycle generates a metadata Schema from a Go type with circular reference detection
+func schemaFromTypeWithCycle(t reflect.Type, visiting map[string]bool) metadata.Schema {
 	// Check if there's a registered custom handler for this type
 	typeName := t.String()
 	if handler, exists := metadata.GetTypeHandler(typeName); exists {
@@ -37,11 +42,25 @@ func SchemaFromType(t reflect.Type) metadata.Schema {
 
 	switch t.Kind() {
 	case reflect.Ptr:
-		schema := SchemaFromType(t.Elem())
+		schema := schemaFromTypeWithCycle(t.Elem(), visiting)
 		schema.Nullable = true
 		return schema
 	case reflect.Struct:
-		properties, required := getStructProperties(t)
+		typeID := t.String()
+		if visiting[typeID] {
+			registeredName := metadata.RegisterType(t)
+			return metadata.Schema{
+				Ref:      "#/components/schemas/" + registeredName,
+				TypeName: registeredName,
+			}
+		}
+
+		visiting[typeID] = true
+		defer func() {
+			delete(visiting, typeID)
+		}()
+
+		properties, required := getStructPropertiesWithCycle(t, visiting)
 
 		// Register the type and get a collision-free name
 		typeName := metadata.RegisterType(t)
@@ -60,7 +79,7 @@ func SchemaFromType(t reflect.Type) metadata.Schema {
 		return schema
 	case reflect.Slice, reflect.Array:
 		elemType := t.Elem()
-		itemSchema := SchemaFromType(elemType)
+		itemSchema := schemaFromTypeWithCycle(elemType, visiting)
 
 		if elemType.Kind() == reflect.Struct && elemType.Name() != "" {
 			metadata.RegisterType(elemType)
@@ -84,7 +103,7 @@ func SchemaFromType(t reflect.Type) metadata.Schema {
 	}
 }
 
-func getStructProperties(t reflect.Type) (map[string]metadata.Schema, []string) {
+func getStructPropertiesWithCycle(t reflect.Type, visiting map[string]bool) (map[string]metadata.Schema, []string) {
 	properties := make(map[string]metadata.Schema)
 	var required []string
 
@@ -111,7 +130,7 @@ func getStructProperties(t reflect.Type) (map[string]metadata.Schema, []string) 
 		}
 
 		if field.Type.Kind() == reflect.Ptr {
-			schema := SchemaFromType(field.Type.Elem())
+			schema := schemaFromTypeWithCycle(field.Type.Elem(), visiting)
 			schema.Nullable = true
 			schema.MinLength = minLen
 			schema.MaxLength = maxLen
@@ -119,7 +138,7 @@ func getStructProperties(t reflect.Type) (map[string]metadata.Schema, []string) 
 			schema.Description = field.Tag.Get("description")
 			properties[name] = schema
 		} else {
-			schema := SchemaFromType(field.Type)
+			schema := schemaFromTypeWithCycle(field.Type, visiting)
 			schema.MinLength = minLen
 			schema.MaxLength = maxLen
 			schema.Minimum = min
@@ -212,9 +231,23 @@ func getExampleValue(t reflect.Type) interface{} {
 }
 
 func generateExample(t reflect.Type) interface{} {
+	return generateExampleWithCycle(t, make(map[string]bool))
+}
+
+func generateExampleWithCycle(t reflect.Type, visiting map[string]bool) interface{} {
 	if t.Kind() != reflect.Struct {
 		return nil
 	}
+
+	typeID := t.String()
+	if visiting[typeID] {
+		return nil
+	}
+
+	visiting[typeID] = true
+	defer func() {
+		delete(visiting, typeID)
+	}()
 
 	example := make(map[string]interface{})
 	for i := 0; i < t.NumField(); i++ {
@@ -243,7 +276,7 @@ func generateExample(t reflect.Type) interface{} {
 			} else if field.Type.String() == "uuid.UUID" {
 				value = "123e4567-e89b-12d3-a456-426614174000"
 			} else {
-				value = generateExample(field.Type)
+				value = generateExampleWithCycle(field.Type, visiting)
 			}
 		case reflect.Ptr:
 			// For pointer fields, generate an example of the underlying type
@@ -255,7 +288,7 @@ func generateExample(t reflect.Type) interface{} {
 				} else if elemType.String() == "uuid.UUID" {
 					value = "123e4567-e89b-12d3-a456-426614174000"
 				} else {
-					value = generateExample(elemType)
+					value = generateExampleWithCycle(elemType, visiting)
 				}
 			default:
 				value = getExampleValue(elemType)
@@ -263,7 +296,7 @@ func generateExample(t reflect.Type) interface{} {
 		case reflect.Slice, reflect.Array:
 			elemType := field.Type.Elem()
 			if elemType.Kind() == reflect.Struct {
-				if structExample := generateExample(elemType); structExample != nil {
+				if structExample := generateExampleWithCycle(elemType, visiting); structExample != nil {
 					value = []interface{}{structExample}
 				}
 			} else if elemExample := getExampleValue(elemType); elemExample != nil {
