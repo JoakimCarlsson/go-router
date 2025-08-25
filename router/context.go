@@ -504,7 +504,7 @@ func (c *Context) WriteString(code int, s string) {
 	
 	// For small strings, write directly
 	if len(s) <= 64 {
-		c.Writer.Write([]byte(s))
+		_, _ = c.Writer.Write([]byte(s))
 		return
 	}
 	
@@ -514,7 +514,7 @@ func (c *Context) WriteString(code int, s string) {
 	buf = buf[:0] // Reset length but keep capacity
 	
 	buf = append(buf, s...)
-	c.Writer.Write(buf)
+	_, _ = c.Writer.Write(buf)
 	
 	// Reset and return to pool
 	*bufPtr = buf
