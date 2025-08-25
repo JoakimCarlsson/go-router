@@ -14,8 +14,8 @@ type CarShowResponse struct {
 }
 
 type CarShowData struct {
-	CarShow       CarShow       `json:"carShow"`
-	FeaturedCars  []Car         `json:"featuredCars"`
+	CarShow       CarShow        `json:"carShow"`
+	FeaturedCars  []Car          `json:"featuredCars"`
 	Manufacturers []Manufacturer `json:"manufacturers"`
 }
 
@@ -71,30 +71,30 @@ type Car struct {
 }
 
 type Manufacturer struct {
-	ID            string            `json:"id"`
-	Name          string            `json:"name"`
-	Country       string            `json:"country"`
-	Founded       int               `json:"founded"`
-	Models        []Car             `json:"models"`
-	ParentCompany *Manufacturer     `json:"parentCompany,omitempty"`
-	Subsidiaries  []Manufacturer    `json:"subsidiaries,omitempty"`
-	History       *CompanyHistory   `json:"history,omitempty"`
-	Images        *CompanyImages    `json:"images,omitempty"`
-	IsActive      bool              `json:"isActive"`
-	Partnerships  []Partnership     `json:"partnerships,omitempty"`
+	ID            string          `json:"id"`
+	Name          string          `json:"name"`
+	Country       string          `json:"country"`
+	Founded       int             `json:"founded"`
+	Models        []Car           `json:"models"`
+	ParentCompany *Manufacturer   `json:"parentCompany,omitempty"`
+	Subsidiaries  []Manufacturer  `json:"subsidiaries,omitempty"`
+	History       *CompanyHistory `json:"history,omitempty"`
+	Images        *CompanyImages  `json:"images,omitempty"`
+	IsActive      bool            `json:"isActive"`
+	Partnerships  []Partnership   `json:"partnerships,omitempty"`
 }
 
 type UserProfile struct {
-	ID           string      `json:"id"`
-	Username     string      `json:"username"`
-	Email        string      `json:"email"`
-	FavoriteCars []Car       `json:"favoriteCars"`
-	FavoriteShows []CarShow  `json:"favoriteShows"`
-	OwnedCars    []Car       `json:"ownedCars,omitempty"`
-	Friends      []UserProfile `json:"friends,omitempty"`
-	Preferences  *UserPreferences `json:"preferences,omitempty"`
-	CreatedAt    string      `json:"createdAt"`
-	LastActive   string      `json:"lastActive"`
+	ID            string           `json:"id"`
+	Username      string           `json:"username"`
+	Email         string           `json:"email"`
+	FavoriteCars  []Car            `json:"favoriteCars"`
+	FavoriteShows []CarShow        `json:"favoriteShows"`
+	OwnedCars     []Car            `json:"ownedCars,omitempty"`
+	Friends       []UserProfile    `json:"friends,omitempty"`
+	Preferences   *UserPreferences `json:"preferences,omitempty"`
+	CreatedAt     string           `json:"createdAt"`
+	LastActive    string           `json:"lastActive"`
 }
 
 type Engine struct {
@@ -108,62 +108,62 @@ type Engine struct {
 }
 
 type CarOwner struct {
-	ID         string      `json:"id"`
-	Name       string      `json:"name"`
-	Email      string      `json:"email"`
-	Location   string      `json:"location"`
-	OwnedCars  []Car       `json:"ownedCars"`
+	ID         string       `json:"id"`
+	Name       string       `json:"name"`
+	Email      string       `json:"email"`
+	Location   string       `json:"location"`
+	OwnedCars  []Car        `json:"ownedCars"`
 	Profile    *UserProfile `json:"profile,omitempty"`
-	JoinedDate string      `json:"joinedDate"`
+	JoinedDate string       `json:"joinedDate"`
 }
 
 type Sponsor struct {
-	ID           string    `json:"id"`
-	Name         string    `json:"name"`
-	Website      string    `json:"website"`
-	Logo         *Image    `json:"logo,omitempty"`
+	ID             string    `json:"id"`
+	Name           string    `json:"name"`
+	Website        string    `json:"website"`
+	Logo           *Image    `json:"logo,omitempty"`
 	SponsoredShows []CarShow `json:"sponsoredShows,omitempty"`
-	SponsorLevel string    `json:"sponsorLevel"`
-	Budget       float64   `json:"budget"`
+	SponsorLevel   string    `json:"sponsorLevel"`
+	Budget         float64   `json:"budget"`
 }
 
 type Organizer struct {
-	ID            string    `json:"id"`
-	Name          string    `json:"name"`
-	Email         string    `json:"email"`
-	Phone         string    `json:"phone"`
+	ID             string    `json:"id"`
+	Name           string    `json:"name"`
+	Email          string    `json:"email"`
+	Phone          string    `json:"phone"`
 	OrganizedShows []CarShow `json:"organizedShows,omitempty"`
-	Experience    int       `json:"experience"`
-	Rating        float64   `json:"rating"`
+	Experience     int       `json:"experience"`
+	Rating         float64   `json:"rating"`
 }
 
 type Partnership struct {
-	ID           string        `json:"id"`
-	PartnerA     *Manufacturer `json:"partnerA"`
-	PartnerB     *Manufacturer `json:"partnerB"`
-	Type         string        `json:"type"`
-	StartDate    string        `json:"startDate"`
-	EndDate      string        `json:"endDate,omitempty"`
-	Description  string        `json:"description"`
-	IsActive     bool          `json:"isActive"`
+	ID          string        `json:"id"`
+	PartnerA    *Manufacturer `json:"partnerA"`
+	PartnerB    *Manufacturer `json:"partnerB"`
+	Type        string        `json:"type"`
+	StartDate   string        `json:"startDate"`
+	EndDate     string        `json:"endDate,omitempty"`
+	Description string        `json:"description"`
+	IsActive    bool          `json:"isActive"`
 }
 
 type CompetitionInfo struct {
-	ID          string    `json:"id"`
-	Name        string    `json:"name"`
-	Rules       []string  `json:"rules"`
-	Categories  []string  `json:"categories"`
-	Prizes      []Prize   `json:"prizes"`
-	Judges      []Judge   `json:"judges"`
-	StartTime   string    `json:"startTime"`
-	EndTime     string    `json:"endTime"`
-	Show        *CarShow  `json:"show,omitempty"`
+	ID         string   `json:"id"`
+	Name       string   `json:"name"`
+	Rules      []string `json:"rules"`
+	Categories []string `json:"categories"`
+	Prizes     []Prize  `json:"prizes"`
+	Judges     []Judge  `json:"judges"`
+	StartTime  string   `json:"startTime"`
+	EndTime    string   `json:"endTime"`
+	Show       *CarShow `json:"show,omitempty"`
 }
 
 type Prize struct {
-	Position    int     `json:"position"`
-	Amount      float64 `json:"amount"`
-	Description string  `json:"description"`
+	Position    int      `json:"position"`
+	Amount      float64  `json:"amount"`
+	Description string   `json:"description"`
 	Sponsor     *Sponsor `json:"sponsor,omitempty"`
 }
 
@@ -176,11 +176,11 @@ type Judge struct {
 }
 
 type UserPreferences struct {
-	FavoriteMakes      []string `json:"favoriteMakes"`
-	PreferredYearRange *YearRange `json:"preferredYearRange,omitempty"`
-	MaxPrice          float64  `json:"maxPrice"`
+	FavoriteMakes        []string              `json:"favoriteMakes"`
+	PreferredYearRange   *YearRange            `json:"preferredYearRange,omitempty"`
+	MaxPrice             float64               `json:"maxPrice"`
 	NotificationSettings *NotificationSettings `json:"notificationSettings,omitempty"`
-	User              *UserProfile `json:"user,omitempty"`
+	User                 *UserProfile          `json:"user,omitempty"`
 }
 
 type YearRange struct {
@@ -189,18 +189,18 @@ type YearRange struct {
 }
 
 type NotificationSettings struct {
-	EmailEnabled  bool `json:"emailEnabled"`
-	SMSEnabled    bool `json:"smsEnabled"`
-	PushEnabled   bool `json:"pushEnabled"`
-	Frequency     string `json:"frequency"`
+	EmailEnabled bool   `json:"emailEnabled"`
+	SMSEnabled   bool   `json:"smsEnabled"`
+	PushEnabled  bool   `json:"pushEnabled"`
+	Frequency    string `json:"frequency"`
 }
 
 type CarImages struct {
-	Front    *Image `json:"front,omitempty"`
-	Rear     *Image `json:"rear,omitempty"`
-	Side     *Image `json:"side,omitempty"`
-	Interior *Image `json:"interior,omitempty"`
-	Engine   *Image `json:"engine,omitempty"`
+	Front    *Image  `json:"front,omitempty"`
+	Rear     *Image  `json:"rear,omitempty"`
+	Side     *Image  `json:"side,omitempty"`
+	Interior *Image  `json:"interior,omitempty"`
+	Engine   *Image  `json:"engine,omitempty"`
 	Gallery  []Image `json:"gallery,omitempty"`
 }
 
@@ -211,18 +211,18 @@ type ShowImages struct {
 }
 
 type CompanyImages struct {
-	Logo      *Image  `json:"logo,omitempty"`
-	Headquarters *Image `json:"headquarters,omitempty"`
-	Gallery   []Image `json:"gallery,omitempty"`
+	Logo         *Image  `json:"logo,omitempty"`
+	Headquarters *Image  `json:"headquarters,omitempty"`
+	Gallery      []Image `json:"gallery,omitempty"`
 }
 
 type Image struct {
-	ID          string `json:"id"`
-	URL         string `json:"url"`
-	Alt         string `json:"alt"`
-	Width       int    `json:"width"`
-	Height      int    `json:"height"`
-	Caption     string `json:"caption,omitempty"`
+	ID           string `json:"id"`
+	URL          string `json:"url"`
+	Alt          string `json:"alt"`
+	Width        int    `json:"width"`
+	Height       int    `json:"height"`
+	Caption      string `json:"caption,omitempty"`
 	Photographer string `json:"photographer,omitempty"`
 }
 
@@ -239,18 +239,18 @@ type CarSpecs struct {
 }
 
 type CarHistory struct {
-	PreviousOwners []CarOwner `json:"previousOwners"`
-	Accidents      []Accident `json:"accidents,omitempty"`
-	Modifications  []Modification `json:"modifications,omitempty"`
+	PreviousOwners []CarOwner      `json:"previousOwners"`
+	Accidents      []Accident      `json:"accidents,omitempty"`
+	Modifications  []Modification  `json:"modifications,omitempty"`
 	ServiceRecords []ServiceRecord `json:"serviceRecords,omitempty"`
-	Mileage        int        `json:"mileage"`
-	Car            *Car       `json:"car,omitempty"`
+	Mileage        int             `json:"mileage"`
+	Car            *Car            `json:"car,omitempty"`
 }
 
 type Accident struct {
-	Date        string `json:"date"`
-	Description string `json:"description"`
-	Severity    string `json:"severity"`
+	Date        string  `json:"date"`
+	Description string  `json:"description"`
+	Severity    string  `json:"severity"`
 	Cost        float64 `json:"cost"`
 	Images      []Image `json:"images,omitempty"`
 }
@@ -273,11 +273,11 @@ type ServiceRecord struct {
 }
 
 type CompanyHistory struct {
-	Founded       int       `json:"founded"`
-	Founder       string    `json:"founder"`
-	Milestones    []Milestone `json:"milestones"`
-	Acquisitions  []Acquisition `json:"acquisitions,omitempty"`
-	Company       *Manufacturer `json:"company,omitempty"`
+	Founded      int           `json:"founded"`
+	Founder      string        `json:"founder"`
+	Milestones   []Milestone   `json:"milestones"`
+	Acquisitions []Acquisition `json:"acquisitions,omitempty"`
+	Company      *Manufacturer `json:"company,omitempty"`
 }
 
 type Milestone struct {
@@ -287,9 +287,9 @@ type Milestone struct {
 }
 
 type Acquisition struct {
-	Year        int           `json:"year"`
-	Company     string        `json:"company"`
-	Amount      float64       `json:"amount"`
-	Reason      string        `json:"reason"`
-	Acquirer    *Manufacturer `json:"acquirer,omitempty"`
+	Year     int           `json:"year"`
+	Company  string        `json:"company"`
+	Amount   float64       `json:"amount"`
+	Reason   string        `json:"reason"`
+	Acquirer *Manufacturer `json:"acquirer,omitempty"`
 }

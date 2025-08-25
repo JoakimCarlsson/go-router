@@ -523,3 +523,347 @@ func TestUUIDBugFix(t *testing.T) {
 		}
 	})
 }
+
+// Test types for circular reference testing
+type CircularNode struct {
+	ID       string         `json:"id"`
+	Name     string         `json:"name"`
+	Parent   *CircularNode  `json:"parent,omitempty"`
+	Children []CircularNode `json:"children,omitempty"`
+}
+
+type CircularUser struct {
+	ID      string         `json:"id"`
+	Name    string         `json:"name"`
+	Friends []CircularUser `json:"friends,omitempty"`
+	Profile *CircularUser  `json:"profile,omitempty"`
+}
+
+type CarShowType struct {
+	ID           string        `json:"id"`
+	Name         string        `json:"name"`
+	Cars         []CarType     `json:"cars"`
+	RelatedShows []CarShowType `json:"relatedShows,omitempty"`
+}
+
+type CarType struct {
+	ID           string            `json:"id"`
+	Make         string            `json:"make"`
+	Model        string            `json:"model"`
+	Shows        []CarShowType     `json:"shows,omitempty"`
+	RelatedCars  []CarType         `json:"relatedCars,omitempty"`
+	Manufacturer *ManufacturerType `json:"manufacturer,omitempty"`
+}
+
+type ManufacturerType struct {
+	ID            string             `json:"id"`
+	Name          string             `json:"name"`
+	Models        []CarType          `json:"models"`
+	ParentCompany *ManufacturerType  `json:"parentCompany,omitempty"`
+	Subsidiaries  []ManufacturerType `json:"subsidiaries,omitempty"`
+}
+
+type UserProfileType struct {
+	ID          string            `json:"id"`
+	Username    string            `json:"username"`
+	Friends     []UserProfileType `json:"friends,omitempty"`
+	Preferences *UserPrefsType    `json:"preferences,omitempty"`
+}
+
+type UserPrefsType struct {
+	Theme string           `json:"theme"`
+	User  *UserProfileType `json:"user,omitempty"`
+}
+
+func TestSchemaFromType_SimpleCircularReference(t *testing.T) {
+	// Test simple self-referencing struct
+	schema := SchemaFromType(reflect.TypeOf(CircularNode{}))
+
+	if schema.Type != "object" {
+		t.Errorf("Expected CircularNode type to be 'object', got '%s'", schema.Type)
+	}
+
+	// Check that we have basic properties
+	if schema.Properties == nil {
+		t.Fatal("Expected CircularNode to have Properties")
+	}
+
+	idProp, exists := schema.Properties["id"]
+	if !exists {
+		t.Fatal("Expected CircularNode to have 'id' property")
+	}
+
+	if idProp.Type != "string" {
+		t.Errorf("Expected CircularNode.id type to be 'string', got '%s'", idProp.Type)
+	}
+
+	// Check parent property (pointer to self)
+	parentProp, exists := schema.Properties["parent"]
+	if !exists {
+		t.Fatal("Expected CircularNode to have 'parent' property")
+	}
+
+	// Parent should be a reference due to circular dependency
+	if parentProp.Ref == "" {
+		t.Error("Expected CircularNode.parent to have a $ref due to circular reference")
+	}
+
+	// Check children property (slice of self)
+	childrenProp, exists := schema.Properties["children"]
+	if !exists {
+		t.Fatal("Expected CircularNode to have 'children' property")
+	}
+
+	if childrenProp.Type != "array" {
+		t.Errorf("Expected CircularNode.children type to be 'array', got '%s'", childrenProp.Type)
+	}
+
+	if childrenProp.Items == nil {
+		t.Fatal("Expected CircularNode.children to have Items schema")
+	}
+
+	// Items should be a reference due to circular dependency
+	if childrenProp.Items.Ref == "" {
+		t.Error("Expected CircularNode.children items to have a $ref due to circular reference")
+	}
+}
+
+func TestSchemaFromType_MutualCircularReference(t *testing.T) {
+	// Test that mutual circular references between different types are handled
+	carSchema := SchemaFromType(reflect.TypeOf(CarType{}))
+
+	if carSchema.Type != "object" {
+		t.Errorf("Expected CarType type to be 'object', got '%s'", carSchema.Type)
+	}
+
+	// Check that Cars have Shows property
+	showsProp, exists := carSchema.Properties["shows"]
+	if !exists {
+		t.Fatal("Expected CarType to have 'shows' property")
+	}
+
+	if showsProp.Type != "array" {
+		t.Errorf("Expected CarType.shows type to be 'array', got '%s'", showsProp.Type)
+	}
+
+	// Test CarShow schema separately
+	showSchema := SchemaFromType(reflect.TypeOf(CarShowType{}))
+
+	if showSchema.Type != "object" {
+		t.Errorf("Expected CarShowType type to be 'object', got '%s'", showSchema.Type)
+	}
+
+	// Check that Shows have Cars property
+	carsProp, exists := showSchema.Properties["cars"]
+	if !exists {
+		t.Fatal("Expected CarShowType to have 'cars' property")
+	}
+
+	if carsProp.Type != "array" {
+		t.Errorf("Expected CarShowType.cars type to be 'array', got '%s'", carsProp.Type)
+	}
+}
+
+func TestSchemaFromType_ComplexCircularReference(t *testing.T) {
+	// Test the complex car show structure with multiple circular references
+	schema := SchemaFromType(reflect.TypeOf(ManufacturerType{}))
+
+	if schema.Type != "object" {
+		t.Errorf("Expected ManufacturerType type to be 'object', got '%s'", schema.Type)
+	}
+
+	// Check parent company (self-reference)
+	parentProp, exists := schema.Properties["parentCompany"]
+	if !exists {
+		t.Fatal("Expected ManufacturerType to have 'parentCompany' property")
+	}
+
+	// Should be a reference due to circular dependency
+	if parentProp.Ref == "" {
+		t.Error("Expected ManufacturerType.parentCompany to have a $ref due to circular reference")
+	}
+
+	// Check subsidiaries (array of self)
+	subsProp, exists := schema.Properties["subsidiaries"]
+	if !exists {
+		t.Fatal("Expected ManufacturerType to have 'subsidiaries' property")
+	}
+
+	if subsProp.Type != "array" {
+		t.Errorf("Expected ManufacturerType.subsidiaries type to be 'array', got '%s'", subsProp.Type)
+	}
+
+	if subsProp.Items == nil {
+		t.Fatal("Expected ManufacturerType.subsidiaries to have Items schema")
+	}
+
+	// Items should be a reference due to circular dependency
+	if subsProp.Items.Ref == "" {
+		t.Error("Expected ManufacturerType.subsidiaries items to have a $ref due to circular reference")
+	}
+
+	// Check models property (references CarType)
+	modelsProp, exists := schema.Properties["models"]
+	if !exists {
+		t.Fatal("Expected ManufacturerType to have 'models' property")
+	}
+
+	if modelsProp.Type != "array" {
+		t.Errorf("Expected ManufacturerType.models type to be 'array', got '%s'", modelsProp.Type)
+	}
+}
+
+func TestSchemaFromType_UserFriendsCircularReference(t *testing.T) {
+	// Test user with friends (circular array reference)
+	schema := SchemaFromType(reflect.TypeOf(CircularUser{}))
+
+	if schema.Type != "object" {
+		t.Errorf("Expected CircularUser type to be 'object', got '%s'", schema.Type)
+	}
+
+	// Check friends property
+	friendsProp, exists := schema.Properties["friends"]
+	if !exists {
+		t.Fatal("Expected CircularUser to have 'friends' property")
+	}
+
+	if friendsProp.Type != "array" {
+		t.Errorf("Expected CircularUser.friends type to be 'array', got '%s'", friendsProp.Type)
+	}
+
+	if friendsProp.Items == nil {
+		t.Fatal("Expected CircularUser.friends to have Items schema")
+	}
+
+	// Items should be a reference due to circular dependency
+	if friendsProp.Items.Ref == "" {
+		t.Error("Expected CircularUser.friends items to have a $ref due to circular reference")
+	}
+
+	// Check profile property (pointer to self)
+	profileProp, exists := schema.Properties["profile"]
+	if !exists {
+		t.Fatal("Expected CircularUser to have 'profile' property")
+	}
+
+	// Profile should be a reference due to circular dependency
+	if profileProp.Ref == "" {
+		t.Error("Expected CircularUser.profile to have a $ref due to circular reference")
+	}
+}
+
+func TestSchemaFromType_IndirectCircularReference(t *testing.T) {
+	// Test indirect circular reference: UserProfile -> UserPrefs -> UserProfile
+	schema := SchemaFromType(reflect.TypeOf(UserProfileType{}))
+
+	if schema.Type != "object" {
+		t.Errorf("Expected UserProfileType type to be 'object', got '%s'", schema.Type)
+	}
+
+	// Check preferences property exists
+	_, exists := schema.Properties["preferences"]
+	if !exists {
+		t.Fatal("Expected UserProfileType to have 'preferences' property")
+	}
+
+	// Test the preferences type separately to ensure it handles the back-reference
+	prefsSchema := SchemaFromType(reflect.TypeOf(UserPrefsType{}))
+
+	if prefsSchema.Type != "object" {
+		t.Errorf("Expected UserPrefsType type to be 'object', got '%s'", prefsSchema.Type)
+	}
+
+	// Check that UserPrefs has a user property that references back to UserProfile
+	userProp, exists := prefsSchema.Properties["user"]
+	if !exists {
+		t.Fatal("Expected UserPrefsType to have 'user' property")
+	}
+
+	// This should be handled properly without infinite recursion
+	if userProp.Type == "" && userProp.Ref == "" {
+		t.Error("Expected UserPrefsType.user to have either a type or $ref")
+	}
+}
+
+func TestSchemaFromType_NoInfiniteRecursion(t *testing.T) {
+	// This test ensures that our circular reference handling doesn't cause infinite recursion
+	// by timing the schema generation - it should complete quickly
+	done := make(chan bool, 1)
+
+	go func() {
+		// This should not hang due to infinite recursion
+		_ = SchemaFromType(reflect.TypeOf(CircularNode{}))
+		done <- true
+	}()
+
+	select {
+	case <-done:
+		// Success - schema generation completed
+	case <-time.After(100 * time.Millisecond):
+		t.Fatal("Schema generation took too long - likely infinite recursion")
+	}
+}
+
+func TestSchemaFromType_CircularReferenceInExamples(t *testing.T) {
+	// Test that example generation doesn't cause infinite recursion with circular references
+	done := make(chan bool, 1)
+
+	go func() {
+		schema := SchemaFromType(reflect.TypeOf(CircularUser{}))
+		// The schema should have been generated without hanging
+		if schema.Type != "object" {
+			t.Errorf("Expected schema type to be 'object', got '%s'", schema.Type)
+		}
+		done <- true
+	}()
+
+	select {
+	case <-done:
+		// Success - both schema and example generation completed
+	case <-time.After(200 * time.Millisecond):
+		t.Fatal("Schema/example generation took too long - likely infinite recursion")
+	}
+}
+
+func TestSchemaFromType_MultipleCircularPaths(t *testing.T) {
+	// Test a structure with multiple circular paths
+	type MultiCircular struct {
+		ID       string          `json:"id"`
+		Self     *MultiCircular  `json:"self,omitempty"`
+		Others   []MultiCircular `json:"others,omitempty"`
+		Siblings []MultiCircular `json:"siblings,omitempty"`
+		Parent   *MultiCircular  `json:"parent,omitempty"`
+	}
+
+	schema := SchemaFromType(reflect.TypeOf(MultiCircular{}))
+
+	if schema.Type != "object" {
+		t.Errorf("Expected MultiCircular type to be 'object', got '%s'", schema.Type)
+	}
+
+	// Check that all circular reference fields are properly handled
+	circularFields := []string{"self", "others", "siblings", "parent"}
+	for _, fieldName := range circularFields {
+		prop, exists := schema.Properties[fieldName]
+		if !exists {
+			t.Fatalf("Expected MultiCircular to have '%s' property", fieldName)
+		}
+
+		// For array fields, check items; for pointer fields, check the field itself
+		if fieldName == "others" || fieldName == "siblings" {
+			if prop.Type != "array" {
+				t.Errorf("Expected MultiCircular.%s type to be 'array', got '%s'", fieldName, prop.Type)
+			}
+			if prop.Items == nil {
+				t.Fatalf("Expected MultiCircular.%s to have Items schema", fieldName)
+			}
+			if prop.Items.Ref == "" {
+				t.Errorf("Expected MultiCircular.%s items to have a $ref due to circular reference", fieldName)
+			}
+		} else {
+			if prop.Ref == "" {
+				t.Errorf("Expected MultiCircular.%s to have a $ref due to circular reference", fieldName)
+			}
+		}
+	}
+}
