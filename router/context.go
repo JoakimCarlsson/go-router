@@ -213,8 +213,11 @@ func (c *Context) ParamBoolDefault(key string, defaultValue bool) bool {
 	return defaultValue
 }
 
-// Param returns the value of the path parameter with the given key.
-// Uses Go 1.22's PathValue for path parameter extraction.
+// Param returns the path parameter value for the given key.
+//
+//	// Route: /users/{id}
+//	// URL: /users/123
+//	id := c.Param("id") // returns "123"
 func (c *Context) Param(key string) string {
 	if c.Request != nil {
 		return c.Request.PathValue(key)
@@ -222,7 +225,10 @@ func (c *Context) Param(key string) string {
 	return ""
 }
 
-// JSON writes the given object as a JSON response with the given status code.
+// JSON sends a JSON response with the given status code and object.
+//
+//	c.JSON(200, map[string]string{"message": "Hello"})
+//	c.JSON(201, user)
 func (c *Context) JSON(code int, obj interface{}) {
 	container := jsonEncoderPool.Get().(*EncoderContainer)
 	container.Buffer.Reset()
@@ -482,14 +488,14 @@ func (c *Context) BuildString(parts ...string) string {
 	if len(parts) == 1 {
 		return parts[0]
 	}
-	
+
 	builder := stringBuilderPool.Get().(*strings.Builder)
 	builder.Reset()
-	
+
 	for _, part := range parts {
 		builder.WriteString(part)
 	}
-	
+
 	result := builder.String()
 	stringBuilderPool.Put(builder)
 	return result
@@ -501,21 +507,21 @@ func (c *Context) WriteString(code int, s string) {
 	if len(s) == 0 {
 		return
 	}
-	
+
 	// For small strings, write directly
 	if len(s) <= 64 {
 		_, _ = c.Writer.Write([]byte(s))
 		return
 	}
-	
+
 	// For larger strings, use pooled byte slice
 	bufPtr := byteSlicePool.Get().(*[]byte)
 	buf := *bufPtr
 	buf = buf[:0] // Reset length but keep capacity
-	
+
 	buf = append(buf, s...)
 	_, _ = c.Writer.Write(buf)
-	
+
 	// Reset and return to pool
 	*bufPtr = buf
 	byteSlicePool.Put(bufPtr)

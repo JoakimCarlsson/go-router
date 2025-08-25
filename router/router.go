@@ -31,8 +31,8 @@ type route struct {
 // handlerWrapper wraps a HandlerFunc to be compatible with http.Handler
 // This is reused to avoid allocation overhead of anonymous functions
 type handlerWrapper struct {
-	handler              HandlerFunc
-	maxMultipartMemory   int64
+	handler            HandlerFunc
+	maxMultipartMemory int64
 }
 
 func (hw *handlerWrapper) ServeHTTP(w http.ResponseWriter, req *http.Request) {
@@ -47,9 +47,9 @@ func (hw *handlerWrapper) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	ctx.sseInitialized = false
 	ctx.queryCache = nil
 	ctx.statusWritten = false
-	
+
 	hw.handler(ctx)
-	
+
 	// Optimized cleanup
 	ctx.Writer = nil
 	ctx.Request = nil
@@ -60,7 +60,6 @@ func (hw *handlerWrapper) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	}
 	contextPool.Put(ctx)
 }
-
 
 // Router is the main HTTP router that registers routes and dispatches requests to handlers.
 // It supports middleware, route groups, and OpenAPI documentation generation.
@@ -132,9 +131,13 @@ func (r *Router) Use(middlewares ...func(http.Handler) http.Handler) {
 	r.middlewares = append(r.middlewares, middlewares...)
 }
 
-// Group creates a new router group with a specific path prefix.
-// The provided function is called with the new group as an argument,
-// allowing routes to be registered within the group.
+// Group creates a route group with a path prefix and shared middleware.
+//
+//	r.Group("/api/v1", func(api *router.Router) {
+//		api.Use(authMiddleware)
+//		api.GET("/users", listUsers)
+//		api.POST("/users", createUser)
+//	})
 func (r *Router) Group(path string, fn func(*Router)) {
 	group := &Router{
 		mux:                r.mux,
@@ -223,14 +226,23 @@ func (r *Router) Handle(pattern string, handler HandlerFunc, opts ...RouteOption
 	}
 }
 
-// GET registers a new GET route with the specified path and handler.
-// Options can be provided to add OpenAPI documentation to the route.
+// GET registers a GET route with the given path and handler.
+//
+//	r.GET("/users/{id}", func(c *router.Context) {
+//		id := c.Param("id")
+//		c.JSON(200, map[string]string{"user_id": id})
+//	})
 func (r *Router) GET(path string, handler HandlerFunc, opts ...RouteOption) {
 	r.Handle("GET "+path, handler, opts...)
 }
 
-// POST registers a new POST route with the specified path and handler.
-// Options can be provided to add OpenAPI documentation to the route.
+// POST registers a POST route with the given path and handler.
+//
+//	r.POST("/users", func(c *router.Context) {
+//		var user User
+//		c.BindJSON(&user)
+//		c.JSON(201, user)
+//	})
 func (r *Router) POST(path string, handler HandlerFunc, opts ...RouteOption) {
 	r.Handle("POST "+path, handler, opts...)
 }

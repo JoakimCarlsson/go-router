@@ -7,7 +7,9 @@ import (
 	"github.com/joakimcarlsson/go-router/metadata"
 )
 
-// Generator handles OpenAPI specification generation
+// Generator handles OpenAPI 3.0 specification generation from router routes.
+// It collects route metadata, security schemes, and server information to
+// generate complete OpenAPI documentation.
 type Generator struct {
 	info            metadata.Info
 	securitySchemes map[string]metadata.SecurityScheme
@@ -16,7 +18,8 @@ type Generator struct {
 	routeInfo       []RouteInfo
 }
 
-// NewGenerator creates a new OpenAPI generator
+// NewGenerator creates a new OpenAPI generator with the provided API information.
+// The info parameter should contain basic API details like title, version, and description.
 func NewGenerator(info metadata.Info) *Generator {
 	return &Generator{
 		info:            info,
