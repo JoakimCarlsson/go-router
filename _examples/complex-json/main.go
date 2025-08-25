@@ -13,127 +13,185 @@ import (
 	"github.com/joakimcarlsson/go-router/swagger"
 )
 
-func PanelRouteOptions() []router.RouteOption {
+func CarShowRouteOptions() []router.RouteOption {
 	return []router.RouteOption{
-		docs.WithTags("Panel"),
-		docs.WithSummary("Get panel information"),
-		docs.WithDescription("Retrieves panel information and content by panel ID with pagination support"),
-		docs.WithQueryParam("panelId", "string", true, "Panel ID to retrieve", "3DkAXJqTwajM7RytxM0ju7"),
+		docs.WithTags("Car Show"),
+		docs.WithSummary("Get car show information"),
+		docs.WithDescription("Retrieves detailed car show information with featured cars, manufacturers, and complex relationships"),
+		docs.WithQueryParam("showId", "string", true, "Car Show ID to retrieve", "classic-cars-2024"),
 		docs.WithQueryParam("offset", "integer", false, "Offset for pagination", 0),
-		docs.WithQueryParam("limit", "integer", false, "Limit for pagination", 16),
-		docs.WithQueryParam("skipProgress", "boolean", false, "Whether to skip progress information", true),
-		docs.WithResponse(200, "Panel retrieved successfully"),
-		docs.WithJSONResponse[PanelResponse](200, "Panel information with content and pagination"),
+		docs.WithQueryParam("limit", "integer", false, "Limit for pagination", 10),
+		docs.WithQueryParam("filterType", "string", false, "Filter type (vintage, modern, electric)", "vintage"),
+		docs.WithResponse(200, "Car show retrieved successfully"),
+		docs.WithJSONResponse[CarShowResponse](200, "Complete car show information with complex circular references"),
 		docs.WithResponse(400, "Bad request - invalid parameters"),
+		docs.WithResponse(404, "Car show not found"),
 		docs.WithResponse(500, "Internal server error"),
 	}
 }
 
-func GetPanel(ctx *router.Context) {
-	panelID := ctx.Query().Get("panelId")
-	if panelID == "" {
+func GetCarShow(ctx *router.Context) {
+	showID := ctx.Query().Get("showId")
+	if showID == "" {
 		ctx.JSON(http.StatusBadRequest, map[string]string{
-			"error": "panelId is required",
+			"error": "showId is required",
 		})
 		return
 	}
 
 	offset := ctx.QueryIntDefault("offset", 0)
-	limit := ctx.QueryIntDefault("limit", 16)
-	skipProgress := ctx.QueryBoolDefault("skipProgress", false)
+	limit := ctx.QueryIntDefault("limit", 10)
+	filterType := ctx.Query().Get("filterType")
 
-	response := createMockPanelResponse(panelID, offset, limit, skipProgress)
+	response := createMockCarShowResponse(showID, offset, limit, filterType)
 
 	ctx.JSON(http.StatusOK, response)
 }
 
-func createMockPanelResponse(panelID string, offset, limit int, skipProgress bool) PanelResponse {
-	return PanelResponse{
-		Data: PanelData{
-			Panel: Panel{
-				Typename:    "Panel",
-				ID:          panelID,
-				Title:       "Featured Movies",
-				DisplayHint: &DisplayHint{MediaPanelImageRatio: "16:9"},
-				Content: &PanelContent{
-					PageInfo: PageInfo{
-						HasNextPage:    true,
-						NextPageOffset: offset + limit,
-						TotalCount:     100,
-					},
-					Cards: []PanelCard{
-						{
-							Typename: "MovieCard",
-							Movie: &Movie{
-								Typename:            "Movie",
-								ID:                  "movie-123",
-								Slug:                "action-hero-2024",
-								Title:               "Action Hero",
-								HumanCallToAction:   "Watch Now",
-								Genres:              []string{"Action", "Adventure"},
-								ProductionYear:      "2024",
-								MediaClassification: "Movie",
-								Synopsis: &Synopsis{
-									Brief:  "An action-packed adventure",
-									Medium: "A thrilling story of heroism and adventure in modern times",
-									Long:   "Follow our protagonist as they navigate through dangerous situations to save the world from an imminent threat.",
-								},
-								Images: &MovieImages{
-									Main16x9: &Image{
-										ID:     "img-123",
-										Source: "https://example.com/movie-poster.jpg",
-									},
-									Cover2x3: &Image{
-										ID:     "img-124",
-										Source: "https://example.com/movie-cover.jpg",
-									},
-								},
-								Duration: &Duration{
-									ReadableShort: "2h 15m",
-									Seconds:       8100,
-								},
-								Access: &Access{HasAccess: true},
-							},
-						},
-						{
-							Typename: "SeriesCard",
-							Series: &Series{
-								Typename:                 "Series",
-								ID:                       "series-456",
-								Slug:                     "mystery-drama-2024",
-								Title:                    "Mystery Drama",
-								Genres:                   []string{"Drama", "Mystery"},
-								MediaClassification:      "Series",
-								NumberOfAvailableSeasons: 3,
-								Synopsis: &Synopsis{
-									Brief:  "A compelling mystery series",
-									Medium: "Uncover secrets in this gripping drama series",
-									Long:   "A detective investigates a series of mysterious events that shake a small town to its core.",
-								},
-								Images: &SeriesImages{
-									Main16x9: &Image{
-										ID:     "img-789",
-										Source: "https://example.com/series-poster.jpg",
-									},
-									Cover2x3: &Image{
-										ID:     "img-790",
-										Source: "https://example.com/series-cover.jpg",
-									},
-								},
-							},
-						},
-					},
-				},
-				Pitch:      "Discover amazing content",
-				ShortPitch: "Great entertainment awaits",
-				LinkText:   "View All",
-				Images: &PanelImages{
-					Image16x9: &Image{
-						ID:     "panel-img-1",
-						Source: "https://example.com/panel-bg.jpg",
-					},
-				},
-			},
+func createMockCarShowResponse(showID string, offset, limit int, filterType string) CarShowResponse {
+	// Create some cars first
+	ferrari := Car{
+		ID:        "ferrari-488",
+		Make:      "Ferrari",
+		Model:     "488 GTB",
+		Year:      2020,
+		Color:     "Rosso Corsa Red",
+		IsVintage: false,
+		Price:     280000,
+		Engine: &Engine{
+			Type:         "V8 Twin-Turbo",
+			Displacement: 3.9,
+			Horsepower:   661,
+			Torque:       561,
+			FuelType:     "Premium Gasoline",
+			Cylinders:    8,
+		},
+	}
+
+	porsche := Car{
+		ID:        "porsche-911",
+		Make:      "Porsche",
+		Model:     "911 Carrera",
+		Year:      2023,
+		Color:     "Guards Red",
+		IsVintage: false,
+		Price:     115000,
+		Engine: &Engine{
+			Type:         "Flat-6 Twin-Turbo",
+			Displacement: 3.0,
+			Horsepower:   379,
+			Torque:       331,
+			FuelType:     "Premium Gasoline",
+			Cylinders:    6,
+		},
+	}
+
+	// Create manufacturers with circular refs
+	ferrariMfg := Manufacturer{
+		ID:      "ferrari-spa",
+		Name:    "Ferrari S.p.A.",
+		Country: "Italy",
+		Founded: 1947,
+		Models:  []Car{ferrari},
+	}
+
+	porscheMfg := Manufacturer{
+		ID:      "porsche-ag",
+		Name:    "Dr. Ing. h.c. F. Porsche AG",
+		Country: "Germany",
+		Founded: 1931,
+		Models:  []Car{porsche},
+	}
+
+	// Add cross-references
+	ferrari.Manufacturer = &ferrariMfg
+	porsche.Manufacturer = &porscheMfg
+	ferrari.RelatedCars = []Car{porsche}
+	porsche.RelatedCars = []Car{ferrari}
+
+	// Create the main car show
+	mainShow := CarShow{
+		ID:           showID,
+		Name:         "Classic & Exotic Car Showcase 2024",
+		Location:     "Monaco Convention Center",
+		Date:         "2024-09-15",
+		Description:  "The ultimate gathering of automotive excellence featuring rare classics and modern supercars",
+		FeaturedCars: []Car{ferrari, porsche},
+		IsActive:     true,
+		MaxCapacity:  5000,
+		TicketPrice:  150.0,
+		Theme:        "Speed & Elegance",
+	}
+
+	// Create related shows with circular references
+	relatedShow := CarShow{
+		ID:           "pebble-beach-2024",
+		Name:         "Pebble Beach Concours d'Elegance",
+		Location:     "Pebble Beach, California",
+		Date:         "2024-08-20",
+		Description:  "America's premier automotive showcase",
+		FeaturedCars: []Car{ferrari},
+		RelatedShows: []CarShow{mainShow},
+		IsActive:     true,
+		MaxCapacity:  3000,
+		TicketPrice:  200.0,
+		Theme:        "Automotive Art",
+	}
+
+	mainShow.RelatedShows = []CarShow{relatedShow}
+	mainShow.ChildShows = []CarShow{relatedShow}
+
+	// Add shows to cars
+	ferrari.Shows = []CarShow{mainShow, relatedShow}
+	porsche.Shows = []CarShow{mainShow}
+
+	// Create user profile with circular references
+	userProfile := UserProfile{
+		ID:            "user-123",
+		Username:      "car_enthusiast_42",
+		Email:         "carfan@example.com",
+		FavoriteCars:  []Car{ferrari, porsche},
+		FavoriteShows: []CarShow{mainShow, relatedShow},
+		CreatedAt:     "2023-01-15T10:30:00Z",
+		LastActive:    "2024-08-25T14:22:00Z",
+	}
+
+	// Add user preferences with circular ref back to user
+	userProfile.Preferences = &UserPreferences{
+		FavoriteMakes: []string{"Ferrari", "Porsche", "Lamborghini"},
+		MaxPrice:      500000,
+		User:          &userProfile,
+	}
+
+	// Add friends (circular user references)
+	friend := UserProfile{
+		ID:            "user-456",
+		Username:      "speed_demon",
+		Email:         "speedy@example.com",
+		FavoriteCars:  []Car{ferrari},
+		FavoriteShows: []CarShow{mainShow},
+		Friends:       []UserProfile{userProfile},
+		CreatedAt:     "2022-11-20T09:15:00Z",
+		LastActive:    "2024-08-24T16:45:00Z",
+	}
+	userProfile.Friends = []UserProfile{friend}
+
+	return CarShowResponse{
+		Data: CarShowData{
+			CarShow:       mainShow,
+			FeaturedCars:  []Car{ferrari, porsche},
+			Manufacturers: []Manufacturer{ferrariMfg, porscheMfg},
+		},
+		Metadata: ResponseMetadata{
+			RequestID:    "req-" + showID + "-" + fmt.Sprintf("%d", offset),
+			Timestamp:    "2024-08-25T17:30:00Z",
+			RelatedShows: []CarShow{relatedShow},
+			UserProfile:  &userProfile,
+		},
+		Relations: &CarRelations{
+			CompetingCars: []Car{ferrari, porsche},
+			SimilarShows:  []CarShow{relatedShow},
+			UserFavorites: &userProfile,
 		},
 	}
 }
@@ -141,30 +199,28 @@ func createMockPanelResponse(panelID string, offset, limit int, skipProgress boo
 func main() {
 	r := router.New()
 
-	r.GET("/api/v1/panel", GetPanel, PanelRouteOptions()...)
+	r.GET("/api/v1/carshow", GetCarShow, CarShowRouteOptions()...)
 
 	// Create OpenAPI generator
 	generator := openapi.NewGenerator(metadata.Info{
-		Title:       "Complex JSON Panel API",
+		Title:       "Car Show API - Complex Circular References Demo",
 		Version:     "1.0.0",
-		Description: "A sample panel API demonstrating complex JSON structures with go-router",
+		Description: "A fun car show API demonstrating complex JSON structures with circular references handled by go-router",
 	})
 
 	// Configure Swagger UI with specific settings for complex nested types
 	uiConfig := swagger.DefaultUIConfig()
 	uiConfig.DefaultModelRendering = "example"
-	uiConfig.Title = "Complex JSON Panel API"
-	uiConfig.DefaultModelsExpandDepth = 2
+	uiConfig.Title = "🏎️ Car Show API - Circular References Demo"
+	uiConfig.DefaultModelsExpandDepth = 3
 
 	// Set up the integration
 	swaggerUI := integration.NewSwaggerUIIntegration(r, generator)
 	swaggerUI.WithUIConfig(uiConfig)
 	swaggerUI.SetupRoutes(r, "/openapi.json", "/docs")
 
-	fmt.Println("Server starting on http://localhost:8080")
-	fmt.Println("Try: http://localhost:8080/api/v1/panel?panelId=3DkAXJqTwajM7RytxM0ju7&offset=0&limit=5")
 	fmt.Println("API documentation available at: http://localhost:8080/docs")
 	fmt.Println("OpenAPI spec available at: http://localhost:8080/openapi.json")
 
-	log.Fatal(http.ListenAndServe(":8080", r))
+	log.Fatal(http.ListenAndServe(":8088", r))
 }

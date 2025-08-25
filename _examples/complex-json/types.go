@@ -1,470 +1,295 @@
 package main
 
-type PanelRequest struct {
-	PanelID         string `json:"panelId"`
-	PanelItemOffset int    `json:"panelItemOffset"`
-	PanelItemLimit  int    `json:"panelItemLimit"`
-	SkipProgress    bool   `json:"skipProgress"`
+type CarShowRequest struct {
+	ShowID     string `json:"showId"`
+	Offset     int    `json:"offset"`
+	Limit      int    `json:"limit"`
+	FilterType string `json:"filterType"`
 }
 
-type PanelResponse struct {
-	Data PanelData `json:"data"`
+type CarShowResponse struct {
+	Data      CarShowData      `json:"data"`
+	Metadata  ResponseMetadata `json:"metadata"`
+	Relations *CarRelations    `json:"relations,omitempty"`
 }
 
-type PanelData struct {
-	Panel Panel `json:"panel"`
+type CarShowData struct {
+	CarShow       CarShow       `json:"carShow"`
+	FeaturedCars  []Car         `json:"featuredCars"`
+	Manufacturers []Manufacturer `json:"manufacturers"`
 }
 
-type Panel struct {
-	Typename                 string           `json:"__typename"`
-	ID                       string           `json:"id"`
-	Title                    string           `json:"title"`
-	DisplayHint              *DisplayHint     `json:"displayHint,omitempty"`
-	Content                  *PanelContent    `json:"content,omitempty"`
-	HideLabels               bool             `json:"hideLabels,omitempty"`
-	Images                   *PanelImages     `json:"images,omitempty"`
-	Pitch                    string           `json:"pitch,omitempty"`
-	ShortPitch               string           `json:"shortPitch,omitempty"`
-	LinkText                 string           `json:"linkText,omitempty"`
-	Link                     interface{}      `json:"link,omitempty"`
-	Trailers                 *Trailers        `json:"trailers,omitempty"`
-	AutoPlayMedia            bool             `json:"autoPlayMedia,omitempty"`
-	SinglePanels             []Panel          `json:"singlePanels,omitempty"`
-	Subtitle                 string           `json:"subtitle,omitempty"`
-	ShowMetadataForLink      bool             `json:"showMetadataForLink,omitempty"`
-	HexColor                 string           `json:"hexColor,omitempty"`
-	TierName                 string           `json:"tierName,omitempty"`
-	Disclaimer               string           `json:"disclaimer,omitempty"`
-	Bullets                  []string         `json:"bullets,omitempty"`
-	CampaignDetails          *CampaignDetails `json:"campaignDetails,omitempty"`
-	IsCompact                bool             `json:"isCompact,omitempty"`
-	ShouldPlayVideo          bool             `json:"shouldPlayVideo,omitempty"`
-	ShouldPlayVideoOutOfView bool             `json:"shouldPlayVideoOutOfView,omitempty"`
+type ResponseMetadata struct {
+	RequestID    string       `json:"requestId"`
+	Timestamp    string       `json:"timestamp"`
+	RelatedShows []CarShow    `json:"relatedShows,omitempty"`
+	UserProfile  *UserProfile `json:"userProfile,omitempty"`
 }
 
-type DisplayHint struct {
-	MediaPanelImageRatio string `json:"mediaPanelImageRatio"`
+type CarRelations struct {
+	CompetingCars []Car        `json:"competingCars"`
+	SimilarShows  []CarShow    `json:"similarShows"`
+	UserFavorites *UserProfile `json:"userFavorites,omitempty"`
 }
 
-type PanelContent struct {
-	PageInfo PageInfo    `json:"pageInfo"`
-	Cards    []PanelCard `json:"cards"`
+type CarShow struct {
+	ID               string           `json:"id"`
+	Name             string           `json:"name"`
+	Location         string           `json:"location"`
+	Date             string           `json:"date"`
+	Description      string           `json:"description"`
+	FeaturedCars     []Car            `json:"featuredCars"`
+	Sponsors         []Sponsor        `json:"sponsors"`
+	RelatedShows     []CarShow        `json:"relatedShows,omitempty"`
+	Images           *ShowImages      `json:"images,omitempty"`
+	Organizer        *Organizer       `json:"organizer,omitempty"`
+	CompetitionRules *CompetitionInfo `json:"competitionRules,omitempty"`
+	IsActive         bool             `json:"isActive"`
+	MaxCapacity      int              `json:"maxCapacity"`
+	TicketPrice      float64          `json:"ticketPrice"`
+	Theme            string           `json:"theme"`
+	ChildShows       []CarShow        `json:"childShows,omitempty"`
 }
 
-type PageInfo struct {
-	HasNextPage    bool `json:"hasNextPage"`
-	NextPageOffset int  `json:"nextPageOffset"`
-	TotalCount     int  `json:"totalCount"`
+type Car struct {
+	ID           string        `json:"id"`
+	Make         string        `json:"make"`
+	Model        string        `json:"model"`
+	Year         int           `json:"year"`
+	Color        string        `json:"color"`
+	Engine       *Engine       `json:"engine,omitempty"`
+	Owner        *CarOwner     `json:"owner,omitempty"`
+	Manufacturer *Manufacturer `json:"manufacturer,omitempty"`
+	Images       *CarImages    `json:"images,omitempty"`
+	Specs        *CarSpecs     `json:"specs,omitempty"`
+	History      *CarHistory   `json:"history,omitempty"`
+	RelatedCars  []Car         `json:"relatedCars,omitempty"`
+	Shows        []CarShow     `json:"shows,omitempty"`
+	IsVintage    bool          `json:"isVintage"`
+	IsElectric   bool          `json:"isElectric"`
+	Price        float64       `json:"price"`
 }
 
-type PanelCard struct {
-	Typename                string                 `json:"__typename"`
-	Series                  *Series                `json:"series,omitempty"`
-	Movie                   *Movie                 `json:"movie,omitempty"`
-	Clip                    *Clip                  `json:"clip,omitempty"`
-	Short                   *Short                 `json:"short,omitempty"`
-	Episode                 *Episode               `json:"episode,omitempty"`
-	Channel                 *Channel               `json:"channel,omitempty"`
-	SportEvent              *SportEvent            `json:"sportEvent,omitempty"`
-	Page                    *PageReference         `json:"page,omitempty"`
-	LinkText                string                 `json:"linkText,omitempty"`
-	ContinueWatchingEntryID string                 `json:"continueWatchingEntryId,omitempty"`
-	LabelText               string                 `json:"labelText,omitempty"`
-	Progress                *Progress              `json:"progress,omitempty"`
-	Media                   *ContinueWatchingMedia `json:"media,omitempty"`
+type Manufacturer struct {
+	ID            string            `json:"id"`
+	Name          string            `json:"name"`
+	Country       string            `json:"country"`
+	Founded       int               `json:"founded"`
+	Models        []Car             `json:"models"`
+	ParentCompany *Manufacturer     `json:"parentCompany,omitempty"`
+	Subsidiaries  []Manufacturer    `json:"subsidiaries,omitempty"`
+	History       *CompanyHistory   `json:"history,omitempty"`
+	Images        *CompanyImages    `json:"images,omitempty"`
+	IsActive      bool              `json:"isActive"`
+	Partnerships  []Partnership     `json:"partnerships,omitempty"`
 }
 
-type ContinueWatchingMedia struct {
-	Typename   string      `json:"__typename"`
-	Episode    *Episode    `json:"episode,omitempty"`
-	Movie      *Movie      `json:"movie,omitempty"`
-	SportEvent *SportEvent `json:"sportEvent,omitempty"`
+type UserProfile struct {
+	ID           string      `json:"id"`
+	Username     string      `json:"username"`
+	Email        string      `json:"email"`
+	FavoriteCars []Car       `json:"favoriteCars"`
+	FavoriteShows []CarShow  `json:"favoriteShows"`
+	OwnedCars    []Car       `json:"ownedCars,omitempty"`
+	Friends      []UserProfile `json:"friends,omitempty"`
+	Preferences  *UserPreferences `json:"preferences,omitempty"`
+	CreatedAt    string      `json:"createdAt"`
+	LastActive   string      `json:"lastActive"`
 }
 
-type Progress struct {
-	Percent  int    `json:"percent"`
-	TimeLeft string `json:"timeLeft,omitempty"`
+type Engine struct {
+	Type         string  `json:"type"`
+	Displacement float64 `json:"displacement"`
+	Horsepower   int     `json:"horsepower"`
+	Torque       int     `json:"torque"`
+	FuelType     string  `json:"fuelType"`
+	Cylinders    int     `json:"cylinders"`
+	UsedInCars   []Car   `json:"usedInCars,omitempty"`
 }
 
-type CampaignDetails struct {
-	CampaignLabelImage *Image `json:"campaignLabelImage"`
+type CarOwner struct {
+	ID         string      `json:"id"`
+	Name       string      `json:"name"`
+	Email      string      `json:"email"`
+	Location   string      `json:"location"`
+	OwnedCars  []Car       `json:"ownedCars"`
+	Profile    *UserProfile `json:"profile,omitempty"`
+	JoinedDate string      `json:"joinedDate"`
 }
 
-type PanelImages struct {
-	Image16x9 *Image `json:"image16x9"`
-	Image2x3  *Image `json:"image2x3"`
+type Sponsor struct {
+	ID           string    `json:"id"`
+	Name         string    `json:"name"`
+	Website      string    `json:"website"`
+	Logo         *Image    `json:"logo,omitempty"`
+	SponsoredShows []CarShow `json:"sponsoredShows,omitempty"`
+	SponsorLevel string    `json:"sponsorLevel"`
+	Budget       float64   `json:"budget"`
+}
+
+type Organizer struct {
+	ID            string    `json:"id"`
+	Name          string    `json:"name"`
+	Email         string    `json:"email"`
+	Phone         string    `json:"phone"`
+	OrganizedShows []CarShow `json:"organizedShows,omitempty"`
+	Experience    int       `json:"experience"`
+	Rating        float64   `json:"rating"`
+}
+
+type Partnership struct {
+	ID           string        `json:"id"`
+	PartnerA     *Manufacturer `json:"partnerA"`
+	PartnerB     *Manufacturer `json:"partnerB"`
+	Type         string        `json:"type"`
+	StartDate    string        `json:"startDate"`
+	EndDate      string        `json:"endDate,omitempty"`
+	Description  string        `json:"description"`
+	IsActive     bool          `json:"isActive"`
+}
+
+type CompetitionInfo struct {
+	ID          string    `json:"id"`
+	Name        string    `json:"name"`
+	Rules       []string  `json:"rules"`
+	Categories  []string  `json:"categories"`
+	Prizes      []Prize   `json:"prizes"`
+	Judges      []Judge   `json:"judges"`
+	StartTime   string    `json:"startTime"`
+	EndTime     string    `json:"endTime"`
+	Show        *CarShow  `json:"show,omitempty"`
+}
+
+type Prize struct {
+	Position    int     `json:"position"`
+	Amount      float64 `json:"amount"`
+	Description string  `json:"description"`
+	Sponsor     *Sponsor `json:"sponsor,omitempty"`
+}
+
+type Judge struct {
+	ID         string    `json:"id"`
+	Name       string    `json:"name"`
+	Experience int       `json:"experience"`
+	Specialty  string    `json:"specialty"`
+	Events     []CarShow `json:"events,omitempty"`
+}
+
+type UserPreferences struct {
+	FavoriteMakes      []string `json:"favoriteMakes"`
+	PreferredYearRange *YearRange `json:"preferredYearRange,omitempty"`
+	MaxPrice          float64  `json:"maxPrice"`
+	NotificationSettings *NotificationSettings `json:"notificationSettings,omitempty"`
+	User              *UserProfile `json:"user,omitempty"`
+}
+
+type YearRange struct {
+	Min int `json:"min"`
+	Max int `json:"max"`
+}
+
+type NotificationSettings struct {
+	EmailEnabled  bool `json:"emailEnabled"`
+	SMSEnabled    bool `json:"smsEnabled"`
+	PushEnabled   bool `json:"pushEnabled"`
+	Frequency     string `json:"frequency"`
+}
+
+type CarImages struct {
+	Front    *Image `json:"front,omitempty"`
+	Rear     *Image `json:"rear,omitempty"`
+	Side     *Image `json:"side,omitempty"`
+	Interior *Image `json:"interior,omitempty"`
+	Engine   *Image `json:"engine,omitempty"`
+	Gallery  []Image `json:"gallery,omitempty"`
+}
+
+type ShowImages struct {
+	Banner    *Image  `json:"banner,omitempty"`
+	Thumbnail *Image  `json:"thumbnail,omitempty"`
+	Gallery   []Image `json:"gallery,omitempty"`
+}
+
+type CompanyImages struct {
+	Logo      *Image  `json:"logo,omitempty"`
+	Headquarters *Image `json:"headquarters,omitempty"`
+	Gallery   []Image `json:"gallery,omitempty"`
 }
 
 type Image struct {
-	ID            string     `json:"id"`
-	Source        string     `json:"source"`
-	IsFallback    bool       `json:"isFallback,omitempty"`
-	SourceEncoded string     `json:"sourceEncoded,omitempty"`
-	Meta          *ImageMeta `json:"meta,omitempty"`
+	ID          string `json:"id"`
+	URL         string `json:"url"`
+	Alt         string `json:"alt"`
+	Width       int    `json:"width"`
+	Height      int    `json:"height"`
+	Caption     string `json:"caption,omitempty"`
+	Photographer string `json:"photographer,omitempty"`
 }
 
-type ImageMeta struct {
-	MuteBgColor *Color `json:"muteBgColor,omitempty"`
-	BlurHash    string `json:"blurHash,omitempty"`
+type CarSpecs struct {
+	Length       float64 `json:"length"`
+	Width        float64 `json:"width"`
+	Height       float64 `json:"height"`
+	Weight       int     `json:"weight"`
+	TopSpeed     int     `json:"topSpeed"`
+	Acceleration string  `json:"acceleration"`
+	FuelEconomy  string  `json:"fuelEconomy"`
+	Drivetrain   string  `json:"drivetrain"`
+	Transmission string  `json:"transmission"`
 }
 
-type Color struct {
-	Hex string `json:"hex"`
+type CarHistory struct {
+	PreviousOwners []CarOwner `json:"previousOwners"`
+	Accidents      []Accident `json:"accidents,omitempty"`
+	Modifications  []Modification `json:"modifications,omitempty"`
+	ServiceRecords []ServiceRecord `json:"serviceRecords,omitempty"`
+	Mileage        int        `json:"mileage"`
+	Car            *Car       `json:"car,omitempty"`
 }
 
-type DateTime struct {
-	ReadableDateTime string `json:"readableDateTime"`
-	ReadableDate     string `json:"readableDate"`
-	ReadableDateLong string `json:"readableDateLong"`
-	ReadableDistance string `json:"readableDistance"`
-	ISOString        string `json:"isoString"`
+type Accident struct {
+	Date        string `json:"date"`
+	Description string `json:"description"`
+	Severity    string `json:"severity"`
+	Cost        float64 `json:"cost"`
+	Images      []Image `json:"images,omitempty"`
 }
 
-type Duration struct {
-	ReadableShort string `json:"readableShort"`
-	Seconds       int    `json:"seconds"`
+type Modification struct {
+	Type        string  `json:"type"`
+	Description string  `json:"description"`
+	Cost        float64 `json:"cost"`
+	InstallDate string  `json:"installDate"`
+	Installer   string  `json:"installer"`
 }
 
-type Synopsis struct {
-	Brief    string `json:"brief"`
-	Medium   string `json:"medium"`
-	Long     string `json:"long"`
-	Short    string `json:"short,omitempty"`
-	Extended string `json:"extended,omitempty"`
+type ServiceRecord struct {
+	Date        string  `json:"date"`
+	Type        string  `json:"type"`
+	Description string  `json:"description"`
+	Cost        float64 `json:"cost"`
+	ServiceShop string  `json:"serviceShop"`
+	Mileage     int     `json:"mileage"`
 }
 
-type Label struct {
-	ID                 string  `json:"id"`
-	Airtime            *string `json:"airtime"`
-	Announcement       *string `json:"announcement"`
-	RecurringBroadcast string  `json:"recurringBroadcast"`
+type CompanyHistory struct {
+	Founded       int       `json:"founded"`
+	Founder       string    `json:"founder"`
+	Milestones    []Milestone `json:"milestones"`
+	Acquisitions  []Acquisition `json:"acquisitions,omitempty"`
+	Company       *Manufacturer `json:"company,omitempty"`
 }
 
-type ParentalRating struct {
-	Sweden  *SwedenRating  `json:"sweden"`
-	Finland *FinlandRating `json:"finland"`
+type Milestone struct {
+	Year        int    `json:"year"`
+	Event       string `json:"event"`
+	Description string `json:"description"`
 }
 
-type SwedenRating struct {
-	AgeRecommendation   int  `json:"ageRecommendation"`
-	SuitableForChildren bool `json:"suitableForChildren"`
-}
-
-type FinlandRating struct {
-	AgeRestriction string `json:"ageRestriction"`
-	Reason         string `json:"reason"`
-}
-
-type Upsell struct {
-	PackageTierLink *PackageTierLink `json:"packageTierLink"`
-	TierName        string           `json:"tierName"`
-	LabelText       string           `json:"labelText"`
-}
-
-type PackageTierLink struct {
-	TierID string `json:"tierId"`
-}
-
-type Access struct {
-	HasAccess bool `json:"hasAccess"`
-}
-
-type Country struct {
-	CountryCode string `json:"countryCode"`
-	Name        string `json:"name"`
-}
-
-type Credits struct {
-	Actors    []Actor  `json:"actors"`
-	Directors []Credit `json:"directors"`
-	Hosts     []Credit `json:"hosts"`
-}
-
-type Actor struct {
-	CharacterName *string `json:"characterName"`
-	Name          string  `json:"name"`
-	Type          string  `json:"type"`
-}
-
-type Credit struct {
-	Name string `json:"name"`
-	Type string `json:"type"`
-}
-
-type Trailers struct {
-	MP4 string `json:"mp4"`
-}
-
-type Series struct {
-	Typename                 string           `json:"__typename"`
-	ID                       string           `json:"id"`
-	Slug                     string           `json:"slug"`
-	Title                    string           `json:"title"`
-	Label                    *Label           `json:"label"`
-	EditorialInfoText        *string          `json:"editorialInfoText"`
-	Genres                   []string         `json:"genres"`
-	MediaClassification      string           `json:"mediaClassification"`
-	Synopsis                 *Synopsis        `json:"synopsis"`
-	NumberOfAvailableSeasons int              `json:"numberOfAvailableSeasons"`
-	Trailers                 *Trailers        `json:"trailers"`
-	Images                   *SeriesImages    `json:"images"`
-	Credits                  *Credits         `json:"credits"`
-	ParentalRating           *ParentalRating  `json:"parentalRating"`
-	IsPollFeatureEnabled     bool             `json:"isPollFeatureEnabled"`
-	CDPPageOverride          *CDPPageOverride `json:"cdpPageOverride"`
-	Upsell                   *Upsell          `json:"upsell"`
-	AllSeasonLinks           []SeasonLink     `json:"allSeasonLinks,omitempty"`
-}
-
-type CDPPageOverride struct {
-	ID string `json:"id"`
-}
-
-type SeriesImages struct {
-	Main16x9          *Image `json:"main16x9"`
-	Main16x9Annotated *Image `json:"main16x9Annotated"`
-	Cover2x3          *Image `json:"cover2x3"`
-	Poster2x3         *Image `json:"poster2x3"`
-	BrandLogo         *Image `json:"brandLogo"`
-	Logo              *Image `json:"logo"`
-	RoundLogo         *Image `json:"roundLogo,omitempty"`
-}
-
-type SeasonLink struct {
-	ID               string `json:"id"`
-	Title            string `json:"title"`
-	SeasonID         string `json:"seasonId"`
-	NumberOfEpisodes int    `json:"numberOfEpisodes"`
-}
-
-type Movie struct {
-	Typename               string          `json:"__typename"`
-	ID                     string          `json:"id"`
-	Slug                   string          `json:"slug"`
-	Title                  string          `json:"title"`
-	HumanCallToAction      string          `json:"humanCallToAction"`
-	Label                  *Label          `json:"label"`
-	EditorialInfoText      *string         `json:"editorialInfoText"`
-	Genres                 []string        `json:"genres"`
-	Synopsis               *Synopsis       `json:"synopsis"`
-	Images                 *MovieImages    `json:"images"`
-	PlayableFrom           *DateTime       `json:"playableFrom"`
-	PlayableUntil          *DateTime       `json:"playableUntil"`
-	IsLiveContent          bool            `json:"isLiveContent"`
-	Access                 *Access         `json:"access"`
-	Duration               *Duration       `json:"duration"`
-	Trailers               *Trailers       `json:"trailers"`
-	ProductionCountries    []Country       `json:"productionCountries"`
-	ProductionYear         string          `json:"productionYear"`
-	Credits                *MovieCredits   `json:"credits"`
-	ParentalRating         *ParentalRating `json:"parentalRating"`
-	Progress               *Progress       `json:"progress"`
-	IsPollFeatureEnabled   bool            `json:"isPollFeatureEnabled"`
-	MediaClassification    string          `json:"mediaClassification"`
-	Upsell                 *Upsell         `json:"upsell"`
-	OfflineDownloadAllowed bool            `json:"offlineDownloadAllowed"`
-}
-
-type MovieImages struct {
-	Main16x9          *Image `json:"main16x9"`
-	Main16x9Annotated *Image `json:"main16x9Annotated"`
-	Cover2x3          *Image `json:"cover2x3"`
-	Poster2x3         *Image `json:"poster2x3"`
-	BrandLogo         *Image `json:"brandLogo"`
-	Logo              *Image `json:"logo"`
-}
-
-type MovieCredits struct {
-	Actors    []Actor  `json:"actors"`
-	Directors []Credit `json:"directors"`
-}
-
-type Episode struct {
-	Typename               string          `json:"__typename"`
-	ID                     string          `json:"id"`
-	Slug                   string          `json:"slug"`
-	Title                  string          `json:"title"`
-	ExtendedTitle          string          `json:"extendedTitle"`
-	Synopsis               *Synopsis       `json:"synopsis"`
-	SeasonID               string          `json:"seasonId"`
-	Series                 *Series         `json:"series"`
-	EpisodeNumber          int             `json:"episodeNumber"`
-	PlayableFrom           *DateTime       `json:"playableFrom"`
-	PlayableUntil          *DateTime       `json:"playableUntil"`
-	LiveEventEnd           *DateTime       `json:"liveEventEnd"`
-	IsLiveContent          bool            `json:"isLiveContent"`
-	ParentalRating         *ParentalRating `json:"parentalRating"`
-	Images                 *EpisodeImages  `json:"images"`
-	IsPollFeatureEnabled   bool            `json:"isPollFeatureEnabled"`
-	Progress               *Progress       `json:"progress"`
-	Access                 *Access         `json:"access"`
-	Duration               *Duration       `json:"duration"`
-	MediaClassification    string          `json:"mediaClassification"`
-	Upsell                 *Upsell         `json:"upsell"`
-	OfflineDownloadAllowed bool            `json:"offlineDownloadAllowed"`
-	IsStartOverEnabled     bool            `json:"isStartOverEnabled"`
-}
-
-type EpisodeImages struct {
-	Main16x9          *Image `json:"main16x9"`
-	Main16x9Annotated *Image `json:"main16x9Annotated"`
-}
-
-type Clip struct {
-	Typename             string      `json:"__typename"`
-	ID                   string      `json:"id"`
-	Title                string      `json:"title"`
-	Description          string      `json:"description"`
-	Slug                 string      `json:"slug"`
-	Images               *ClipImages `json:"images"`
-	IsPollFeatureEnabled bool        `json:"isPollFeatureEnabled"`
-	PlayableFrom         *DateTime   `json:"playableFrom"`
-	PlayableUntil        *DateTime   `json:"playableUntil"`
-	Parent               *ClipParent `json:"parent"`
-	MediaClassification  string      `json:"mediaClassification"`
-	Access               *Access     `json:"access"`
-	Duration             *Duration   `json:"duration"`
-	IsLiveContent        bool        `json:"isLiveContent"`
-}
-
-type ClipImages struct {
-	Main16x9 *Image `json:"main16x9"`
-}
-
-type ClipParent struct {
-	Typename string `json:"__typename"`
-	ID       string `json:"id"`
-	Title    string `json:"title"`
-}
-
-type Short struct {
-	Typename     string       `json:"__typename"`
-	ID           string       `json:"id"`
-	Title        string       `json:"title"`
-	Slug         string       `json:"slug"`
-	PlayableFrom *DateTime    `json:"playableFrom"`
-	Duration     *Duration    `json:"duration"`
-	Images       *ShortImages `json:"images"`
-	LiveEpisode  *LiveEpisode `json:"liveEpisode"`
-}
-
-type ShortImages struct {
-	FirstFrame9x16 *Image `json:"firstFrame9x16"`
-	FirstFrame16x9 *Image `json:"firstFrame16x9"`
-}
-
-type LiveEpisode struct {
-	ID     string             `json:"id"`
-	Images *LiveEpisodeImages `json:"images"`
-	Series *LiveEpisodeSeries `json:"series"`
-}
-
-type LiveEpisodeImages struct {
-	RoundLogo *Image `json:"roundLogo"`
-}
-
-type LiveEpisodeSeries struct {
-	Title string `json:"title"`
-}
-
-type SportEvent struct {
-	Typename             string       `json:"__typename"`
-	ID                   string       `json:"id"`
-	Slug                 string       `json:"slug"`
-	Title                string       `json:"title"`
-	Genre                string       `json:"genre"`
-	League               string       `json:"league"`
-	Season               string       `json:"season"`
-	Round                string       `json:"round"`
-	Commentators         string       `json:"commentators"`
-	Country              string       `json:"country"`
-	Arena                string       `json:"arena"`
-	Studio               string       `json:"studio"`
-	InStudio             string       `json:"inStudio"`
-	ProductionYear       string       `json:"productionYear"`
-	IsLiveContent        bool         `json:"isLiveContent"`
-	PlayableFrom         *DateTime    `json:"playableFrom"`
-	PlayableUntil        *DateTime    `json:"playableUntil"`
-	LiveEventEnd         *DateTime    `json:"liveEventEnd"`
-	Synopsis             *Synopsis    `json:"synopsis"`
-	Images               *SportImages `json:"images"`
-	Trailers             *Trailers    `json:"trailers"`
-	Access               *Access      `json:"access"`
-	Upsell               *Upsell      `json:"upsell"`
-	IsStartOverEnabled   bool         `json:"isStartOverEnabled"`
-	EditorialInfoText    *string      `json:"editorialInfoText"`
-	HumanCallToAction    string       `json:"humanCallToAction"`
-	Progress             *Progress    `json:"progress"`
-	IsPollFeatureEnabled bool         `json:"isPollFeatureEnabled"`
-}
-
-type SportImages struct {
-	Main16x9          *Image `json:"main16x9"`
-	Main16x9Annotated *Image `json:"main16x9Annotated"`
-	Cover2x3          *Image `json:"cover2x3"`
-	Poster2x3         *Image `json:"poster2x3"`
-	Logo              *Image `json:"logo"`
-	BrandLogo         *Image `json:"brandLogo"`
-}
-
-type Channel struct {
-	Typename             string         `json:"__typename"`
-	ID                   string         `json:"id"`
-	Title                string         `json:"title"`
-	Tagline              string         `json:"tagline"`
-	Description          string         `json:"description"`
-	Access               *Access        `json:"access"`
-	Upsell               *Upsell        `json:"upsell"`
-	Type                 string         `json:"type"`
-	Images               *ChannelImages `json:"images"`
-	EPG                  *EPGItem       `json:"epg"`
-	IsDRMProtected       bool           `json:"isDrmProtected"`
-	IsPollFeatureEnabled bool           `json:"isPollFeatureEnabled"`
-}
-
-type ChannelImages struct {
-	Main16x9 *Image `json:"main16x9"`
-	Logo     *Image `json:"logo"`
-}
-
-type EPGItem struct {
-	Title    string       `json:"title"`
-	Synopsis *EPGSynopsis `json:"synopsis"`
-	Start    string       `json:"start"`
-	End      string       `json:"end"`
-	Type     string       `json:"type"`
-	Images   *EPGImages   `json:"images"`
-	Media    *EPGMedia    `json:"media"`
-}
-
-type EPGSynopsis struct {
-	Brief    string `json:"brief"`
-	Medium   string `json:"medium"`
-	Long     string `json:"long"`
-	Short    string `json:"short"`
-	Extended string `json:"extended"`
-}
-
-type EPGImages struct {
-	Main16x9 *Image `json:"main16x9"`
-}
-
-type EPGMedia struct {
-	Typename   string      `json:"__typename"`
-	Episode    *Episode    `json:"episode,omitempty"`
-	Movie      *Movie      `json:"movie,omitempty"`
-	SportEvent *SportEvent `json:"sportEvent,omitempty"`
-}
-
-type PageReference struct {
-	Typename string      `json:"__typename"`
-	ID       string      `json:"id"`
-	Title    string      `json:"title"`
-	Type     string      `json:"type,omitempty"`
-	Images   *PageImages `json:"images"`
-}
-
-type PageImages struct {
-	Image16x9 *Image `json:"image16x9"`
-	Logo      *Image `json:"logo"`
+type Acquisition struct {
+	Year        int           `json:"year"`
+	Company     string        `json:"company"`
+	Amount      float64       `json:"amount"`
+	Reason      string        `json:"reason"`
+	Acquirer    *Manufacturer `json:"acquirer,omitempty"`
 }
