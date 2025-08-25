@@ -20,6 +20,13 @@ import (
 	"github.com/joakimcarlsson/go-router/metadata"
 )
 
+// Pre-allocated common header values to avoid string allocations
+const (
+	contentTypeJSON = "application/json; charset=utf-8"
+	contentTypeXML  = "application/xml; charset=utf-8"
+	contentTypeText = "text/plain; charset=utf-8"
+)
+
 // Context represents the context of an HTTP request, including the request and response writer.
 // It provides methods for accessing request data, setting response data, and managing context values.
 // Context objects are pooled to reduce allocation overhead.
@@ -29,8 +36,9 @@ type Context struct {
 	// Request is the *http.Request instance for the current request
 	Request *http.Request
 	ctx     context.Context
-	// StartTime records when the context was created for tracking request duration
-	StartTime time.Time
+	// StartTime records when the context was created for tracking request duration (lazy initialized)
+	startTime    time.Time
+	startTimeSet bool
 	// StatusCode holds the HTTP status code that will be or has been sent
 	StatusCode int
 	// store provides a per-request key/value store
@@ -40,13 +48,17 @@ type Context struct {
 	maxMultipartMemory int64
 	// sseInitialized tracks whether SSE has been initialized
 	sseInitialized bool
+	// queryCache caches parsed query values to avoid repeated parsing
+	queryCache url.Values
+	// statusWritten tracks if status has been written to avoid double writes
+	statusWritten bool
 }
 
 // Context pool to minimize allocations
 var contextPool = sync.Pool{
 	New: func() interface{} {
 		return &Context{
-			store: make(map[string]interface{}),
+			// Don't pre-allocate store - make it lazy
 		}
 	},
 }
@@ -77,6 +89,19 @@ var (
 			}
 		},
 	}
+	// String builder pool for efficient concatenation
+	stringBuilderPool = sync.Pool{
+		New: func() interface{} {
+			return &strings.Builder{}
+		},
+	}
+	// Byte slice pool for response writing
+	byteSlicePool = sync.Pool{
+		New: func() interface{} {
+			b := make([]byte, 0, 512) // Pre-allocate 512 bytes
+			return &b
+		},
+	}
 )
 
 // acquireContext retrieves a Context from the pool and initializes it with the given response writer and request.
@@ -86,10 +111,12 @@ func acquireContext(w http.ResponseWriter, r *http.Request) *Context {
 	ctx.Writer = w
 	ctx.Request = r
 	ctx.ctx = r.Context()
-	ctx.StartTime = time.Now()
+	ctx.startTimeSet = false // Don't set time.Now() unless needed
 	ctx.StatusCode = http.StatusOK
 	ctx.maxMultipartMemory = 32 << 20 // 32 MB
 	ctx.sseInitialized = false
+	ctx.queryCache = nil // Reset cache
+	ctx.statusWritten = false
 	return ctx
 }
 
@@ -98,14 +125,23 @@ func acquireContext(w http.ResponseWriter, r *http.Request) *Context {
 func releaseContext(ctx *Context) {
 	ctx.Writer = nil
 	ctx.Request = nil
-	clearInterfaceMap(ctx.store)
+	ctx.queryCache = nil // Clear cache
+	ctx.statusWritten = false
+	// Only clear store if it has items (len() on nil map returns 0)
+	if len(ctx.store) > 0 {
+		clearInterfaceMap(ctx.store)
+	}
 	contextPool.Put(ctx)
 }
 
 // Query returns the query parameters of the request.
 // Returns the same structure as http.Request.URL.Query().
+// Caches the result to avoid repeated parsing.
 func (c *Context) Query() url.Values {
-	return c.Request.URL.Query()
+	if c.queryCache == nil {
+		c.queryCache = c.Request.URL.Query()
+	}
+	return c.queryCache
 }
 
 // QueryDefault returns the value of the query parameter with the given key,
@@ -187,7 +223,6 @@ func (c *Context) Param(key string) string {
 }
 
 // JSON writes the given object as a JSON response with the given status code.
-// It sets the Content-Type header to "application/json; charset=utf-8".
 func (c *Context) JSON(code int, obj interface{}) {
 	container := jsonEncoderPool.Get().(*EncoderContainer)
 	container.Buffer.Reset()
@@ -199,14 +234,13 @@ func (c *Context) JSON(code int, obj interface{}) {
 		return
 	}
 
-	c.SetHeader("Content-Type", "application/json; charset=utf-8")
+	c.Writer.Header().Set("Content-Type", contentTypeJSON)
 	c.Status(code)
 	_, _ = c.Writer.Write(container.Buffer.Bytes())
 	jsonEncoderPool.Put(container)
 }
 
 // XML sends an XML response with the given status code and object.
-// It sets the Content-Type header to "application/xml; charset=utf-8".
 func (c *Context) XML(code int, obj interface{}) {
 	container := xmlEncoderPool.Get().(*EncoderContainer)
 	container.Buffer.Reset()
@@ -218,7 +252,7 @@ func (c *Context) XML(code int, obj interface{}) {
 		return
 	}
 
-	c.SetHeader("Content-Type", "application/xml; charset=utf-8")
+	c.Writer.Header().Set("Content-Type", contentTypeXML)
 	c.Status(code)
 	_, _ = c.Writer.Write(container.Buffer.Bytes())
 	xmlEncoderPool.Put(container)
@@ -247,10 +281,13 @@ func (c *Context) Error(code int, message string) {
 }
 
 // Status sets the HTTP status code for the response.
-// This method writes the status code to the response writer.
 func (c *Context) Status(code int) {
 	c.StatusCode = code
+	if c.statusWritten {
+		return
+	}
 	c.Writer.WriteHeader(code)
+	c.statusWritten = true
 }
 
 // GetHeader returns the value of the request header with the given key.
@@ -388,6 +425,9 @@ func setValue(field reflect.Value, values []string) {
 // This can be used to pass data between middleware and handlers.
 func (c *Context) Set(key string, value interface{}) {
 	c.mu.Lock()
+	if c.store == nil {
+		c.store = make(map[string]interface{})
+	}
 	c.store[key] = value
 	c.mu.Unlock()
 }
@@ -396,6 +436,10 @@ func (c *Context) Set(key string, value interface{}) {
 // Returns the value and a boolean indicating whether the key was found.
 func (c *Context) Get(key string) (interface{}, bool) {
 	c.mu.RLock()
+	if c.store == nil {
+		c.mu.RUnlock()
+		return nil, false
+	}
 	value, exists := c.store[key]
 	c.mu.RUnlock()
 	return value, exists
@@ -430,8 +474,54 @@ func (c *Context) Context() context.Context {
 	return c.ctx
 }
 
+// BuildString efficiently concatenates strings using a pooled builder
+func (c *Context) BuildString(parts ...string) string {
+	if len(parts) == 0 {
+		return ""
+	}
+	if len(parts) == 1 {
+		return parts[0]
+	}
+	
+	builder := stringBuilderPool.Get().(*strings.Builder)
+	builder.Reset()
+	
+	for _, part := range parts {
+		builder.WriteString(part)
+	}
+	
+	result := builder.String()
+	stringBuilderPool.Put(builder)
+	return result
+}
+
+// WriteString efficiently writes a string to the response using pooled byte slices
+func (c *Context) WriteString(code int, s string) {
+	c.Status(code)
+	if len(s) == 0 {
+		return
+	}
+	
+	// For small strings, write directly
+	if len(s) <= 64 {
+		_, _ = c.Writer.Write([]byte(s))
+		return
+	}
+	
+	// For larger strings, use pooled byte slice
+	bufPtr := byteSlicePool.Get().(*[]byte)
+	buf := *bufPtr
+	buf = buf[:0] // Reset length but keep capacity
+	
+	buf = append(buf, s...)
+	_, _ = c.Writer.Write(buf)
+	
+	// Reset and return to pool
+	*bufPtr = buf
+	byteSlicePool.Put(bufPtr)
+}
+
 // clearInterfaceMap clears an interface map by removing all entries.
-// Used internally for context pooling.
 func clearInterfaceMap(m map[string]interface{}) {
 	for k := range m {
 		delete(m, k)
@@ -510,10 +600,19 @@ func (c *Context) Value(key interface{}) interface{} {
 	return c.ctx.Value(key)
 }
 
+// StartTime returns the start time, initializing it if needed
+func (c *Context) StartTime() time.Time {
+	if !c.startTimeSet {
+		c.startTime = time.Now()
+		c.startTimeSet = true
+	}
+	return c.startTime
+}
+
 // Elapsed returns the time elapsed since the context was created.
 // Useful for measuring request processing time.
 func (c *Context) Elapsed() time.Duration {
-	return time.Since(c.StartTime)
+	return time.Since(c.StartTime())
 }
 
 // FormFile returns the first file for the provided form field.
