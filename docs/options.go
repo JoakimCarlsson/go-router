@@ -54,7 +54,12 @@ func WithTags(tags ...string) RouteOption {
 //   - required: Whether the parameter is required
 //   - description: A description of the parameter
 //   - example: An example value for the parameter
-func WithParameter(name, in, typ string, required bool, description string, example interface{}) RouteOption {
+func WithParameter(
+	name, in, typ string,
+	required bool,
+	description string,
+	example interface{},
+) RouteOption {
 	return func(m *metadata.RouteMetadata) {
 		metadata.AddParameter(m, name, in, typ, required, description, example)
 	}
@@ -69,7 +74,12 @@ func WithParameter(name, in, typ string, required bool, description string, exam
 //   - required: Whether the parameter is required
 //   - description: A description of the parameter
 //   - example: An example value for the parameter
-func WithQueryParam(name, typ string, required bool, description string, example interface{}) RouteOption {
+func WithQueryParam(
+	name, typ string,
+	required bool,
+	description string,
+	example interface{},
+) RouteOption {
 	return WithParameter(name, "query", typ, required, description, example)
 }
 
@@ -82,7 +92,12 @@ func WithQueryParam(name, typ string, required bool, description string, example
 //   - required: Whether the parameter is required (typically true for path parameters)
 //   - description: A description of the parameter
 //   - example: An example value for the parameter
-func WithPathParam(name, typ string, required bool, description string, example interface{}) RouteOption {
+func WithPathParam(
+	name, typ string,
+	required bool,
+	description string,
+	example interface{},
+) RouteOption {
 	return WithParameter(name, "path", typ, required, description, example)
 }
 
@@ -95,14 +110,26 @@ func WithPathParam(name, typ string, required bool, description string, example 
 //   - required: Whether the parameter is required
 //   - description: A description of the parameter
 //   - example: An example value for the parameter
-func WithFormattedPathParam(name, format string, required bool, description string, example interface{}) RouteOption {
+func WithFormattedPathParam(
+	name, format string,
+	required bool,
+	description string,
+	example interface{},
+) RouteOption {
 	return func(m *metadata.RouteMetadata) {
 		schema := metadata.Schema{
 			Type:    "string",
 			Format:  format,
 			Example: example,
 		}
-		metadata.AddParameterWithSchema(m, name, "path", required, description, schema)
+		metadata.AddParameterWithSchema(
+			m,
+			name,
+			"path",
+			required,
+			description,
+			schema,
+		)
 	}
 }
 
@@ -115,14 +142,26 @@ func WithFormattedPathParam(name, format string, required bool, description stri
 //   - required: Whether the parameter is required
 //   - description: A description of the parameter
 //   - example: An example value for the parameter
-func WithRegexPathParam(name, pattern string, required bool, description string, example interface{}) RouteOption {
+func WithRegexPathParam(
+	name, pattern string,
+	required bool,
+	description string,
+	example interface{},
+) RouteOption {
 	return func(m *metadata.RouteMetadata) {
 		schema := metadata.Schema{
 			Type:    "string",
 			Pattern: pattern,
 			Example: example,
 		}
-		metadata.AddParameterWithSchema(m, name, "path", required, description+"\n\nMust match pattern: `"+pattern+"`", schema)
+		metadata.AddParameterWithSchema(
+			m,
+			name,
+			"path",
+			required,
+			description+"\n\nMust match pattern: `"+pattern+"`",
+			schema,
+		)
 	}
 }
 
@@ -135,7 +174,13 @@ func WithRegexPathParam(name, pattern string, required bool, description string,
 //   - example: An example value for the parameter
 //   - minimum: Minimum value (optional, set to nil if not needed)
 //   - maximum: Maximum value (optional, set to nil if not needed)
-func WithNumericPathParam(name string, required bool, description string, example float64, minimum, maximum *float64) RouteOption {
+func WithNumericPathParam(
+	name string,
+	required bool,
+	description string,
+	example float64,
+	minimum, maximum *float64,
+) RouteOption {
 	return func(m *metadata.RouteMetadata) {
 		schema := metadata.Schema{
 			Type:    "number",
@@ -143,7 +188,14 @@ func WithNumericPathParam(name string, required bool, description string, exampl
 			Minimum: minimum,
 			Maximum: maximum,
 		}
-		metadata.AddParameterWithSchema(m, name, "path", required, description, schema)
+		metadata.AddParameterWithSchema(
+			m,
+			name,
+			"path",
+			required,
+			description,
+			schema,
+		)
 	}
 }
 
@@ -156,7 +208,13 @@ func WithNumericPathParam(name string, required bool, description string, exampl
 //   - example: An example value for the parameter
 //   - minimum: Minimum value (optional, set to nil if not needed)
 //   - maximum: Maximum value (optional, set to nil if not needed)
-func WithIntegerPathParam(name string, required bool, description string, example int64, minimum, maximum *float64) RouteOption {
+func WithIntegerPathParam(
+	name string,
+	required bool,
+	description string,
+	example int64,
+	minimum, maximum *float64,
+) RouteOption {
 	return func(m *metadata.RouteMetadata) {
 		schema := metadata.Schema{
 			Type:    "integer",
@@ -188,7 +246,13 @@ func WithIntegerPathParam(name string, required bool, description string, exampl
 //   - description: A description of the parameter
 //   - example: An example value for the parameter
 //   - values: Array of allowed values for the parameter
-func WithEnumPathParam(name string, required bool, description string, example interface{}, values []interface{}) RouteOption {
+func WithEnumPathParam(
+	name string,
+	required bool,
+	description string,
+	example interface{},
+	values []interface{},
+) RouteOption {
 	return func(m *metadata.RouteMetadata) {
 		m.Parameters = append(m.Parameters, metadata.Parameter{
 			Name:        name,
@@ -213,7 +277,12 @@ func WithEnumPathParam(name string, required bool, description string, example i
 //   - required: Whether the parameter is required
 //   - description: A description of the parameter
 //   - example: An example value for the parameter
-func WithFormattedQueryParam(name, format string, required bool, description string, example interface{}) RouteOption {
+func WithFormattedQueryParam(
+	name, format string,
+	required bool,
+	description string,
+	example interface{},
+) RouteOption {
 	return func(m *metadata.RouteMetadata) {
 		m.Parameters = append(m.Parameters, metadata.Parameter{
 			Name:        name,
@@ -238,7 +307,12 @@ func WithFormattedQueryParam(name, format string, required bool, description str
 //   - required: Whether the parameter is required
 //   - description: A description of the parameter
 //   - example: An example value for the parameter
-func WithRegexQueryParam(name, pattern string, required bool, description string, example interface{}) RouteOption {
+func WithRegexQueryParam(
+	name, pattern string,
+	required bool,
+	description string,
+	example interface{},
+) RouteOption {
 	return func(m *metadata.RouteMetadata) {
 		m.Parameters = append(m.Parameters, metadata.Parameter{
 			Name:        name,
@@ -262,7 +336,13 @@ func WithRegexQueryParam(name, pattern string, required bool, description string
 //   - description: A description of the parameter
 //   - example: An example value for the parameter
 //   - values: Array of allowed values for the parameter
-func WithEnumQueryParam(name string, required bool, description string, example interface{}, values []interface{}) RouteOption {
+func WithEnumQueryParam(
+	name string,
+	required bool,
+	description string,
+	example interface{},
+	values []interface{},
+) RouteOption {
 	return func(m *metadata.RouteMetadata) {
 		m.Parameters = append(m.Parameters, metadata.Parameter{
 			Name:        name,
@@ -288,7 +368,12 @@ func WithEnumQueryParam(name string, required bool, description string, example 
 //   - required: Whether the parameter is required
 //   - description: A description of the parameter
 //   - example: An example value for the parameter
-func WithFormattedParam(name, in, format string, required bool, description string, example interface{}) RouteOption {
+func WithFormattedParam(
+	name, in, format string,
+	required bool,
+	description string,
+	example interface{},
+) RouteOption {
 	return func(m *metadata.RouteMetadata) {
 		m.Parameters = append(m.Parameters, metadata.Parameter{
 			Name:        name,
@@ -305,43 +390,101 @@ func WithFormattedParam(name, in, format string, required bool, description stri
 }
 
 // WithUUIDPathParam adds a UUID path parameter to the route.
-func WithUUIDPathParam(name string, required bool, description string, example string) RouteOption {
+func WithUUIDPathParam(
+	name string,
+	required bool,
+	description string,
+	example string,
+) RouteOption {
 	return WithFormattedPathParam(name, "uuid", required, description, example)
 }
 
 // WithDatePathParam adds a date path parameter to the route.
-func WithDatePathParam(name string, required bool, description string, example string) RouteOption {
+func WithDatePathParam(
+	name string,
+	required bool,
+	description string,
+	example string,
+) RouteOption {
 	return WithFormattedPathParam(name, "date", required, description, example)
 }
 
 // WithDateTimePathParam adds a date-time path parameter to the route.
-func WithDateTimePathParam(name string, required bool, description string, example string) RouteOption {
-	return WithFormattedPathParam(name, "date-time", required, description, example)
+func WithDateTimePathParam(
+	name string,
+	required bool,
+	description string,
+	example string,
+) RouteOption {
+	return WithFormattedPathParam(
+		name,
+		"date-time",
+		required,
+		description,
+		example,
+	)
 }
 
 // WithEmailPathParam adds an email path parameter to the route.
-func WithEmailPathParam(name string, required bool, description string, example string) RouteOption {
+func WithEmailPathParam(
+	name string,
+	required bool,
+	description string,
+	example string,
+) RouteOption {
 	return WithFormattedPathParam(name, "email", required, description, example)
 }
 
 // WithUUIDQueryParam adds a UUID query parameter to the route.
-func WithUUIDQueryParam(name string, required bool, description string, example string) RouteOption {
+func WithUUIDQueryParam(
+	name string,
+	required bool,
+	description string,
+	example string,
+) RouteOption {
 	return WithFormattedQueryParam(name, "uuid", required, description, example)
 }
 
 // WithDateQueryParam adds a date query parameter to the route.
-func WithDateQueryParam(name string, required bool, description string, example string) RouteOption {
+func WithDateQueryParam(
+	name string,
+	required bool,
+	description string,
+	example string,
+) RouteOption {
 	return WithFormattedQueryParam(name, "date", required, description, example)
 }
 
 // WithDateTimeQueryParam adds a date-time query parameter to the route.
-func WithDateTimeQueryParam(name string, required bool, description string, example string) RouteOption {
-	return WithFormattedQueryParam(name, "date-time", required, description, example)
+func WithDateTimeQueryParam(
+	name string,
+	required bool,
+	description string,
+	example string,
+) RouteOption {
+	return WithFormattedQueryParam(
+		name,
+		"date-time",
+		required,
+		description,
+		example,
+	)
 }
 
 // WithEmailQueryParam adds an email query parameter to the route.
-func WithEmailQueryParam(name string, required bool, description string, example string) RouteOption {
-	return WithFormattedQueryParam(name, "email", required, description, example)
+func WithEmailQueryParam(
+	name string,
+	required bool,
+	description string,
+	example string,
+) RouteOption {
+	return WithFormattedQueryParam(
+		name,
+		"email",
+		required,
+		description,
+		example,
+	)
 }
 
 // WithHeaderParam adds a header parameter to the route.
@@ -352,8 +495,20 @@ func WithEmailQueryParam(name string, required bool, description string, example
 //   - required: Whether the header is required
 //   - description: A description of the header
 //   - example: An example value for the header
-func WithHeaderParam(name string, required bool, description string, example interface{}) RouteOption {
-	return WithParameter(name, "header", "string", required, description, example)
+func WithHeaderParam(
+	name string,
+	required bool,
+	description string,
+	example interface{},
+) RouteOption {
+	return WithParameter(
+		name,
+		"header",
+		"string",
+		required,
+		description,
+		example,
+	)
 }
 
 // WithRequestBody adds a request body with a specific content type.
@@ -364,7 +519,12 @@ func WithHeaderParam(name string, required bool, description string, example int
 //   - schema: The schema describing the request body structure
 //   - required: Whether the request body is required
 //   - description: A description of the request body
-func WithRequestBody(contentType string, schema metadata.Schema, required bool, description string) RouteOption {
+func WithRequestBody(
+	contentType string,
+	schema metadata.Schema,
+	required bool,
+	description string,
+) RouteOption {
 	return func(m *metadata.RouteMetadata) {
 		m.RequestBody = &metadata.RequestBody{
 			Description: description,
@@ -406,7 +566,10 @@ type FormFieldSpec struct {
 // Parameters:
 //   - description: A description of the request body
 //   - formFields: A map where keys are field names and values are field specifications
-func WithMultipartFormData(description string, formFields map[string]FormFieldSpec) RouteOption {
+func WithMultipartFormData(
+	description string,
+	formFields map[string]FormFieldSpec,
+) RouteOption {
 	return func(m *metadata.RouteMetadata) {
 		properties := make(map[string]metadata.Schema)
 		requiredFields := make([]string, 0)
@@ -455,7 +618,9 @@ func WithMultipartFormData(description string, formFields map[string]FormFieldSp
 
 		m.RequestBody = &metadata.RequestBody{
 			Description: description,
-			Required:    len(requiredFields) > 0, // RequestBody is required if any field is required
+			Required: len(
+				requiredFields,
+			) > 0, // RequestBody is required if any field is required
 			Content: map[string]metadata.MediaType{
 				metadata.ContentTypeFormData: {Schema: schema},
 			},

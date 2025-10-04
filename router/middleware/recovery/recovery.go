@@ -84,7 +84,11 @@ func New(config ...Config) func(http.Handler) http.Handler {
 						fields["stack"] = string(stack)
 
 						if cfg.EnablePrintStack {
-							fmt.Printf("Panic recovered: %v\nStack trace:\n%s\n", err, stack)
+							fmt.Printf(
+								"Panic recovered: %v\nStack trace:\n%s\n",
+								err,
+								stack,
+							)
 						}
 					}
 
@@ -113,7 +117,11 @@ func Default() func(http.Handler) http.Handler {
 }
 
 // defaultPanicHandler is the default handler that returns a 500 error.
-func defaultPanicHandler(w http.ResponseWriter, r *http.Request, err interface{}) {
+func defaultPanicHandler(
+	w http.ResponseWriter,
+	r *http.Request,
+	err interface{},
+) {
 	http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 }
 

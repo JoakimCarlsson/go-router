@@ -15,7 +15,10 @@ func SchemaFromType(t reflect.Type) metadata.Schema {
 }
 
 // schemaFromTypeWithCycle generates a metadata Schema from a Go type with circular reference detection
-func schemaFromTypeWithCycle(t reflect.Type, visiting map[string]bool) metadata.Schema {
+func schemaFromTypeWithCycle(
+	t reflect.Type,
+	visiting map[string]bool,
+) metadata.Schema {
 	// Check if there's a registered custom handler for this type
 	typeName := t.String()
 	if handler, exists := metadata.GetTypeHandler(typeName); exists {
@@ -103,7 +106,10 @@ func schemaFromTypeWithCycle(t reflect.Type, visiting map[string]bool) metadata.
 	}
 }
 
-func getStructPropertiesWithCycle(t reflect.Type, visiting map[string]bool) (map[string]metadata.Schema, []string) {
+func getStructPropertiesWithCycle(
+	t reflect.Type,
+	visiting map[string]bool,
+) (map[string]metadata.Schema, []string) {
 	properties := make(map[string]metadata.Schema)
 	var required []string
 
@@ -151,7 +157,9 @@ func getStructPropertiesWithCycle(t reflect.Type, visiting map[string]bool) (map
 }
 
 // getValidationRules returns validation rules for a field defined using struct tags with the `validate` key
-func getValidationRules(field reflect.StructField) (required bool, minLen, maxLen *int, min *float64) {
+func getValidationRules(
+	field reflect.StructField,
+) (required bool, minLen, maxLen *int, min *float64) {
 	tag := field.Tag.Get("validate")
 	if tag == "" {
 		return
@@ -234,7 +242,10 @@ func generateExample(t reflect.Type) interface{} {
 	return generateExampleWithCycle(t, make(map[string]bool))
 }
 
-func generateExampleWithCycle(t reflect.Type, visiting map[string]bool) interface{} {
+func generateExampleWithCycle(
+	t reflect.Type,
+	visiting map[string]bool,
+) interface{} {
 	if t.Kind() != reflect.Struct {
 		return nil
 	}

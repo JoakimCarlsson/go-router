@@ -16,13 +16,13 @@ import (
 
 // Test types for binding tests
 type User struct {
-	ID    int    `json:"id" xml:"id" form:"id"`
-	Name  string `json:"name" xml:"name" form:"name"`
+	ID    int    `json:"id"    xml:"id"    form:"id"`
+	Name  string `json:"name"  xml:"name"  form:"name"`
 	Email string `json:"email" xml:"email" form:"email"`
 }
 
 type FileUpload struct {
-	File        *multipart.FileHeader `form:"file" file:"true"`
+	File        *multipart.FileHeader `form:"file"        file:"true"`
 	Name        string                `form:"name"`
 	Description string                `form:"description"`
 }
@@ -317,13 +317,19 @@ func TestContext_Param(t *testing.T) {
 
 	// Test missing parameter
 	if ctx.Param("missing") != "" {
-		t.Errorf("Expected missing param to be empty, got '%s'", ctx.Param("missing"))
+		t.Errorf(
+			"Expected missing param to be empty, got '%s'",
+			ctx.Param("missing"),
+		)
 	}
 
 	// Test with nil request
 	ctx.Request = nil
 	if ctx.Param("id") != "" {
-		t.Errorf("Expected empty string when request is nil, got '%s'", ctx.Param("id"))
+		t.Errorf(
+			"Expected empty string when request is nil, got '%s'",
+			ctx.Param("id"),
+		)
 	}
 }
 
@@ -540,7 +546,11 @@ func TestContext_JSON(t *testing.T) {
 	// Check content type
 	expectedContentType := "application/json; charset=utf-8"
 	if w.Header().Get("Content-Type") != expectedContentType {
-		t.Errorf("Expected Content-Type '%s', got '%s'", expectedContentType, w.Header().Get("Content-Type"))
+		t.Errorf(
+			"Expected Content-Type '%s', got '%s'",
+			expectedContentType,
+			w.Header().Get("Content-Type"),
+		)
 	}
 
 	// Check response body
@@ -587,7 +597,11 @@ func TestContext_XML(t *testing.T) {
 	// Check content type
 	expectedContentType := "application/xml; charset=utf-8"
 	if w.Header().Get("Content-Type") != expectedContentType {
-		t.Errorf("Expected Content-Type '%s', got '%s'", expectedContentType, w.Header().Get("Content-Type"))
+		t.Errorf(
+			"Expected Content-Type '%s', got '%s'",
+			expectedContentType,
+			w.Header().Get("Content-Type"),
+		)
 	}
 
 	// Check response body
@@ -618,7 +632,11 @@ func TestContext_Data(t *testing.T) {
 
 	// Check content type
 	if w.Header().Get("Content-Type") != contentType {
-		t.Errorf("Expected Content-Type '%s', got '%s'", contentType, w.Header().Get("Content-Type"))
+		t.Errorf(
+			"Expected Content-Type '%s', got '%s'",
+			contentType,
+			w.Header().Get("Content-Type"),
+		)
 	}
 
 	// Check response body
@@ -668,7 +686,11 @@ func TestContext_Redirect(t *testing.T) {
 	// Check location header
 	expectedLocation := "/new-location"
 	if w.Header().Get("Location") != expectedLocation {
-		t.Errorf("Expected Location header '%s', got '%s'", expectedLocation, w.Header().Get("Location"))
+		t.Errorf(
+			"Expected Location header '%s', got '%s'",
+			expectedLocation,
+			w.Header().Get("Location"),
+		)
 	}
 }
 
@@ -720,16 +742,25 @@ func TestContext_GetHeader(t *testing.T) {
 
 	// Test existing headers
 	if ctx.GetHeader("Authorization") != "Bearer token123" {
-		t.Errorf("Expected Authorization header 'Bearer token123', got '%s'", ctx.GetHeader("Authorization"))
+		t.Errorf(
+			"Expected Authorization header 'Bearer token123', got '%s'",
+			ctx.GetHeader("Authorization"),
+		)
 	}
 
 	if ctx.GetHeader("Content-Type") != "application/json" {
-		t.Errorf("Expected Content-Type header 'application/json', got '%s'", ctx.GetHeader("Content-Type"))
+		t.Errorf(
+			"Expected Content-Type header 'application/json', got '%s'",
+			ctx.GetHeader("Content-Type"),
+		)
 	}
 
 	// Test missing header
 	if ctx.GetHeader("X-Missing") != "" {
-		t.Errorf("Expected missing header to be empty, got '%s'", ctx.GetHeader("X-Missing"))
+		t.Errorf(
+			"Expected missing header to be empty, got '%s'",
+			ctx.GetHeader("X-Missing"),
+		)
 	}
 }
 
@@ -743,11 +774,17 @@ func TestContext_SetHeader(t *testing.T) {
 
 	// Check that headers were set
 	if w.Header().Get("X-Custom") != "custom-value" {
-		t.Errorf("Expected X-Custom header 'custom-value', got '%s'", w.Header().Get("X-Custom"))
+		t.Errorf(
+			"Expected X-Custom header 'custom-value', got '%s'",
+			w.Header().Get("X-Custom"),
+		)
 	}
 
 	if w.Header().Get("Cache-Control") != "no-cache" {
-		t.Errorf("Expected Cache-Control header 'no-cache', got '%s'", w.Header().Get("Cache-Control"))
+		t.Errorf(
+			"Expected Cache-Control header 'no-cache', got '%s'",
+			w.Header().Get("Cache-Control"),
+		)
 	}
 }
 
@@ -772,7 +809,11 @@ func TestContext_BindJSON(t *testing.T) {
 
 func TestContext_BindJSON_Error(t *testing.T) {
 	// Invalid JSON
-	req := httptest.NewRequest("POST", "/", strings.NewReader(`{"invalid": json}`))
+	req := httptest.NewRequest(
+		"POST",
+		"/",
+		strings.NewReader(`{"invalid": json}`),
+	)
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	ctx := newContext(w, req, time.Now())
@@ -826,7 +867,11 @@ func TestContext_BindForm(t *testing.T) {
 
 // Helper function to create a context instance for testing
 // This mirrors the newContext function from the router package
-func newContext(w http.ResponseWriter, r *http.Request, startTime time.Time) *Context {
+func newContext(
+	w http.ResponseWriter,
+	r *http.Request,
+	startTime time.Time,
+) *Context {
 	ctx := &Context{
 		Writer:             w,
 		Request:            r,

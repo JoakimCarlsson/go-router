@@ -33,7 +33,10 @@ func TestRecovery_Default(t *testing.T) {
 	}
 
 	if !strings.Contains(w.Body.String(), "Internal Server Error") {
-		t.Errorf("Expected 'Internal Server Error' in response, got: %s", w.Body.String())
+		t.Errorf(
+			"Expected 'Internal Server Error' in response, got: %s",
+			w.Body.String(),
+		)
 	}
 
 	req2 := httptest.NewRequest("GET", "/ok", nil)
@@ -41,7 +44,10 @@ func TestRecovery_Default(t *testing.T) {
 	r.ServeHTTP(w2, req2)
 
 	if w2.Code != 200 {
-		t.Errorf("Expected server to continue working after panic, got status %d", w2.Code)
+		t.Errorf(
+			"Expected server to continue working after panic, got status %d",
+			w2.Code,
+		)
 	}
 }
 
@@ -77,11 +83,17 @@ func TestRecovery_WithCustomHandler(t *testing.T) {
 	}
 
 	if response["error"] != "panic_recovered" {
-		t.Errorf("Expected error 'panic_recovered', got '%s'", response["error"])
+		t.Errorf(
+			"Expected error 'panic_recovered', got '%s'",
+			response["error"],
+		)
 	}
 
 	if !strings.Contains(response["detail"], "custom panic message") {
-		t.Errorf("Expected detail to contain 'custom panic message', got '%s'", response["detail"])
+		t.Errorf(
+			"Expected detail to contain 'custom panic message', got '%s'",
+			response["detail"],
+		)
 	}
 }
 
@@ -111,7 +123,10 @@ func TestRecovery_WithLogger(t *testing.T) {
 	}
 
 	if !strings.Contains(loggedMessage, "Panic recovered") {
-		t.Errorf("Expected log message to contain 'Panic recovered', got: %s", loggedMessage)
+		t.Errorf(
+			"Expected log message to contain 'Panic recovered', got: %s",
+			loggedMessage,
+		)
 	}
 
 	if loggedFields == nil {
@@ -174,7 +189,10 @@ func TestRecovery_WithConfig(t *testing.T) {
 	}
 
 	if !strings.Contains(w.Body.String(), "Custom: test") {
-		t.Errorf("Expected custom message in response, got: %s", w.Body.String())
+		t.Errorf(
+			"Expected custom message in response, got: %s",
+			w.Body.String(),
+		)
 	}
 }
 

@@ -26,7 +26,10 @@ type RouterOpenAPIAdapter struct {
 // Parameters:
 //   - r: The router containing the routes to document
 //   - generator: The OpenAPI generator to use
-func NewRouterOpenAPIAdapter(r *router.Router, generator *openapi.Generator) *RouterOpenAPIAdapter {
+func NewRouterOpenAPIAdapter(
+	r *router.Router,
+	generator *openapi.Generator,
+) *RouterOpenAPIAdapter {
 	return &RouterOpenAPIAdapter{
 		Router:    r,
 		Generator: generator,
@@ -42,7 +45,10 @@ func (a *RouterOpenAPIAdapter) ExtractRouteInfo() []openapi.RouteInfo {
 
 	for _, route := range routes {
 		if route.Metadata != nil && !route.Metadata.ExcludeFromDocs {
-			routeInfos = append(routeInfos, openapi.RouteInfoFromMetadata(*route.Metadata))
+			routeInfos = append(
+				routeInfos,
+				openapi.RouteInfoFromMetadata(*route.Metadata),
+			)
 		}
 	}
 
@@ -60,12 +66,19 @@ func (a *RouterOpenAPIAdapter) GenerateOpenAPISpec() *metadata.Spec {
 // ServeHTTP implements http.Handler interface.
 // This allows the adapter to be used as an HTTP handler to serve
 // the OpenAPI specification as JSON.
-func (a *RouterOpenAPIAdapter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (a *RouterOpenAPIAdapter) ServeHTTP(
+	w http.ResponseWriter,
+	r *http.Request,
+) {
 	spec := a.GenerateOpenAPISpec()
 	w.Header().Set("Content-Type", metadata.ContentTypeJSON)
 	w.WriteHeader(http.StatusOK)
 	if err := WriteJSON(w, spec); err != nil {
-		http.Error(w, "Failed to write OpenAPI spec", http.StatusInternalServerError)
+		http.Error(
+			w,
+			"Failed to write OpenAPI spec",
+			http.StatusInternalServerError,
+		)
 	}
 }
 

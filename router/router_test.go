@@ -320,14 +320,16 @@ func BenchmarkContextOperations(b *testing.B) {
 	b.Run("ContextStore", func(b *testing.B) {
 		r := router.New()
 		r.Use(func(next http.Handler) http.Handler {
-			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				// Store values in request context
-				ctx := r.Context()
-				ctx = context.WithValue(ctx, key1, "value1")
-				ctx = context.WithValue(ctx, key2, 123)
-				ctx = context.WithValue(ctx, key3, true)
-				next.ServeHTTP(w, r.WithContext(ctx))
-			})
+			return http.HandlerFunc(
+				func(w http.ResponseWriter, r *http.Request) {
+					// Store values in request context
+					ctx := r.Context()
+					ctx = context.WithValue(ctx, key1, "value1")
+					ctx = context.WithValue(ctx, key2, 123)
+					ctx = context.WithValue(ctx, key3, true)
+					next.ServeHTTP(w, r.WithContext(ctx))
+				},
+			)
 		})
 
 		r.GET("/test", func(c *router.Context) {
@@ -380,8 +382,8 @@ func BenchmarkContextOperations(b *testing.B) {
 // BenchmarkContentNegotiation measures the performance of content negotiation
 func BenchmarkContentNegotiation(b *testing.B) {
 	type User struct {
-		ID    string `json:"id" xml:"id"`
-		Name  string `json:"name" xml:"name"`
+		ID    string `json:"id"    xml:"id"`
+		Name  string `json:"name"  xml:"name"`
 		Email string `json:"email" xml:"email"`
 	}
 
@@ -445,7 +447,9 @@ func setupProductAPI() *router.Router {
 	// Middleware for all routes
 	r.Use(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("X-Response-Time", "0.1ms") // Simulated response time
+			w.Header().
+				Set("X-Response-Time", "0.1ms")
+				// Simulated response time
 			next.ServeHTTP(w, r)
 		})
 	})
@@ -454,15 +458,17 @@ func setupProductAPI() *router.Router {
 	r.Group("/api/products", func(api *router.Router) {
 		// Auth middleware
 		api.Use(func(next http.Handler) http.Handler {
-			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				auth := r.Header.Get("Authorization")
-				if auth != "" {
-					ctx := r.Context()
-					ctx = context.WithValue(ctx, userIDKey, "user-123")
-					r = r.WithContext(ctx)
-				}
-				next.ServeHTTP(w, r)
-			})
+			return http.HandlerFunc(
+				func(w http.ResponseWriter, r *http.Request) {
+					auth := r.Header.Get("Authorization")
+					if auth != "" {
+						ctx := r.Context()
+						ctx = context.WithValue(ctx, userIDKey, "user-123")
+						r = r.WithContext(ctx)
+					}
+					next.ServeHTTP(w, r)
+				},
+			)
 		})
 
 		// Routes
@@ -589,7 +595,11 @@ func BenchmarkRealWorldScenario(b *testing.B) {
 	})
 
 	b.Run("FilteredProducts", func(b *testing.B) {
-		req := httptest.NewRequest("GET", "/api/products?category=electronics&inStock=true", nil)
+		req := httptest.NewRequest(
+			"GET",
+			"/api/products?category=electronics&inStock=true",
+			nil,
+		)
 		req.Header.Set("Authorization", "Bearer token")
 		b.ResetTimer()
 		b.ReportAllocs()
@@ -618,7 +628,11 @@ func BenchmarkRealWorldScenario(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
 			w := httptest.NewRecorder()
-			req := httptest.NewRequest("POST", "/api/products", createReaderFromBytes(jsonBody))
+			req := httptest.NewRequest(
+				"POST",
+				"/api/products",
+				createReaderFromBytes(jsonBody),
+			)
 			req.Header.Set("Content-Type", "application/json")
 			req.Header.Set("Authorization", "Bearer token")
 			r.ServeHTTP(w, req)
@@ -637,10 +651,12 @@ func TestRouter_Use(t *testing.T) {
 
 		// Middleware that adds a header
 		headerMiddleware := func(next http.Handler) http.Handler {
-			return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-				w.Header().Set("X-Middleware", "applied")
-				next.ServeHTTP(w, req)
-			})
+			return http.HandlerFunc(
+				func(w http.ResponseWriter, req *http.Request) {
+					w.Header().Set("X-Middleware", "applied")
+					next.ServeHTTP(w, req)
+				},
+			)
 		}
 
 		r.Use(headerMiddleware)
@@ -667,24 +683,30 @@ func TestRouter_Use(t *testing.T) {
 
 		// Multiple middleware that modify request/response
 		middleware1 := func(next http.Handler) http.Handler {
-			return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-				w.Header().Set("X-Middleware-1", "first")
-				next.ServeHTTP(w, req)
-			})
+			return http.HandlerFunc(
+				func(w http.ResponseWriter, req *http.Request) {
+					w.Header().Set("X-Middleware-1", "first")
+					next.ServeHTTP(w, req)
+				},
+			)
 		}
 
 		middleware2 := func(next http.Handler) http.Handler {
-			return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-				w.Header().Set("X-Middleware-2", "second")
-				next.ServeHTTP(w, req)
-			})
+			return http.HandlerFunc(
+				func(w http.ResponseWriter, req *http.Request) {
+					w.Header().Set("X-Middleware-2", "second")
+					next.ServeHTTP(w, req)
+				},
+			)
 		}
 
 		middleware3 := func(next http.Handler) http.Handler {
-			return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-				w.Header().Set("X-Middleware-3", "third")
-				next.ServeHTTP(w, req)
-			})
+			return http.HandlerFunc(
+				func(w http.ResponseWriter, req *http.Request) {
+					w.Header().Set("X-Middleware-3", "third")
+					next.ServeHTTP(w, req)
+				},
+			)
 		}
 
 		r.Use(middleware1, middleware2, middleware3)
@@ -716,19 +738,23 @@ func TestRouter_Use(t *testing.T) {
 
 		// Middleware that tracks execution order
 		middleware1 := func(next http.Handler) http.Handler {
-			return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-				executionOrder = append(executionOrder, "before-1")
-				next.ServeHTTP(w, req)
-				executionOrder = append(executionOrder, "after-1")
-			})
+			return http.HandlerFunc(
+				func(w http.ResponseWriter, req *http.Request) {
+					executionOrder = append(executionOrder, "before-1")
+					next.ServeHTTP(w, req)
+					executionOrder = append(executionOrder, "after-1")
+				},
+			)
 		}
 
 		middleware2 := func(next http.Handler) http.Handler {
-			return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-				executionOrder = append(executionOrder, "before-2")
-				next.ServeHTTP(w, req)
-				executionOrder = append(executionOrder, "after-2")
-			})
+			return http.HandlerFunc(
+				func(w http.ResponseWriter, req *http.Request) {
+					executionOrder = append(executionOrder, "before-2")
+					next.ServeHTTP(w, req)
+					executionOrder = append(executionOrder, "after-2")
+				},
+			)
 		}
 
 		r.Use(middleware1, middleware2)
@@ -742,14 +768,29 @@ func TestRouter_Use(t *testing.T) {
 
 		r.ServeHTTP(w, req)
 
-		expectedOrder := []string{"before-1", "before-2", "handler", "after-2", "after-1"}
+		expectedOrder := []string{
+			"before-1",
+			"before-2",
+			"handler",
+			"after-2",
+			"after-1",
+		}
 		if len(executionOrder) != len(expectedOrder) {
-			t.Fatalf("Expected %d execution steps, got %d", len(expectedOrder), len(executionOrder))
+			t.Fatalf(
+				"Expected %d execution steps, got %d",
+				len(expectedOrder),
+				len(executionOrder),
+			)
 		}
 
 		for i, expected := range expectedOrder {
 			if executionOrder[i] != expected {
-				t.Errorf("Expected execution order[%d] to be '%s', got '%s'", i, expected, executionOrder[i])
+				t.Errorf(
+					"Expected execution order[%d] to be '%s', got '%s'",
+					i,
+					expected,
+					executionOrder[i],
+				)
 			}
 		}
 	})
@@ -759,11 +800,13 @@ func TestRouter_Use(t *testing.T) {
 
 		// Middleware that adds authentication info to context
 		authMiddleware := func(next http.Handler) http.Handler {
-			return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-				ctx := context.WithValue(req.Context(), userIDKey2, "123")
-				ctx = context.WithValue(ctx, usernameKey, "testuser")
-				next.ServeHTTP(w, req.WithContext(ctx))
-			})
+			return http.HandlerFunc(
+				func(w http.ResponseWriter, req *http.Request) {
+					ctx := context.WithValue(req.Context(), userIDKey2, "123")
+					ctx = context.WithValue(ctx, usernameKey, "testuser")
+					next.ServeHTTP(w, req.WithContext(ctx))
+				},
+			)
 		}
 
 		r.Use(authMiddleware)
@@ -792,11 +835,17 @@ func TestRouter_Use(t *testing.T) {
 		}
 
 		if response["user_id"] != "123" {
-			t.Errorf("Expected user_id to be '123', got %v", response["user_id"])
+			t.Errorf(
+				"Expected user_id to be '123', got %v",
+				response["user_id"],
+			)
 		}
 
 		if response["username"] != "testuser" {
-			t.Errorf("Expected username to be 'testuser', got %v", response["username"])
+			t.Errorf(
+				"Expected username to be 'testuser', got %v",
+				response["username"],
+			)
 		}
 	})
 
@@ -805,15 +854,17 @@ func TestRouter_Use(t *testing.T) {
 
 		// Middleware that blocks unauthorized requests
 		authMiddleware := func(next http.Handler) http.Handler {
-			return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-				authHeader := req.Header.Get("Authorization")
-				if authHeader != "Bearer valid-token" {
-					w.WriteHeader(http.StatusUnauthorized)
-					_, _ = w.Write([]byte("Unauthorized"))
-					return // Short-circuit, don't call next handler
-				}
-				next.ServeHTTP(w, req)
-			})
+			return http.HandlerFunc(
+				func(w http.ResponseWriter, req *http.Request) {
+					authHeader := req.Header.Get("Authorization")
+					if authHeader != "Bearer valid-token" {
+						w.WriteHeader(http.StatusUnauthorized)
+						_, _ = w.Write([]byte("Unauthorized"))
+						return // Short-circuit, don't call next handler
+					}
+					next.ServeHTTP(w, req)
+				},
+			)
 		}
 
 		r.Use(authMiddleware)
@@ -832,7 +883,10 @@ func TestRouter_Use(t *testing.T) {
 		}
 
 		if w1.Body.String() != "Unauthorized" {
-			t.Errorf("Expected 'Unauthorized' response, got '%s'", w1.Body.String())
+			t.Errorf(
+				"Expected 'Unauthorized' response, got '%s'",
+				w1.Body.String(),
+			)
 		}
 
 		// Test with valid token
@@ -937,7 +991,10 @@ func TestRouter_Group(t *testing.T) {
 		r.ServeHTTP(w3, req3)
 
 		if w3.Code != 200 {
-			t.Errorf("Expected status 200 for /api/v1/admin/settings, got %d", w3.Code)
+			t.Errorf(
+				"Expected status 200 for /api/v1/admin/settings, got %d",
+				w3.Code,
+			)
 		}
 
 		// Test /api/v2/users (different from v1)
@@ -963,19 +1020,23 @@ func TestRouter_Group(t *testing.T) {
 
 		// Add global middleware
 		r.Use(func(next http.Handler) http.Handler {
-			return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-				w.Header().Set("X-Global", "global")
-				next.ServeHTTP(w, req)
-			})
+			return http.HandlerFunc(
+				func(w http.ResponseWriter, req *http.Request) {
+					w.Header().Set("X-Global", "global")
+					next.ServeHTTP(w, req)
+				},
+			)
 		})
 
 		r.Group("/api", func(api *router.Router) {
 			// Add API-specific middleware
 			api.Use(func(next http.Handler) http.Handler {
-				return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-					w.Header().Set("X-API", "api")
-					next.ServeHTTP(w, req)
-				})
+				return http.HandlerFunc(
+					func(w http.ResponseWriter, req *http.Request) {
+						w.Header().Set("X-API", "api")
+						next.ServeHTTP(w, req)
+					},
+				)
 			})
 
 			api.GET("/test", func(c *router.Context) {
@@ -985,10 +1046,12 @@ func TestRouter_Group(t *testing.T) {
 			api.Group("/v1", func(v1 *router.Router) {
 				// Add v1-specific middleware
 				v1.Use(func(next http.Handler) http.Handler {
-					return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-						w.Header().Set("X-V1", "v1")
-						next.ServeHTTP(w, req)
-					})
+					return http.HandlerFunc(
+						func(w http.ResponseWriter, req *http.Request) {
+							w.Header().Set("X-V1", "v1")
+							next.ServeHTTP(w, req)
+						},
+					)
 				})
 
 				v1.GET("/nested", func(c *router.Context) {
@@ -1065,7 +1128,10 @@ func TestRouter_Group(t *testing.T) {
 		}
 
 		if response1["user_id"] != "123" {
-			t.Errorf("Expected user_id to be '123', got '%s'", response1["user_id"])
+			t.Errorf(
+				"Expected user_id to be '123', got '%s'",
+				response1["user_id"],
+			)
 		}
 
 		// Test multiple parameters
@@ -1083,11 +1149,17 @@ func TestRouter_Group(t *testing.T) {
 		}
 
 		if response2["user_id"] != "456" {
-			t.Errorf("Expected user_id to be '456', got '%s'", response2["user_id"])
+			t.Errorf(
+				"Expected user_id to be '456', got '%s'",
+				response2["user_id"],
+			)
 		}
 
 		if response2["post_id"] != "789" {
-			t.Errorf("Expected post_id to be '789', got '%s'", response2["post_id"])
+			t.Errorf(
+				"Expected post_id to be '789', got '%s'",
+				response2["post_id"],
+			)
 		}
 	})
 
@@ -1128,74 +1200,98 @@ func TestRouter_Group(t *testing.T) {
 		}
 	})
 
-	t.Run("wildcard routes with trailing slash do not conflict", func(t *testing.T) {
-		r := router.New()
+	t.Run(
+		"wildcard routes with trailing slash do not conflict",
+		func(t *testing.T) {
+			r := router.New()
 
-		r.GET("/api/v1/posts/{id}/replies", func(c *router.Context) {
-			c.JSON(200, map[string]string{"endpoint": "replies", "id": c.Param("id")})
-		})
+			r.GET("/api/v1/posts/{id}/replies", func(c *router.Context) {
+				c.JSON(
+					200,
+					map[string]string{
+						"endpoint": "replies",
+						"id":       c.Param("id"),
+					},
+				)
+			})
 
-		// Path normalization removes trailing slash to prevent conflicts
-		r.GET("/api/v1/posts/feed/", func(c *router.Context) {
-			c.JSON(200, map[string]string{"endpoint": "feed"})
-		})
+			// Path normalization removes trailing slash to prevent conflicts
+			r.GET("/api/v1/posts/feed/", func(c *router.Context) {
+				c.JSON(200, map[string]string{"endpoint": "feed"})
+			})
 
-		req1 := httptest.NewRequest("GET", "/api/v1/posts/123/replies", nil)
-		w1 := httptest.NewRecorder()
-		r.ServeHTTP(w1, req1)
+			req1 := httptest.NewRequest("GET", "/api/v1/posts/123/replies", nil)
+			w1 := httptest.NewRecorder()
+			r.ServeHTTP(w1, req1)
 
-		if w1.Code != 200 {
-			t.Errorf("Expected status 200 for posts/{id}/replies, got %d", w1.Code)
-		}
+			if w1.Code != 200 {
+				t.Errorf(
+					"Expected status 200 for posts/{id}/replies, got %d",
+					w1.Code,
+				)
+			}
 
-		var response1 map[string]string
-		if err := json.Unmarshal(w1.Body.Bytes(), &response1); err != nil {
-			t.Errorf("Failed to parse response: %v", err)
-		}
+			var response1 map[string]string
+			if err := json.Unmarshal(w1.Body.Bytes(), &response1); err != nil {
+				t.Errorf("Failed to parse response: %v", err)
+			}
 
-		if response1["endpoint"] != "replies" {
-			t.Errorf("Expected endpoint 'replies', got '%s'", response1["endpoint"])
-		}
+			if response1["endpoint"] != "replies" {
+				t.Errorf(
+					"Expected endpoint 'replies', got '%s'",
+					response1["endpoint"],
+				)
+			}
 
-		if response1["id"] != "123" {
-			t.Errorf("Expected id '123', got '%s'", response1["id"])
-		}
+			if response1["id"] != "123" {
+				t.Errorf("Expected id '123', got '%s'", response1["id"])
+			}
 
-		// Access without trailing slash due to path normalization
-		req2 := httptest.NewRequest("GET", "/api/v1/posts/feed", nil)
-		w2 := httptest.NewRecorder()
-		r.ServeHTTP(w2, req2)
+			// Access without trailing slash due to path normalization
+			req2 := httptest.NewRequest("GET", "/api/v1/posts/feed", nil)
+			w2 := httptest.NewRecorder()
+			r.ServeHTTP(w2, req2)
 
-		if w2.Code != 200 {
-			t.Errorf("Expected status 200 for posts/feed, got %d", w2.Code)
-		}
+			if w2.Code != 200 {
+				t.Errorf("Expected status 200 for posts/feed, got %d", w2.Code)
+			}
 
-		var response2 map[string]string
-		if err := json.Unmarshal(w2.Body.Bytes(), &response2); err != nil {
-			t.Errorf("Failed to parse response: %v", err)
-		}
+			var response2 map[string]string
+			if err := json.Unmarshal(w2.Body.Bytes(), &response2); err != nil {
+				t.Errorf("Failed to parse response: %v", err)
+			}
 
-		if response2["endpoint"] != "feed" {
-			t.Errorf("Expected endpoint 'feed', got '%s'", response2["endpoint"])
-		}
-	})
+			if response2["endpoint"] != "feed" {
+				t.Errorf(
+					"Expected endpoint 'feed', got '%s'",
+					response2["endpoint"],
+				)
+			}
+		},
+	)
 
 	t.Run("panic recovery with middleware", func(t *testing.T) {
 		r := router.New()
 
 		customHandler := func(w http.ResponseWriter, _ *http.Request, _ interface{}) {
-			http.Error(w, "Recovered from panic", http.StatusInternalServerError)
+			http.Error(
+				w,
+				"Recovered from panic",
+				http.StatusInternalServerError,
+			)
 		}
 
 		r.Use(func(next http.Handler) http.Handler {
-			return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-				defer func() {
-					if err := recover(); err != nil {
-						customHandler(w, nil, nil)
-					}
-				}()
-				next.ServeHTTP(w, req)
-			})
+			return http.HandlerFunc(
+				func(w http.ResponseWriter, req *http.Request) {
+					defer func() {
+						if err := recover(); err != nil {
+							customHandler(w, nil, nil)
+						}
+					}()
+					next.ServeHTTP(w, req)
+				},
+			)
 		})
 
 		r.GET("/panic", func(c *router.Context) {
@@ -1215,7 +1311,10 @@ func TestRouter_Group(t *testing.T) {
 		}
 
 		if !strings.Contains(w.Body.String(), "Recovered from panic") {
-			t.Errorf("Expected 'Recovered from panic' in response body, got: %s", w.Body.String())
+			t.Errorf(
+				"Expected 'Recovered from panic' in response body, got: %s",
+				w.Body.String(),
+			)
 		}
 
 		req2 := httptest.NewRequest("GET", "/ok", nil)
@@ -1223,7 +1322,10 @@ func TestRouter_Group(t *testing.T) {
 		r.ServeHTTP(w2, req2)
 
 		if w2.Code != 200 {
-			t.Errorf("Expected status 200 after panic recovery, got %d. Server should continue working after panic.", w2.Code)
+			t.Errorf(
+				"Expected status 200 after panic recovery, got %d. Server should continue working after panic.",
+				w2.Code,
+			)
 		}
 	})
 }

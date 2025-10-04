@@ -4,12 +4,12 @@ Package router provides a high-performance, modular HTTP router for Go with buil
 # Quick Start
 
 	r := router.New()
-	
+
 	r.GET("/users/{id}", func(c *router.Context) {
 		id := c.Param("id")
 		c.JSON(200, map[string]string{"user_id": id})
 	})
-	
+
 	r.Run(":8080")
 
 # Features
@@ -48,7 +48,7 @@ Setup interactive documentation:
 Standard HTTP middleware support:
 
 	r.Use(cors.Default())
-	
+
 	r.Use(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 			// Custom middleware logic

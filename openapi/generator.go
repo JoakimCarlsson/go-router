@@ -31,7 +31,10 @@ func NewGenerator(info metadata.Info) *Generator {
 }
 
 // WithSecurityScheme adds a security scheme to the OpenAPI specification
-func (g *Generator) WithSecurityScheme(name string, scheme metadata.SecurityScheme) {
+func (g *Generator) WithSecurityScheme(
+	name string,
+	scheme metadata.SecurityScheme,
+) {
 	g.securitySchemes[name] = scheme
 }
 
@@ -64,7 +67,10 @@ func (g *Generator) WithAPIKey(name, description, in, paramName string) {
 }
 
 // WithOAuth2ImplicitFlow adds an OAuth2 security scheme with implicit flow
-func (g *Generator) WithOAuth2ImplicitFlow(name, description, authorizationURL string, scopes map[string]string) {
+func (g *Generator) WithOAuth2ImplicitFlow(
+	name, description, authorizationURL string,
+	scopes map[string]string,
+) {
 	g.WithSecurityScheme(name, metadata.SecurityScheme{
 		Type:        "oauth2",
 		Description: description,
@@ -78,7 +84,10 @@ func (g *Generator) WithOAuth2ImplicitFlow(name, description, authorizationURL s
 }
 
 // WithOAuth2PasswordFlow adds an OAuth2 security scheme with password flow
-func (g *Generator) WithOAuth2PasswordFlow(name, description, tokenURL string, scopes map[string]string) {
+func (g *Generator) WithOAuth2PasswordFlow(
+	name, description, tokenURL string,
+	scopes map[string]string,
+) {
 	g.WithSecurityScheme(name, metadata.SecurityScheme{
 		Type:        "oauth2",
 		Description: description,
@@ -92,7 +101,10 @@ func (g *Generator) WithOAuth2PasswordFlow(name, description, tokenURL string, s
 }
 
 // WithOAuth2ClientCredentialsFlow adds an OAuth2 security scheme with client credentials flow
-func (g *Generator) WithOAuth2ClientCredentialsFlow(name, description, tokenURL string, scopes map[string]string) {
+func (g *Generator) WithOAuth2ClientCredentialsFlow(
+	name, description, tokenURL string,
+	scopes map[string]string,
+) {
 	g.WithSecurityScheme(name, metadata.SecurityScheme{
 		Type:        "oauth2",
 		Description: description,
@@ -106,7 +118,10 @@ func (g *Generator) WithOAuth2ClientCredentialsFlow(name, description, tokenURL 
 }
 
 // WithOAuth2AuthorizationCodeFlow adds an OAuth2 security scheme with authorization code flow
-func (g *Generator) WithOAuth2AuthorizationCodeFlow(name, description, authorizationURL, tokenURL string, scopes map[string]string) {
+func (g *Generator) WithOAuth2AuthorizationCodeFlow(
+	name, description, authorizationURL, tokenURL string,
+	scopes map[string]string,
+) {
 	g.WithSecurityScheme(name, metadata.SecurityScheme{
 		Type:        "oauth2",
 		Description: description,
@@ -121,7 +136,9 @@ func (g *Generator) WithOAuth2AuthorizationCodeFlow(name, description, authoriza
 }
 
 // WithOpenIDConnect adds an OpenID Connect security scheme
-func (g *Generator) WithOpenIDConnect(name, description, openIDConnectURL string) {
+func (g *Generator) WithOpenIDConnect(
+	name, description, openIDConnectURL string,
+) {
 	g.WithSecurityScheme(name, metadata.SecurityScheme{
 		Type:             "openIdConnect",
 		Description:      description,
@@ -163,7 +180,8 @@ func (g *Generator) collectSchemaComponents(schema metadata.Schema) {
 	// If it's an array type, process the item type
 	if schema.Type == "array" && schema.Items != nil {
 		// Register the array item type if it's an object
-		if schema.Items.Type == "object" && schema.Items.Properties != nil && schema.Items.TypeName != "" {
+		if schema.Items.Type == "object" && schema.Items.Properties != nil &&
+			schema.Items.TypeName != "" {
 			name := metadata.SanitizeSchemaName(schema.Items.TypeName)
 			g.schemas[name] = *schema.Items
 		}
@@ -174,7 +192,8 @@ func (g *Generator) collectSchemaComponents(schema metadata.Schema) {
 	}
 
 	// If it's a struct type, register it as a component
-	if schema.Type == "object" && schema.Properties != nil && schema.TypeName != "" {
+	if schema.Type == "object" && schema.Properties != nil &&
+		schema.TypeName != "" {
 		name := g.generateSchemaName(schema)
 		if name != "" {
 			g.schemas[name] = schema
@@ -192,7 +211,9 @@ func (g *Generator) generateSchemaName(schema metadata.Schema) string {
 	if schema.TypeName != "" {
 		// For arrays, we only want the element type name
 		if strings.HasPrefix(schema.TypeName, "[]") {
-			return metadata.SanitizeSchemaName(strings.TrimPrefix(schema.TypeName, "[]"))
+			return metadata.SanitizeSchemaName(
+				strings.TrimPrefix(schema.TypeName, "[]"),
+			)
 		}
 		return metadata.SanitizeSchemaName(schema.TypeName)
 	}
@@ -200,14 +221,21 @@ func (g *Generator) generateSchemaName(schema metadata.Schema) string {
 }
 
 // createSchemaReference creates a reference to a schema component
-func (g *Generator) createSchemaReference(schemaName string) *metadata.Reference {
+func (g *Generator) createSchemaReference(
+	schemaName string,
+) *metadata.Reference {
 	return &metadata.Reference{
 		Ref: "#/components/schemas/" + schemaName,
 	}
 }
 
 // WithResponseSchema adds a response with content schema to the route
-func WithResponseSchema(statusCode int, description string, contentType string, schema metadata.Schema) docs.RouteOption {
+func WithResponseSchema(
+	statusCode int,
+	description string,
+	contentType string,
+	schema metadata.Schema,
+) docs.RouteOption {
 	return func(m *metadata.RouteMetadata) {
 		content := map[string]metadata.MediaType{
 			contentType: {Schema: schema},
@@ -225,7 +253,10 @@ func WithEmptyResponse(statusCode int, description string) docs.RouteOption {
 
 // WithJSONResponseAdvanced adds a JSON response with schema inferred from the provided type T
 // It automatically handles both array and non-array types with schema references
-func WithJSONResponseAdvanced[T any](statusCode int, description string) docs.RouteOption {
+func WithJSONResponseAdvanced[T any](
+	statusCode int,
+	description string,
+) docs.RouteOption {
 	return func(m *metadata.RouteMetadata) {
 		t := docs.GetTypeFromGeneric[T]()
 
@@ -237,16 +268,24 @@ func WithJSONResponseAdvanced[T any](statusCode int, description string) docs.Ro
 			// Register the element type to ensure it appears in components
 			itemTypeName := metadata.RegisterType(elemType)
 			sanitizedName := metadata.SanitizeSchemaName(itemTypeName)
-			metadata.AddArrayJSONResponse(m, statusCode, description, sanitizedName)
+			metadata.AddArrayJSONResponse(
+				m,
+				statusCode,
+				description,
+				sanitizedName,
+			)
 			return
 		}
 
 		// For non-array types
 		schema := docs.SchemaFromType(t)
-		if schema.Type == "object" && schema.Properties != nil && schema.TypeName != "" {
+		if schema.Type == "object" && schema.Properties != nil &&
+			schema.TypeName != "" {
 			// Use reference for object types
 			ref := &metadata.Reference{
-				Ref: "#/components/schemas/" + metadata.SanitizeSchemaName(schema.TypeName),
+				Ref: "#/components/schemas/" + metadata.SanitizeSchemaName(
+					schema.TypeName,
+				),
 			}
 			metadata.AddJSONResponseWithRef(m, statusCode, description, ref)
 		} else {
@@ -259,12 +298,20 @@ func WithJSONResponseAdvanced[T any](statusCode int, description string) docs.Ro
 // WithResponseType adds a response with schema inferred from the provided type
 // It automatically detects if the type is a slice/array.
 // This is functionally identical to WithJSONResponseAdvanced.
-func WithResponseType[T any](statusCode int, description string, _ T) docs.RouteOption {
+func WithResponseType[T any](
+	statusCode int,
+	description string,
+	_ T,
+) docs.RouteOption {
 	return WithJSONResponseAdvanced[T](statusCode, description)
 }
 
 // WithRequestBody adds a request body schema to the route
-func WithRequestBody[T any](description string, required bool, _ T) docs.RouteOption {
+func WithRequestBody[T any](
+	description string,
+	required bool,
+	_ T,
+) docs.RouteOption {
 	return func(m *metadata.RouteMetadata) {
 		t := docs.GetTypeFromGeneric[T]()
 		schema := docs.SchemaFromType(t)
@@ -273,7 +320,11 @@ func WithRequestBody[T any](description string, required bool, _ T) docs.RouteOp
 }
 
 // WithResponseExample adds a response with a specific example
-func WithResponseExample[T any](statusCode int, description string, example T) docs.RouteOption {
+func WithResponseExample[T any](
+	statusCode int,
+	description string,
+	example T,
+) docs.RouteOption {
 	return func(m *metadata.RouteMetadata) {
 		metadata.EnsureResponsesMap(m)
 
@@ -291,7 +342,11 @@ func WithResponseExample[T any](statusCode int, description string, example T) d
 }
 
 // WithRequestBodyExample adds a request body schema with example to the route
-func WithRequestBodyExample[T any](description string, required bool, example T) docs.RouteOption {
+func WithRequestBodyExample[T any](
+	description string,
+	required bool,
+	example T,
+) docs.RouteOption {
 	return func(m *metadata.RouteMetadata) {
 		t := docs.GetTypeFromGeneric[T]()
 		schema := docs.SchemaFromType(t)

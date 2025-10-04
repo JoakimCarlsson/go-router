@@ -3,6 +3,7 @@
 [![Go Reference](https://pkg.go.dev/badge/github.com/JoakimCarlsson/go-router.svg)](https://pkg.go.dev/github.com/JoakimCarlsson/go-router)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Go Version](https://img.shields.io/badge/Go-%3E%3D%201.22-blue.svg)](https://golang.org/dl/)
+[![Go Report Card](https://goreportcard.com/badge/github.com/joakimcarlsson/go-router)](https://goreportcard.com/report/github.com/joakimcarlsson/go-router)
 
 A high-performance, modular HTTP router for Go with built-in **OpenAPI 3.0** and **Swagger UI** support.
 

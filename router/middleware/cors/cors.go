@@ -20,8 +20,16 @@ type Options struct {
 // DefaultOptions returns a configuration with sensible defaults.
 func DefaultOptions() Options {
 	return Options{
-		AllowOrigins:       []string{"*"},
-		AllowMethods:       []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodDelete, http.MethodHead, http.MethodOptions, http.MethodPatch},
+		AllowOrigins: []string{"*"},
+		AllowMethods: []string{
+			http.MethodGet,
+			http.MethodPost,
+			http.MethodPut,
+			http.MethodDelete,
+			http.MethodHead,
+			http.MethodOptions,
+			http.MethodPatch,
+		},
 		AllowHeaders:       []string{},
 		ExposeHeaders:      []string{},
 		AllowCredentials:   false,
@@ -42,7 +50,15 @@ func Handler(options Options) func(http.Handler) http.Handler {
 		options.AllowOrigins = []string{"*"}
 	}
 	if len(options.AllowMethods) == 0 {
-		options.AllowMethods = []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodDelete, http.MethodHead, http.MethodOptions, http.MethodPatch}
+		options.AllowMethods = []string{
+			http.MethodGet,
+			http.MethodPost,
+			http.MethodPut,
+			http.MethodDelete,
+			http.MethodHead,
+			http.MethodOptions,
+			http.MethodPatch,
+		}
 	}
 
 	// Precompute header values
@@ -89,7 +105,9 @@ func Handler(options Options) func(http.Handler) http.Handler {
 
 				// Handle headers
 				reqHeaders := r.Header.Get("Access-Control-Request-Headers")
-				if len(options.AllowHeaders) > 0 && options.AllowHeaders[0] == "*" && reqHeaders != "" {
+				if len(options.AllowHeaders) > 0 &&
+					options.AllowHeaders[0] == "*" &&
+					reqHeaders != "" {
 					w.Header().Set("Access-Control-Allow-Headers", reqHeaders)
 				} else if len(options.AllowHeaders) > 0 {
 					w.Header().Set("Access-Control-Allow-Headers", allowHeaders)
@@ -117,7 +135,8 @@ func Handler(options Options) func(http.Handler) http.Handler {
 				w.Header().Set("Access-Control-Allow-Origin", allowOrigin)
 
 				if exposeHeaders != "" {
-					w.Header().Set("Access-Control-Expose-Headers", exposeHeaders)
+					w.Header().
+						Set("Access-Control-Expose-Headers", exposeHeaders)
 				}
 
 				if options.AllowCredentials {

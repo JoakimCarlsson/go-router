@@ -65,7 +65,10 @@ func Setup(r *router.Router, opts SetupOptions) error {
 
 	// Check for path conflicts
 	if opts.SpecPath == opts.DocsPath {
-		return fmt.Errorf("spec path and docs path cannot be the same: %s", opts.SpecPath)
+		return fmt.Errorf(
+			"spec path and docs path cannot be the same: %s",
+			opts.SpecPath,
+		)
 	}
 
 	// Create OpenAPI generator
@@ -83,7 +86,12 @@ func Setup(r *router.Router, opts SetupOptions) error {
 		generator.WithBearerAuth("bearerAuth", "Bearer token authentication")
 	}
 	if opts.UseAPIKey {
-		generator.WithAPIKey("apiKey", "API key authentication", "header", "X-API-Key")
+		generator.WithAPIKey(
+			"apiKey",
+			"API key authentication",
+			"header",
+			"X-API-Key",
+		)
 	}
 
 	// Configure Swagger UI
