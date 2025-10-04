@@ -61,7 +61,6 @@ func main() {
 
 	r.GET("/nil-pointer", func(c *router.Context) {
 		var ptr *string
-		//lint:ignore nilness Intentional nil dereference to demonstrate panic recovery
 		c.JSON(200, map[string]string{"value": *ptr})
 	})
 
