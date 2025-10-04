@@ -346,7 +346,8 @@ func (c *Context) BindForm(obj interface{}) error {
 	}
 
 	objValue := reflect.ValueOf(obj)
-	if objValue.Kind() != reflect.Ptr || objValue.Elem().Kind() != reflect.Struct {
+	if objValue.Kind() != reflect.Ptr ||
+		objValue.Elem().Kind() != reflect.Struct {
 		return fmt.Errorf("binding element must be a pointer to a struct")
 	}
 
@@ -406,7 +407,11 @@ func setValue(field reflect.Value, values []string) {
 		if val, err := strconv.ParseInt(values[0], 10, 64); err == nil {
 			field.SetInt(val)
 		}
-	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+	case reflect.Uint,
+		reflect.Uint8,
+		reflect.Uint16,
+		reflect.Uint32,
+		reflect.Uint64:
 		if val, err := strconv.ParseUint(values[0], 10, 64); err == nil {
 			field.SetUint(val)
 		}
@@ -654,7 +659,10 @@ func (c *Context) FormValue(name string) string {
 
 // SaveUploadedFile saves the uploaded file with given file header to specified destination path.
 // It creates the destination file and copies the content from the uploaded file.
-func (c *Context) SaveUploadedFile(file *multipart.FileHeader, dst string) error {
+func (c *Context) SaveUploadedFile(
+	file *multipart.FileHeader,
+	dst string,
+) error {
 	src, err := file.Open()
 	if err != nil {
 		return err

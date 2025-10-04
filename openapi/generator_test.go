@@ -19,7 +19,7 @@ func (u MockUUID) String() string {
 // Test types for OpenAPI generation
 type APIUser struct {
 	ID      MockUUID   `json:"id"`
-	Name    string     `json:"name" validate:"required"`
+	Name    string     `json:"name"    validate:"required"`
 	Email   *string    `json:"email"`
 	Created time.Time  `json:"created"`
 	Updated *time.Time `json:"updated"`
@@ -46,28 +46,41 @@ type MockRouteInfo struct {
 	deprecated  bool
 }
 
-func (m *MockRouteInfo) Method() string                           { return m.method }
-func (m *MockRouteInfo) Path() string                             { return m.path }
-func (m *MockRouteInfo) OperationID() string                      { return m.operationID }
-func (m *MockRouteInfo) Summary() string                          { return m.summary }
-func (m *MockRouteInfo) Description() string                      { return m.description }
-func (m *MockRouteInfo) Tags() []string                           { return m.tags }
-func (m *MockRouteInfo) Parameters() []metadata.Parameter         { return m.parameters }
-func (m *MockRouteInfo) RequestBody() *metadata.RequestBody       { return m.requestBody }
-func (m *MockRouteInfo) Responses() map[string]metadata.Response  { return m.responses }
+func (m *MockRouteInfo) Method() string { return m.method }
+
+func (m *MockRouteInfo) Path() string { return m.path }
+
+func (m *MockRouteInfo) OperationID() string { return m.operationID }
+
+func (m *MockRouteInfo) Summary() string { return m.summary }
+
+func (m *MockRouteInfo) Description() string { return m.description }
+
+func (m *MockRouteInfo) Tags() []string { return m.tags }
+
+func (m *MockRouteInfo) Parameters() []metadata.Parameter { return m.parameters }
+
+func (m *MockRouteInfo) RequestBody() *metadata.RequestBody { return m.requestBody }
+
+func (m *MockRouteInfo) Responses() map[string]metadata.Response { return m.responses }
+
 func (m *MockRouteInfo) Security() []metadata.SecurityRequirement { return m.security }
-func (m *MockRouteInfo) IsDeprecated() bool                       { return m.deprecated }
+
+func (m *MockRouteInfo) IsDeprecated() bool { return m.deprecated }
 
 func setupMockUUID() {
 	// Register MockUUID to behave like real uuid.UUID for all tests
-	metadata.RegisterTypeHandler("openapi.MockUUID", func(t reflect.Type) metadata.Schema {
-		return metadata.Schema{
-			Type:     "string",
-			Format:   "uuid",
-			Example:  "123e4567-e89b-12d3-a456-426614174000",
-			TypeName: "UUID",
-		}
-	})
+	metadata.RegisterTypeHandler(
+		"openapi.MockUUID",
+		func(t reflect.Type) metadata.Schema {
+			return metadata.Schema{
+				Type:     "string",
+				Format:   "uuid",
+				Example:  "123e4567-e89b-12d3-a456-426614174000",
+				TypeName: "UUID",
+			}
+		},
+	)
 }
 
 func TestWithResponseType_UUID(t *testing.T) {
@@ -91,7 +104,10 @@ func TestWithResponseType_UUID(t *testing.T) {
 	}
 
 	if response.Description != "User details" {
-		t.Errorf("Expected response description to be 'User details', got '%s'", response.Description)
+		t.Errorf(
+			"Expected response description to be 'User details', got '%s'",
+			response.Description,
+		)
 	}
 
 	// Check JSON content
@@ -107,7 +123,11 @@ func TestWithResponseType_UUID(t *testing.T) {
 
 	expectedRef := "#/components/schemas/APIUser"
 	if jsonContent.SchemaRef.Ref != expectedRef {
-		t.Errorf("Expected schema reference to be '%s', got '%s'", expectedRef, jsonContent.SchemaRef.Ref)
+		t.Errorf(
+			"Expected schema reference to be '%s', got '%s'",
+			expectedRef,
+			jsonContent.SchemaRef.Ref,
+		)
 	}
 }
 
@@ -139,7 +159,10 @@ func TestWithJSONResponseAdvanced_SliceOfUUID(t *testing.T) {
 
 	// For array types, the schema should be inline with items reference
 	if jsonContent.Schema.Type != "array" {
-		t.Errorf("Expected schema type to be 'array', got '%s'", jsonContent.Schema.Type)
+		t.Errorf(
+			"Expected schema type to be 'array', got '%s'",
+			jsonContent.Schema.Type,
+		)
 	}
 
 	if jsonContent.Schema.Items == nil {
@@ -148,7 +171,11 @@ func TestWithJSONResponseAdvanced_SliceOfUUID(t *testing.T) {
 
 	expectedRef := "#/components/schemas/APIUser"
 	if jsonContent.Schema.Items.Ref != expectedRef {
-		t.Errorf("Expected items reference to be '%s', got '%s'", expectedRef, jsonContent.Schema.Items.Ref)
+		t.Errorf(
+			"Expected items reference to be '%s', got '%s'",
+			expectedRef,
+			jsonContent.Schema.Items.Ref,
+		)
 	}
 }
 
@@ -168,7 +195,10 @@ func TestWithRequestBody_UUID(t *testing.T) {
 	}
 
 	if routeMetadata.RequestBody.Description != "User data" {
-		t.Errorf("Expected request body description to be 'User data', got '%s'", routeMetadata.RequestBody.Description)
+		t.Errorf(
+			"Expected request body description to be 'User data', got '%s'",
+			routeMetadata.RequestBody.Description,
+		)
 	}
 
 	if !routeMetadata.RequestBody.Required {
@@ -183,7 +213,10 @@ func TestWithRequestBody_UUID(t *testing.T) {
 
 	// Check that the schema has UUID field correctly typed
 	if jsonContent.Schema.Type != "object" {
-		t.Errorf("Expected schema type to be 'object', got '%s'", jsonContent.Schema.Type)
+		t.Errorf(
+			"Expected schema type to be 'object', got '%s'",
+			jsonContent.Schema.Type,
+		)
 	}
 
 	if jsonContent.Schema.Properties == nil {
@@ -212,7 +245,10 @@ func TestWithResponseExample_UUID(t *testing.T) {
 
 	// Create a MockUUID with the expected value
 	var mockID MockUUID
-	copy(mockID[:], []byte("123e4567-e89b-12d3")) // Fill with some bytes for testing
+	copy(
+		mockID[:],
+		[]byte("123e4567-e89b-12d3"),
+	) // Fill with some bytes for testing
 
 	exampleUser := APIUser{
 		ID:      mockID,
@@ -255,11 +291,19 @@ func TestWithResponseExample_UUID(t *testing.T) {
 
 	// The ID should be the example UUID we set
 	if exampleUser2.ID != exampleUser.ID {
-		t.Errorf("Expected example id to be '%v', got '%v'", exampleUser.ID, exampleUser2.ID)
+		t.Errorf(
+			"Expected example id to be '%v', got '%v'",
+			exampleUser.ID,
+			exampleUser2.ID,
+		)
 	}
 
 	if exampleUser2.Name != exampleUser.Name {
-		t.Errorf("Expected example name to be '%s', got '%s'", exampleUser.Name, exampleUser2.Name)
+		t.Errorf(
+			"Expected example name to be '%s', got '%s'",
+			exampleUser.Name,
+			exampleUser2.Name,
+		)
 	}
 }
 
@@ -312,7 +356,10 @@ func TestGenerator_Generate_WithUUID(t *testing.T) {
 
 	// Check basic structure
 	if spec.OpenAPI != "3.0.0" {
-		t.Errorf("Expected OpenAPI version to be '3.0.0', got '%s'", spec.OpenAPI)
+		t.Errorf(
+			"Expected OpenAPI version to be '3.0.0', got '%s'",
+			spec.OpenAPI,
+		)
 	}
 
 	if spec.Info.Title != "Test API" {
@@ -336,7 +383,10 @@ func TestGenerator_Generate_WithUUID(t *testing.T) {
 	// Check operation
 	operation := pathItem.Get
 	if operation.OperationID != "getUser" {
-		t.Errorf("Expected operation ID to be 'getUser', got '%s'", operation.OperationID)
+		t.Errorf(
+			"Expected operation ID to be 'getUser', got '%s'",
+			operation.OperationID,
+		)
 	}
 
 	// Check parameters
@@ -350,7 +400,10 @@ func TestGenerator_Generate_WithUUID(t *testing.T) {
 	}
 
 	if param.Schema.Format != "uuid" {
-		t.Errorf("Expected parameter format to be 'uuid', got '%s'", param.Schema.Format)
+		t.Errorf(
+			"Expected parameter format to be 'uuid', got '%s'",
+			param.Schema.Format,
+		)
 	}
 
 	// Check responses
@@ -370,7 +423,11 @@ func TestGenerator_Generate_WithUUID(t *testing.T) {
 
 	expectedRef := "#/components/schemas/APIUser"
 	if jsonContent.SchemaRef.Ref != expectedRef {
-		t.Errorf("Expected schema reference to be '%s', got '%s'", expectedRef, jsonContent.SchemaRef.Ref)
+		t.Errorf(
+			"Expected schema reference to be '%s', got '%s'",
+			expectedRef,
+			jsonContent.SchemaRef.Ref,
+		)
 	}
 }
 
@@ -391,7 +448,10 @@ func TestWithEmptyResponse(t *testing.T) {
 	}
 
 	if response.Description != "No content" {
-		t.Errorf("Expected response description to be 'No content', got '%s'", response.Description)
+		t.Errorf(
+			"Expected response description to be 'No content', got '%s'",
+			response.Description,
+		)
 	}
 
 	// Empty response should have no content
@@ -410,7 +470,12 @@ func TestWithResponseSchema(t *testing.T) {
 		Example: "123e4567-e89b-12d3-a456-426614174000",
 	}
 
-	option := WithResponseSchema(200, "Custom UUID", "application/json", customSchema)
+	option := WithResponseSchema(
+		200,
+		"Custom UUID",
+		"application/json",
+		customSchema,
+	)
 	option(&routeMetadata)
 
 	if routeMetadata.Responses == nil {
@@ -428,10 +493,16 @@ func TestWithResponseSchema(t *testing.T) {
 	}
 
 	if jsonContent.Schema.Type != "string" {
-		t.Errorf("Expected schema type to be 'string', got '%s'", jsonContent.Schema.Type)
+		t.Errorf(
+			"Expected schema type to be 'string', got '%s'",
+			jsonContent.Schema.Type,
+		)
 	}
 
 	if jsonContent.Schema.Format != "uuid" {
-		t.Errorf("Expected schema format to be 'uuid', got '%s'", jsonContent.Schema.Format)
+		t.Errorf(
+			"Expected schema format to be 'uuid', got '%s'",
+			jsonContent.Schema.Format,
+		)
 	}
 }

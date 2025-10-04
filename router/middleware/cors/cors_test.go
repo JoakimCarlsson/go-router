@@ -29,10 +29,16 @@ func TestCORSDefault(t *testing.T) {
 		t.Errorf("Expected status code 200, got %d", w.Code)
 	}
 	if w.Header().Get("Access-Control-Allow-Origin") != "*" {
-		t.Errorf("Expected Access-Control-Allow-Origin: *, got %s", w.Header().Get("Access-Control-Allow-Origin"))
+		t.Errorf(
+			"Expected Access-Control-Allow-Origin: *, got %s",
+			w.Header().Get("Access-Control-Allow-Origin"),
+		)
 	}
 	if w.Header().Get("Access-Control-Allow-Credentials") != "" {
-		t.Errorf("Expected no Access-Control-Allow-Credentials header, got %s", w.Header().Get("Access-Control-Allow-Credentials"))
+		t.Errorf(
+			"Expected no Access-Control-Allow-Credentials header, got %s",
+			w.Header().Get("Access-Control-Allow-Credentials"),
+		)
 	}
 
 	// Test preflight request
@@ -46,7 +52,10 @@ func TestCORSDefault(t *testing.T) {
 		t.Errorf("Expected status code 204, got %d", w.Code)
 	}
 	if w.Header().Get("Access-Control-Allow-Origin") != "*" {
-		t.Errorf("Expected Access-Control-Allow-Origin: *, got %s", w.Header().Get("Access-Control-Allow-Origin"))
+		t.Errorf(
+			"Expected Access-Control-Allow-Origin: *, got %s",
+			w.Header().Get("Access-Control-Allow-Origin"),
+		)
 	}
 	if methods := w.Header().Get("Access-Control-Allow-Methods"); methods == "" {
 		t.Error("Expected Access-Control-Allow-Methods header to be set")
@@ -56,7 +65,10 @@ func TestCORSDefault(t *testing.T) {
 func TestCORSCustom(t *testing.T) {
 	r := router.New()
 	r.Use(Handler(Options{
-		AllowOrigins:     []string{"https://example.com", "https://sub.example.com"},
+		AllowOrigins: []string{
+			"https://example.com",
+			"https://sub.example.com",
+		},
 		AllowMethods:     []string{http.MethodGet, http.MethodPost},
 		AllowHeaders:     []string{"X-Custom-Header", "Content-Type"},
 		ExposeHeaders:    []string{"X-Custom-Response-Header"},
@@ -81,13 +93,24 @@ func TestCORSCustom(t *testing.T) {
 		t.Errorf("Expected status code 200, got %d", w.Code)
 	}
 	if w.Header().Get("Access-Control-Allow-Origin") != "https://example.com" {
-		t.Errorf("Expected Access-Control-Allow-Origin: https://example.com, got %s", w.Header().Get("Access-Control-Allow-Origin"))
+		t.Errorf(
+			"Expected Access-Control-Allow-Origin: https://example.com, got %s",
+			w.Header().Get("Access-Control-Allow-Origin"),
+		)
 	}
 	if w.Header().Get("Access-Control-Allow-Credentials") != "true" {
-		t.Errorf("Expected Access-Control-Allow-Credentials: true, got %s", w.Header().Get("Access-Control-Allow-Credentials"))
+		t.Errorf(
+			"Expected Access-Control-Allow-Credentials: true, got %s",
+			w.Header().Get("Access-Control-Allow-Credentials"),
+		)
 	}
-	if w.Header().Get("Access-Control-Expose-Headers") != "X-Custom-Response-Header" {
-		t.Errorf("Expected Access-Control-Expose-Headers: X-Custom-Response-Header, got %s", w.Header().Get("Access-Control-Expose-Headers"))
+	if w.Header().
+		Get("Access-Control-Expose-Headers") !=
+		"X-Custom-Response-Header" {
+		t.Errorf(
+			"Expected Access-Control-Expose-Headers: X-Custom-Response-Header, got %s",
+			w.Header().Get("Access-Control-Expose-Headers"),
+		)
 	}
 
 	// Test preflight request
@@ -102,19 +125,36 @@ func TestCORSCustom(t *testing.T) {
 		t.Errorf("Expected status code 204, got %d", w.Code)
 	}
 	if w.Header().Get("Access-Control-Allow-Origin") != "https://example.com" {
-		t.Errorf("Expected Access-Control-Allow-Origin: https://example.com, got %s", w.Header().Get("Access-Control-Allow-Origin"))
+		t.Errorf(
+			"Expected Access-Control-Allow-Origin: https://example.com, got %s",
+			w.Header().Get("Access-Control-Allow-Origin"),
+		)
 	}
 	if w.Header().Get("Access-Control-Allow-Methods") != "GET, POST" {
-		t.Errorf("Expected Access-Control-Allow-Methods: GET, POST, got %s", w.Header().Get("Access-Control-Allow-Methods"))
+		t.Errorf(
+			"Expected Access-Control-Allow-Methods: GET, POST, got %s",
+			w.Header().Get("Access-Control-Allow-Methods"),
+		)
 	}
-	if w.Header().Get("Access-Control-Allow-Headers") != "X-Custom-Header, Content-Type" {
-		t.Errorf("Expected Access-Control-Allow-Headers: X-Custom-Header, Content-Type, got %s", w.Header().Get("Access-Control-Allow-Headers"))
+	if w.Header().
+		Get("Access-Control-Allow-Headers") !=
+		"X-Custom-Header, Content-Type" {
+		t.Errorf(
+			"Expected Access-Control-Allow-Headers: X-Custom-Header, Content-Type, got %s",
+			w.Header().Get("Access-Control-Allow-Headers"),
+		)
 	}
 	if w.Header().Get("Access-Control-Allow-Credentials") != "true" {
-		t.Errorf("Expected Access-Control-Allow-Credentials: true, got %s", w.Header().Get("Access-Control-Allow-Credentials"))
+		t.Errorf(
+			"Expected Access-Control-Allow-Credentials: true, got %s",
+			w.Header().Get("Access-Control-Allow-Credentials"),
+		)
 	}
 	if w.Header().Get("Access-Control-Max-Age") != "3600" {
-		t.Errorf("Expected Access-Control-Max-Age: 3600, got %s", w.Header().Get("Access-Control-Max-Age"))
+		t.Errorf(
+			"Expected Access-Control-Max-Age: 3600, got %s",
+			w.Header().Get("Access-Control-Max-Age"),
+		)
 	}
 
 	// Test with not allowed origin
@@ -124,7 +164,10 @@ func TestCORSCustom(t *testing.T) {
 	r.ServeHTTP(w, req)
 
 	if w.Header().Get("Access-Control-Allow-Origin") != "" {
-		t.Errorf("Expected no Access-Control-Allow-Origin header, got %s", w.Header().Get("Access-Control-Allow-Origin"))
+		t.Errorf(
+			"Expected no Access-Control-Allow-Origin header, got %s",
+			w.Header().Get("Access-Control-Allow-Origin"),
+		)
 	}
 }
 
@@ -147,8 +190,13 @@ func TestCORSWildcardOrigin(t *testing.T) {
 	if w.Code != 200 {
 		t.Errorf("Expected status code 200, got %d", w.Code)
 	}
-	if w.Header().Get("Access-Control-Allow-Origin") != "https://sub.example.com" {
-		t.Errorf("Expected Access-Control-Allow-Origin: https://sub.example.com, got %s", w.Header().Get("Access-Control-Allow-Origin"))
+	if w.Header().
+		Get("Access-Control-Allow-Origin") !=
+		"https://sub.example.com" {
+		t.Errorf(
+			"Expected Access-Control-Allow-Origin: https://sub.example.com, got %s",
+			w.Header().Get("Access-Control-Allow-Origin"),
+		)
 	}
 
 	// Test with nested subdomain that matches wildcard
@@ -160,8 +208,13 @@ func TestCORSWildcardOrigin(t *testing.T) {
 	if w.Code != 200 {
 		t.Errorf("Expected status code 200, got %d", w.Code)
 	}
-	if w.Header().Get("Access-Control-Allow-Origin") != "https://nested.sub.example.com" {
-		t.Errorf("Expected Access-Control-Allow-Origin: https://nested.sub.example.com, got %s", w.Header().Get("Access-Control-Allow-Origin"))
+	if w.Header().
+		Get("Access-Control-Allow-Origin") !=
+		"https://nested.sub.example.com" {
+		t.Errorf(
+			"Expected Access-Control-Allow-Origin: https://nested.sub.example.com, got %s",
+			w.Header().Get("Access-Control-Allow-Origin"),
+		)
 	}
 
 	// Test with admin subdomain pattern
@@ -180,8 +233,13 @@ func TestCORSWildcardOrigin(t *testing.T) {
 	w = httptest.NewRecorder()
 	r2.ServeHTTP(w, req)
 
-	if w.Header().Get("Access-Control-Allow-Origin") != "https://dashboard.admin.example.com" {
-		t.Errorf("Expected Access-Control-Allow-Origin: https://dashboard.admin.example.com, got %s", w.Header().Get("Access-Control-Allow-Origin"))
+	if w.Header().
+		Get("Access-Control-Allow-Origin") !=
+		"https://dashboard.admin.example.com" {
+		t.Errorf(
+			"Expected Access-Control-Allow-Origin: https://dashboard.admin.example.com, got %s",
+			w.Header().Get("Access-Control-Allow-Origin"),
+		)
 	}
 
 	// Should NOT match admin.example.com (no subdomain)
@@ -191,7 +249,10 @@ func TestCORSWildcardOrigin(t *testing.T) {
 	r2.ServeHTTP(w, req)
 
 	if w.Header().Get("Access-Control-Allow-Origin") != "" {
-		t.Errorf("Expected no Access-Control-Allow-Origin header, got %s", w.Header().Get("Access-Control-Allow-Origin"))
+		t.Errorf(
+			"Expected no Access-Control-Allow-Origin header, got %s",
+			w.Header().Get("Access-Control-Allow-Origin"),
+		)
 	}
 
 	// Should NOT match sub.example.com (different domain)
@@ -201,7 +262,10 @@ func TestCORSWildcardOrigin(t *testing.T) {
 	r2.ServeHTTP(w, req)
 
 	if w.Header().Get("Access-Control-Allow-Origin") != "" {
-		t.Errorf("Expected no Access-Control-Allow-Origin header, got %s", w.Header().Get("Access-Control-Allow-Origin"))
+		t.Errorf(
+			"Expected no Access-Control-Allow-Origin header, got %s",
+			w.Header().Get("Access-Control-Allow-Origin"),
+		)
 	}
 }
 
@@ -232,13 +296,18 @@ func TestCORSOptionsPassthrough(t *testing.T) {
 	r.ServeHTTP(w, req)
 
 	if !optionsHandlerCalled {
-		t.Error("Expected OPTIONS handler to be called with OptionsPassthrough enabled")
+		t.Error(
+			"Expected OPTIONS handler to be called with OptionsPassthrough enabled",
+		)
 	}
 	if w.Code != 200 {
 		t.Errorf("Expected status code 200, got %d", w.Code)
 	}
 	if w.Body.String() != "OPTIONS handler called" {
-		t.Errorf("Expected body 'OPTIONS handler called', got %s", w.Body.String())
+		t.Errorf(
+			"Expected body 'OPTIONS handler called', got %s",
+			w.Body.String(),
+		)
 	}
 }
 
@@ -274,9 +343,13 @@ func TestGetAllowOrigin(t *testing.T) {
 			expectedValue: "",
 		},
 		{
-			name:          "Multiple origins - first match",
-			origin:        "https://example.com",
-			allowOrigins:  []string{"https://foo.com", "https://example.com", "https://bar.com"},
+			name:   "Multiple origins - first match",
+			origin: "https://example.com",
+			allowOrigins: []string{
+				"https://foo.com",
+				"https://example.com",
+				"https://bar.com",
+			},
 			expectedValue: "https://example.com",
 		},
 		{
@@ -300,8 +373,12 @@ func TestGetAllowOrigin(t *testing.T) {
 func TestPreflightRequests(t *testing.T) {
 	r := router.New()
 	r.Use(Handler(Options{
-		AllowOrigins:     []string{"https://example.com"},
-		AllowMethods:     []string{http.MethodGet, http.MethodPost, http.MethodPut},
+		AllowOrigins: []string{"https://example.com"},
+		AllowMethods: []string{
+			http.MethodGet,
+			http.MethodPost,
+			http.MethodPut,
+		},
 		AllowHeaders:     []string{"X-Custom-Header", "Content-Type"},
 		AllowCredentials: true,
 		MaxAge:           3600,
@@ -323,16 +400,30 @@ func TestPreflightRequests(t *testing.T) {
 	r.ServeHTTP(w, req)
 
 	if w.Code != 204 {
-		t.Errorf("Expected status code 204 for preflight request, got %d", w.Code)
+		t.Errorf(
+			"Expected status code 204 for preflight request, got %d",
+			w.Code,
+		)
 	}
 	if w.Header().Get("Access-Control-Allow-Origin") != "https://example.com" {
-		t.Errorf("Expected Access-Control-Allow-Origin: https://example.com, got %s", w.Header().Get("Access-Control-Allow-Origin"))
+		t.Errorf(
+			"Expected Access-Control-Allow-Origin: https://example.com, got %s",
+			w.Header().Get("Access-Control-Allow-Origin"),
+		)
 	}
 	if w.Header().Get("Access-Control-Allow-Methods") != "GET, POST, PUT" {
-		t.Errorf("Expected Access-Control-Allow-Methods: GET, POST, PUT, got %s", w.Header().Get("Access-Control-Allow-Methods"))
+		t.Errorf(
+			"Expected Access-Control-Allow-Methods: GET, POST, PUT, got %s",
+			w.Header().Get("Access-Control-Allow-Methods"),
+		)
 	}
-	if w.Header().Get("Access-Control-Allow-Headers") != "X-Custom-Header, Content-Type" {
-		t.Errorf("Expected Access-Control-Allow-Headers: X-Custom-Header, Content-Type, got %s", w.Header().Get("Access-Control-Allow-Headers"))
+	if w.Header().
+		Get("Access-Control-Allow-Headers") !=
+		"X-Custom-Header, Content-Type" {
+		t.Errorf(
+			"Expected Access-Control-Allow-Headers: X-Custom-Header, Content-Type, got %s",
+			w.Header().Get("Access-Control-Allow-Headers"),
+		)
 	}
 
 	// Test OPTIONS request that is not a preflight request (missing Access-Control-Request-Method)
@@ -344,11 +435,17 @@ func TestPreflightRequests(t *testing.T) {
 
 	// It should still have CORS headers and be treated as a preflight in the updated implementation
 	if w.Header().Get("Access-Control-Allow-Origin") != "https://example.com" {
-		t.Errorf("Expected Access-Control-Allow-Origin: https://example.com, got %s", w.Header().Get("Access-Control-Allow-Origin"))
+		t.Errorf(
+			"Expected Access-Control-Allow-Origin: https://example.com, got %s",
+			w.Header().Get("Access-Control-Allow-Origin"),
+		)
 	}
 	// In the updated implementation, all OPTIONS requests get Allow-Methods even without Access-Control-Request-Method
 	if w.Header().Get("Access-Control-Allow-Methods") != "GET, POST, PUT" {
-		t.Errorf("Expected Access-Control-Allow-Methods: GET, POST, PUT, got %s", w.Header().Get("Access-Control-Allow-Methods"))
+		t.Errorf(
+			"Expected Access-Control-Allow-Methods: GET, POST, PUT, got %s",
+			w.Header().Get("Access-Control-Allow-Methods"),
+		)
 	}
 }
 
@@ -356,7 +453,10 @@ func TestPreflightRequests(t *testing.T) {
 func TestOptionsWithoutOrigin(t *testing.T) {
 	r := router.New()
 	r.Use(Handler(Options{
-		AllowOrigins:     []string{"https://example.com", "https://*.admin.example.com"},
+		AllowOrigins: []string{
+			"https://example.com",
+			"https://*.admin.example.com",
+		},
 		AllowMethods:     []string{http.MethodGet, http.MethodPost},
 		AllowHeaders:     []string{"Origin", "Content-Type"},
 		AllowCredentials: true,
@@ -422,10 +522,18 @@ func TestConsistentOriginHandling(t *testing.T) {
 
 	// Both should have the same Access-Control-Allow-Origin header
 	if w1.Header().Get("Access-Control-Allow-Origin") != origin {
-		t.Errorf("Expected OPTIONS response to have origin %s, got %s", origin, w1.Header().Get("Access-Control-Allow-Origin"))
+		t.Errorf(
+			"Expected OPTIONS response to have origin %s, got %s",
+			origin,
+			w1.Header().Get("Access-Control-Allow-Origin"),
+		)
 	}
 	if w2.Header().Get("Access-Control-Allow-Origin") != origin {
-		t.Errorf("Expected GET response to have origin %s, got %s", origin, w2.Header().Get("Access-Control-Allow-Origin"))
+		t.Errorf(
+			"Expected GET response to have origin %s, got %s",
+			origin,
+			w2.Header().Get("Access-Control-Allow-Origin"),
+		)
 	}
 }
 
@@ -454,12 +562,16 @@ func TestNullOrigin(t *testing.T) {
 
 	// Should not get a permissive Access-Control-Allow-Origin
 	if w.Header().Get("Access-Control-Allow-Origin") == "*" {
-		t.Error("Expected not to get wildcard Access-Control-Allow-Origin for null origin with restricted CORS")
+		t.Error(
+			"Expected not to get wildcard Access-Control-Allow-Origin for null origin with restricted CORS",
+		)
 	}
 
 	// Should still set Access-Control-Allow-Methods so browser knows what's possible
 	if w.Header().Get("Access-Control-Allow-Methods") == "" {
-		t.Error("Expected Access-Control-Allow-Methods to be set for null origin")
+		t.Error(
+			"Expected Access-Control-Allow-Methods to be set for null origin",
+		)
 	}
 
 	// A second router with * allowed should still allow null origins
@@ -479,7 +591,9 @@ func TestNullOrigin(t *testing.T) {
 
 	// Should get wildcard for permissive configuration
 	if w2.Header().Get("Access-Control-Allow-Origin") != "*" {
-		t.Errorf("Expected wildcard Access-Control-Allow-Origin for null origin with permissive CORS, got %s",
-			w2.Header().Get("Access-Control-Allow-Origin"))
+		t.Errorf(
+			"Expected wildcard Access-Control-Allow-Origin for null origin with permissive CORS, got %s",
+			w2.Header().Get("Access-Control-Allow-Origin"),
+		)
 	}
 }

@@ -21,9 +21,12 @@ func newStdLibRouter() *http.ServeMux {
 	mux.HandleFunc("/products", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("products"))
 	})
-	mux.HandleFunc("/api/v1/health", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("ok"))
-	})
+	mux.HandleFunc(
+		"/api/v1/health",
+		func(w http.ResponseWriter, r *http.Request) {
+			w.Write([]byte("ok"))
+		},
+	)
 
 	return mux
 }

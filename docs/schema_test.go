@@ -19,9 +19,9 @@ func (u MockUUID) String() string {
 // Test types for schema generation
 type TestUser struct {
 	ID       MockUUID               `json:"id"`
-	Name     string                 `json:"name" validate:"required"`
+	Name     string                 `json:"name"     validate:"required"`
 	Email    *string                `json:"email"`
-	Age      int                    `json:"age" validate:"min=0"`
+	Age      int                    `json:"age"      validate:"min=0"`
 	Score    float64                `json:"score"`
 	Active   bool                   `json:"active"`
 	Created  time.Time              `json:"created"`
@@ -39,14 +39,17 @@ type TestProduct struct {
 
 func TestSchemaFromType_UUID(t *testing.T) {
 	// Register MockUUID to behave like real uuid.UUID
-	metadata.RegisterTypeHandler("docs.MockUUID", func(t reflect.Type) metadata.Schema {
-		return metadata.Schema{
-			Type:     "string",
-			Format:   "uuid",
-			Example:  "123e4567-e89b-12d3-a456-426614174000",
-			TypeName: "UUID",
-		}
-	})
+	metadata.RegisterTypeHandler(
+		"docs.MockUUID",
+		func(t reflect.Type) metadata.Schema {
+			return metadata.Schema{
+				Type:     "string",
+				Format:   "uuid",
+				Example:  "123e4567-e89b-12d3-a456-426614174000",
+				TypeName: "UUID",
+			}
+		},
+	)
 
 	schema := SchemaFromType(reflect.TypeOf(MockUUID{}))
 
@@ -59,11 +62,17 @@ func TestSchemaFromType_UUID(t *testing.T) {
 	}
 
 	if schema.Example != "123e4567-e89b-12d3-a456-426614174000" {
-		t.Errorf("Expected UUID example to be '123e4567-e89b-12d3-a456-426614174000', got '%v'", schema.Example)
+		t.Errorf(
+			"Expected UUID example to be '123e4567-e89b-12d3-a456-426614174000', got '%v'",
+			schema.Example,
+		)
 	}
 
 	if schema.TypeName != "UUID" {
-		t.Errorf("Expected UUID TypeName to be 'UUID', got '%s'", schema.TypeName)
+		t.Errorf(
+			"Expected UUID TypeName to be 'UUID', got '%s'",
+			schema.TypeName,
+		)
 	}
 }
 
@@ -71,15 +80,24 @@ func TestSchemaFromType_TimeTime(t *testing.T) {
 	schema := SchemaFromType(reflect.TypeOf(time.Time{}))
 
 	if schema.Type != "string" {
-		t.Errorf("Expected time.Time type to be 'string', got '%s'", schema.Type)
+		t.Errorf(
+			"Expected time.Time type to be 'string', got '%s'",
+			schema.Type,
+		)
 	}
 
 	if schema.Format != "date-time" {
-		t.Errorf("Expected time.Time format to be 'date-time', got '%s'", schema.Format)
+		t.Errorf(
+			"Expected time.Time format to be 'date-time', got '%s'",
+			schema.Format,
+		)
 	}
 
 	if schema.TypeName != "time.Time" {
-		t.Errorf("Expected time.Time TypeName to be 'time.Time', got '%s'", schema.TypeName)
+		t.Errorf(
+			"Expected time.Time TypeName to be 'time.Time', got '%s'",
+			schema.TypeName,
+		)
 	}
 
 	// Check that example is a valid RFC3339 format
@@ -109,11 +127,21 @@ func TestSchemaFromType_BasicTypes(t *testing.T) {
 			schema := SchemaFromType(test.typ)
 
 			if schema.Type != test.expectedType {
-				t.Errorf("Expected %s type to be '%s', got '%s'", test.name, test.expectedType, schema.Type)
+				t.Errorf(
+					"Expected %s type to be '%s', got '%s'",
+					test.name,
+					test.expectedType,
+					schema.Type,
+				)
 			}
 
 			if schema.Example != test.expectedExample {
-				t.Errorf("Expected %s example to be '%v', got '%v'", test.name, test.expectedExample, schema.Example)
+				t.Errorf(
+					"Expected %s example to be '%v', got '%v'",
+					test.name,
+					test.expectedExample,
+					schema.Example,
+				)
 			}
 		})
 	}
@@ -145,30 +173,42 @@ func TestSchemaFromType_Slice(t *testing.T) {
 	}
 
 	if schema.Items.Type != "string" {
-		t.Errorf("Expected []string items type to be 'string', got '%s'", schema.Items.Type)
+		t.Errorf(
+			"Expected []string items type to be 'string', got '%s'",
+			schema.Items.Type,
+		)
 	}
 
 	if schema.TypeName != "[]string" {
-		t.Errorf("Expected []string TypeName to be '[]string', got '%s'", schema.TypeName)
+		t.Errorf(
+			"Expected []string TypeName to be '[]string', got '%s'",
+			schema.TypeName,
+		)
 	}
 }
 
 func TestSchemaFromType_SliceOfUUID(t *testing.T) {
 	// Register MockUUID to behave like real uuid.UUID
-	metadata.RegisterTypeHandler("docs.MockUUID", func(t reflect.Type) metadata.Schema {
-		return metadata.Schema{
-			Type:     "string",
-			Format:   "uuid",
-			Example:  "123e4567-e89b-12d3-a456-426614174000",
-			TypeName: "UUID",
-		}
-	})
+	metadata.RegisterTypeHandler(
+		"docs.MockUUID",
+		func(t reflect.Type) metadata.Schema {
+			return metadata.Schema{
+				Type:     "string",
+				Format:   "uuid",
+				Example:  "123e4567-e89b-12d3-a456-426614174000",
+				TypeName: "UUID",
+			}
+		},
+	)
 
 	// Test that slice of UUID works correctly (should not be confused with UUID itself)
 	schema := SchemaFromType(reflect.TypeOf([]MockUUID{}))
 
 	if schema.Type != "array" {
-		t.Errorf("Expected []MockUUID type to be 'array', got '%s'", schema.Type)
+		t.Errorf(
+			"Expected []MockUUID type to be 'array', got '%s'",
+			schema.Type,
+		)
 	}
 
 	if schema.Items == nil {
@@ -176,24 +216,33 @@ func TestSchemaFromType_SliceOfUUID(t *testing.T) {
 	}
 
 	if schema.Items.Type != "string" {
-		t.Errorf("Expected []MockUUID items type to be 'string', got '%s'", schema.Items.Type)
+		t.Errorf(
+			"Expected []MockUUID items type to be 'string', got '%s'",
+			schema.Items.Type,
+		)
 	}
 
 	if schema.Items.Format != "uuid" {
-		t.Errorf("Expected []MockUUID items format to be 'uuid', got '%s'", schema.Items.Format)
+		t.Errorf(
+			"Expected []MockUUID items format to be 'uuid', got '%s'",
+			schema.Items.Format,
+		)
 	}
 }
 
 func TestSchemaFromType_Struct(t *testing.T) {
 	// Register MockUUID to behave like real uuid.UUID
-	metadata.RegisterTypeHandler("docs.MockUUID", func(t reflect.Type) metadata.Schema {
-		return metadata.Schema{
-			Type:     "string",
-			Format:   "uuid",
-			Example:  "123e4567-e89b-12d3-a456-426614174000",
-			TypeName: "UUID",
-		}
-	})
+	metadata.RegisterTypeHandler(
+		"docs.MockUUID",
+		func(t reflect.Type) metadata.Schema {
+			return metadata.Schema{
+				Type:     "string",
+				Format:   "uuid",
+				Example:  "123e4567-e89b-12d3-a456-426614174000",
+				TypeName: "UUID",
+			}
+		},
+	)
 
 	schema := SchemaFromType(reflect.TypeOf(TestUser{}))
 
@@ -212,11 +261,17 @@ func TestSchemaFromType_Struct(t *testing.T) {
 	}
 
 	if idProp.Type != "string" {
-		t.Errorf("Expected TestUser.id type to be 'string', got '%s'", idProp.Type)
+		t.Errorf(
+			"Expected TestUser.id type to be 'string', got '%s'",
+			idProp.Type,
+		)
 	}
 
 	if idProp.Format != "uuid" {
-		t.Errorf("Expected TestUser.id format to be 'uuid', got '%s'", idProp.Format)
+		t.Errorf(
+			"Expected TestUser.id format to be 'uuid', got '%s'",
+			idProp.Format,
+		)
 	}
 
 	// Test time.Time field
@@ -226,11 +281,17 @@ func TestSchemaFromType_Struct(t *testing.T) {
 	}
 
 	if createdProp.Type != "string" {
-		t.Errorf("Expected TestUser.created type to be 'string', got '%s'", createdProp.Type)
+		t.Errorf(
+			"Expected TestUser.created type to be 'string', got '%s'",
+			createdProp.Type,
+		)
 	}
 
 	if createdProp.Format != "date-time" {
-		t.Errorf("Expected TestUser.created format to be 'date-time', got '%s'", createdProp.Format)
+		t.Errorf(
+			"Expected TestUser.created format to be 'date-time', got '%s'",
+			createdProp.Format,
+		)
 	}
 
 	// Test nullable pointer field
@@ -250,7 +311,10 @@ func TestSchemaFromType_Struct(t *testing.T) {
 	}
 
 	if tagsProp.Type != "array" {
-		t.Errorf("Expected TestUser.tags type to be 'array', got '%s'", tagsProp.Type)
+		t.Errorf(
+			"Expected TestUser.tags type to be 'array', got '%s'",
+			tagsProp.Type,
+		)
 	}
 
 	if tagsProp.Items == nil {
@@ -258,13 +322,20 @@ func TestSchemaFromType_Struct(t *testing.T) {
 	}
 
 	if tagsProp.Items.Type != "string" {
-		t.Errorf("Expected TestUser.tags items type to be 'string', got '%s'", tagsProp.Items.Type)
+		t.Errorf(
+			"Expected TestUser.tags items type to be 'string', got '%s'",
+			tagsProp.Items.Type,
+		)
 	}
 
 	// Test required fields
 	expectedRequired := []string{"name"}
 	if len(schema.Required) != len(expectedRequired) {
-		t.Errorf("Expected %d required fields, got %d", len(expectedRequired), len(schema.Required))
+		t.Errorf(
+			"Expected %d required fields, got %d",
+			len(expectedRequired),
+			len(schema.Required),
+		)
 	}
 
 	for _, req := range expectedRequired {
@@ -283,19 +354,25 @@ func TestSchemaFromType_Struct(t *testing.T) {
 
 func TestSchemaFromType_SliceOfStructs(t *testing.T) {
 	// Register MockUUID to behave like real uuid.UUID
-	metadata.RegisterTypeHandler("docs.MockUUID", func(t reflect.Type) metadata.Schema {
-		return metadata.Schema{
-			Type:     "string",
-			Format:   "uuid",
-			Example:  "123e4567-e89b-12d3-a456-426614174000",
-			TypeName: "UUID",
-		}
-	})
+	metadata.RegisterTypeHandler(
+		"docs.MockUUID",
+		func(t reflect.Type) metadata.Schema {
+			return metadata.Schema{
+				Type:     "string",
+				Format:   "uuid",
+				Example:  "123e4567-e89b-12d3-a456-426614174000",
+				TypeName: "UUID",
+			}
+		},
+	)
 
 	schema := SchemaFromType(reflect.TypeOf([]TestProduct{}))
 
 	if schema.Type != "array" {
-		t.Errorf("Expected []TestProduct type to be 'array', got '%s'", schema.Type)
+		t.Errorf(
+			"Expected []TestProduct type to be 'array', got '%s'",
+			schema.Type,
+		)
 	}
 
 	if schema.Items == nil {
@@ -303,7 +380,10 @@ func TestSchemaFromType_SliceOfStructs(t *testing.T) {
 	}
 
 	if schema.Items.Type != "object" {
-		t.Errorf("Expected []TestProduct items type to be 'object', got '%s'", schema.Items.Type)
+		t.Errorf(
+			"Expected []TestProduct items type to be 'object', got '%s'",
+			schema.Items.Type,
+		)
 	}
 
 	// Check that the item schema has the expected properties
@@ -317,8 +397,11 @@ func TestSchemaFromType_SliceOfStructs(t *testing.T) {
 	}
 
 	if idProp.Type != "string" || idProp.Format != "uuid" {
-		t.Errorf("Expected TestProduct.id to be string with uuid format, got type='%s' format='%s'",
-			idProp.Type, idProp.Format)
+		t.Errorf(
+			"Expected TestProduct.id to be string with uuid format, got type='%s' format='%s'",
+			idProp.Type,
+			idProp.Format,
+		)
 	}
 }
 
@@ -326,17 +409,26 @@ func TestGetTypeFromGeneric(t *testing.T) {
 	// Test the helper function
 	mockUUIDType := GetTypeFromGeneric[MockUUID]()
 	if mockUUIDType.String() != "docs.MockUUID" {
-		t.Errorf("Expected GetTypeFromGeneric[MockUUID]() to return docs.MockUUID type, got %s", mockUUIDType.String())
+		t.Errorf(
+			"Expected GetTypeFromGeneric[MockUUID]() to return docs.MockUUID type, got %s",
+			mockUUIDType.String(),
+		)
 	}
 
 	stringType := GetTypeFromGeneric[string]()
 	if stringType.Kind() != reflect.String {
-		t.Errorf("Expected GetTypeFromGeneric[string]() to return string kind, got %s", stringType.Kind())
+		t.Errorf(
+			"Expected GetTypeFromGeneric[string]() to return string kind, got %s",
+			stringType.Kind(),
+		)
 	}
 
 	sliceType := GetTypeFromGeneric[[]TestProduct]()
 	if sliceType.Kind() != reflect.Slice {
-		t.Errorf("Expected GetTypeFromGeneric[[]TestProduct]() to return slice kind, got %s", sliceType.Kind())
+		t.Errorf(
+			"Expected GetTypeFromGeneric[[]TestProduct]() to return slice kind, got %s",
+			sliceType.Kind(),
+		)
 	}
 }
 
@@ -358,7 +450,12 @@ func TestIsArrayType(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			result := IsArrayType(test.typ)
 			if result != test.expected {
-				t.Errorf("Expected IsArrayType(%s) to be %t, got %t", test.name, test.expected, result)
+				t.Errorf(
+					"Expected IsArrayType(%s) to be %t, got %t",
+					test.name,
+					test.expected,
+					result,
+				)
 			}
 		})
 	}
@@ -367,14 +464,17 @@ func TestIsArrayType(t *testing.T) {
 // TestValidation tests that validation tags are properly handled
 func TestSchemaFromType_ValidationTags(t *testing.T) {
 	// Register MockUUID to behave like real uuid.UUID
-	metadata.RegisterTypeHandler("docs.MockUUID", func(t reflect.Type) metadata.Schema {
-		return metadata.Schema{
-			Type:     "string",
-			Format:   "uuid",
-			Example:  "123e4567-e89b-12d3-a456-426614174000",
-			TypeName: "UUID",
-		}
-	})
+	metadata.RegisterTypeHandler(
+		"docs.MockUUID",
+		func(t reflect.Type) metadata.Schema {
+			return metadata.Schema{
+				Type:     "string",
+				Format:   "uuid",
+				Example:  "123e4567-e89b-12d3-a456-426614174000",
+				TypeName: "UUID",
+			}
+		},
+	)
 
 	schema := SchemaFromType(reflect.TypeOf(TestUser{}))
 
@@ -389,7 +489,10 @@ func TestSchemaFromType_ValidationTags(t *testing.T) {
 	}
 
 	if *ageProp.Minimum != 0 {
-		t.Errorf("Expected TestUser.age minimum to be 0, got %f", *ageProp.Minimum)
+		t.Errorf(
+			"Expected TestUser.age minimum to be 0, got %f",
+			*ageProp.Minimum,
+		)
 	}
 }
 
@@ -399,14 +502,17 @@ func TestCustomTypeHandler(t *testing.T) {
 	type CustomID int64
 
 	// Register a custom handler
-	metadata.RegisterTypeHandler("docs.CustomID", func(t reflect.Type) metadata.Schema {
-		return metadata.Schema{
-			Type:     "string",
-			Format:   "custom-id",
-			Example:  "CUSTOM-12345",
-			TypeName: "CustomID",
-		}
-	})
+	metadata.RegisterTypeHandler(
+		"docs.CustomID",
+		func(t reflect.Type) metadata.Schema {
+			return metadata.Schema{
+				Type:     "string",
+				Format:   "custom-id",
+				Example:  "CUSTOM-12345",
+				TypeName: "CustomID",
+			}
+		},
+	)
 
 	// Test that our custom handler is used
 	schema := SchemaFromType(reflect.TypeOf(CustomID(0)))
@@ -416,11 +522,17 @@ func TestCustomTypeHandler(t *testing.T) {
 	}
 
 	if schema.Format != "custom-id" {
-		t.Errorf("Expected CustomID format to be 'custom-id', got '%s'", schema.Format)
+		t.Errorf(
+			"Expected CustomID format to be 'custom-id', got '%s'",
+			schema.Format,
+		)
 	}
 
 	if schema.Example != "CUSTOM-12345" {
-		t.Errorf("Expected CustomID example to be 'CUSTOM-12345', got '%v'", schema.Example)
+		t.Errorf(
+			"Expected CustomID example to be 'CUSTOM-12345', got '%v'",
+			schema.Example,
+		)
 	}
 }
 
@@ -431,7 +543,10 @@ func TestSchemaFromType_EdgeCases(t *testing.T) {
 		schema := SchemaFromType(reflect.TypeOf(EmptyStruct{}))
 
 		if schema.Type != "object" {
-			t.Errorf("Expected empty struct type to be 'object', got '%s'", schema.Type)
+			t.Errorf(
+				"Expected empty struct type to be 'object', got '%s'",
+				schema.Type,
+			)
 		}
 
 		if schema.Properties == nil {
@@ -455,7 +570,10 @@ func TestSchemaFromType_EdgeCases(t *testing.T) {
 		schema := SchemaFromType(reflect.TypeOf(Person{}))
 
 		if schema.Type != "object" {
-			t.Errorf("Expected Person type to be 'object', got '%s'", schema.Type)
+			t.Errorf(
+				"Expected Person type to be 'object', got '%s'",
+				schema.Type,
+			)
 		}
 
 		addressProp, exists := schema.Properties["address"]
@@ -464,7 +582,10 @@ func TestSchemaFromType_EdgeCases(t *testing.T) {
 		}
 
 		if addressProp.Type != "object" {
-			t.Errorf("Expected Person.address type to be 'object', got '%s'", addressProp.Type)
+			t.Errorf(
+				"Expected Person.address type to be 'object', got '%s'",
+				addressProp.Type,
+			)
 		}
 
 		if addressProp.Properties == nil {
@@ -477,7 +598,10 @@ func TestSchemaFromType_EdgeCases(t *testing.T) {
 		}
 
 		if streetProp.Type != "string" {
-			t.Errorf("Expected Address.street type to be 'string', got '%s'", streetProp.Type)
+			t.Errorf(
+				"Expected Address.street type to be 'string', got '%s'",
+				streetProp.Type,
+			)
 		}
 	})
 }
@@ -492,7 +616,10 @@ func TestUUIDBugFix(t *testing.T) {
 		schema := SchemaFromType(reflect.TypeOf([16]byte{}))
 
 		if schema.Type != "array" {
-			t.Errorf("Expected normal [16]byte to be 'array', got '%s'", schema.Type)
+			t.Errorf(
+				"Expected normal [16]byte to be 'array', got '%s'",
+				schema.Type,
+			)
 		}
 
 		if schema.Items == nil || schema.Items.Type != "integer" {
@@ -502,24 +629,33 @@ func TestUUIDBugFix(t *testing.T) {
 
 	t.Run("MockUUID with handler is UUID", func(t *testing.T) {
 		// Register MockUUID to behave like uuid.UUID
-		metadata.RegisterTypeHandler("docs.MockUUID", func(t reflect.Type) metadata.Schema {
-			return metadata.Schema{
-				Type:     "string",
-				Format:   "uuid",
-				Example:  "123e4567-e89b-12d3-a456-426614174000",
-				TypeName: "UUID",
-			}
-		})
+		metadata.RegisterTypeHandler(
+			"docs.MockUUID",
+			func(t reflect.Type) metadata.Schema {
+				return metadata.Schema{
+					Type:     "string",
+					Format:   "uuid",
+					Example:  "123e4567-e89b-12d3-a456-426614174000",
+					TypeName: "UUID",
+				}
+			},
+		)
 
 		schema := SchemaFromType(reflect.TypeOf(MockUUID{}))
 
 		// With handler registered, MockUUID should be treated as UUID
 		if schema.Type != "string" {
-			t.Errorf("Expected registered MockUUID to be 'string', got '%s'", schema.Type)
+			t.Errorf(
+				"Expected registered MockUUID to be 'string', got '%s'",
+				schema.Type,
+			)
 		}
 
 		if schema.Format != "uuid" {
-			t.Errorf("Expected registered MockUUID format to be 'uuid', got '%s'", schema.Format)
+			t.Errorf(
+				"Expected registered MockUUID format to be 'uuid', got '%s'",
+				schema.Format,
+			)
 		}
 	})
 }
@@ -580,7 +716,10 @@ func TestSchemaFromType_SimpleCircularReference(t *testing.T) {
 	schema := SchemaFromType(reflect.TypeOf(CircularNode{}))
 
 	if schema.Type != "object" {
-		t.Errorf("Expected CircularNode type to be 'object', got '%s'", schema.Type)
+		t.Errorf(
+			"Expected CircularNode type to be 'object', got '%s'",
+			schema.Type,
+		)
 	}
 
 	// Check that we have basic properties
@@ -594,7 +733,10 @@ func TestSchemaFromType_SimpleCircularReference(t *testing.T) {
 	}
 
 	if idProp.Type != "string" {
-		t.Errorf("Expected CircularNode.id type to be 'string', got '%s'", idProp.Type)
+		t.Errorf(
+			"Expected CircularNode.id type to be 'string', got '%s'",
+			idProp.Type,
+		)
 	}
 
 	// Check parent property (pointer to self)
@@ -605,7 +747,9 @@ func TestSchemaFromType_SimpleCircularReference(t *testing.T) {
 
 	// Parent should be a reference due to circular dependency
 	if parentProp.Ref == "" {
-		t.Error("Expected CircularNode.parent to have a $ref due to circular reference")
+		t.Error(
+			"Expected CircularNode.parent to have a $ref due to circular reference",
+		)
 	}
 
 	// Check children property (slice of self)
@@ -615,7 +759,10 @@ func TestSchemaFromType_SimpleCircularReference(t *testing.T) {
 	}
 
 	if childrenProp.Type != "array" {
-		t.Errorf("Expected CircularNode.children type to be 'array', got '%s'", childrenProp.Type)
+		t.Errorf(
+			"Expected CircularNode.children type to be 'array', got '%s'",
+			childrenProp.Type,
+		)
 	}
 
 	if childrenProp.Items == nil {
@@ -624,7 +771,9 @@ func TestSchemaFromType_SimpleCircularReference(t *testing.T) {
 
 	// Items should be a reference due to circular dependency
 	if childrenProp.Items.Ref == "" {
-		t.Error("Expected CircularNode.children items to have a $ref due to circular reference")
+		t.Error(
+			"Expected CircularNode.children items to have a $ref due to circular reference",
+		)
 	}
 }
 
@@ -633,7 +782,10 @@ func TestSchemaFromType_MutualCircularReference(t *testing.T) {
 	carSchema := SchemaFromType(reflect.TypeOf(CarType{}))
 
 	if carSchema.Type != "object" {
-		t.Errorf("Expected CarType type to be 'object', got '%s'", carSchema.Type)
+		t.Errorf(
+			"Expected CarType type to be 'object', got '%s'",
+			carSchema.Type,
+		)
 	}
 
 	// Check that Cars have Shows property
@@ -643,14 +795,20 @@ func TestSchemaFromType_MutualCircularReference(t *testing.T) {
 	}
 
 	if showsProp.Type != "array" {
-		t.Errorf("Expected CarType.shows type to be 'array', got '%s'", showsProp.Type)
+		t.Errorf(
+			"Expected CarType.shows type to be 'array', got '%s'",
+			showsProp.Type,
+		)
 	}
 
 	// Test CarShow schema separately
 	showSchema := SchemaFromType(reflect.TypeOf(CarShowType{}))
 
 	if showSchema.Type != "object" {
-		t.Errorf("Expected CarShowType type to be 'object', got '%s'", showSchema.Type)
+		t.Errorf(
+			"Expected CarShowType type to be 'object', got '%s'",
+			showSchema.Type,
+		)
 	}
 
 	// Check that Shows have Cars property
@@ -660,7 +818,10 @@ func TestSchemaFromType_MutualCircularReference(t *testing.T) {
 	}
 
 	if carsProp.Type != "array" {
-		t.Errorf("Expected CarShowType.cars type to be 'array', got '%s'", carsProp.Type)
+		t.Errorf(
+			"Expected CarShowType.cars type to be 'array', got '%s'",
+			carsProp.Type,
+		)
 	}
 }
 
@@ -669,7 +830,10 @@ func TestSchemaFromType_ComplexCircularReference(t *testing.T) {
 	schema := SchemaFromType(reflect.TypeOf(ManufacturerType{}))
 
 	if schema.Type != "object" {
-		t.Errorf("Expected ManufacturerType type to be 'object', got '%s'", schema.Type)
+		t.Errorf(
+			"Expected ManufacturerType type to be 'object', got '%s'",
+			schema.Type,
+		)
 	}
 
 	// Check parent company (self-reference)
@@ -680,7 +844,9 @@ func TestSchemaFromType_ComplexCircularReference(t *testing.T) {
 
 	// Should be a reference due to circular dependency
 	if parentProp.Ref == "" {
-		t.Error("Expected ManufacturerType.parentCompany to have a $ref due to circular reference")
+		t.Error(
+			"Expected ManufacturerType.parentCompany to have a $ref due to circular reference",
+		)
 	}
 
 	// Check subsidiaries (array of self)
@@ -690,7 +856,10 @@ func TestSchemaFromType_ComplexCircularReference(t *testing.T) {
 	}
 
 	if subsProp.Type != "array" {
-		t.Errorf("Expected ManufacturerType.subsidiaries type to be 'array', got '%s'", subsProp.Type)
+		t.Errorf(
+			"Expected ManufacturerType.subsidiaries type to be 'array', got '%s'",
+			subsProp.Type,
+		)
 	}
 
 	if subsProp.Items == nil {
@@ -699,7 +868,9 @@ func TestSchemaFromType_ComplexCircularReference(t *testing.T) {
 
 	// Items should be a reference due to circular dependency
 	if subsProp.Items.Ref == "" {
-		t.Error("Expected ManufacturerType.subsidiaries items to have a $ref due to circular reference")
+		t.Error(
+			"Expected ManufacturerType.subsidiaries items to have a $ref due to circular reference",
+		)
 	}
 
 	// Check models property (references CarType)
@@ -709,7 +880,10 @@ func TestSchemaFromType_ComplexCircularReference(t *testing.T) {
 	}
 
 	if modelsProp.Type != "array" {
-		t.Errorf("Expected ManufacturerType.models type to be 'array', got '%s'", modelsProp.Type)
+		t.Errorf(
+			"Expected ManufacturerType.models type to be 'array', got '%s'",
+			modelsProp.Type,
+		)
 	}
 }
 
@@ -718,7 +892,10 @@ func TestSchemaFromType_UserFriendsCircularReference(t *testing.T) {
 	schema := SchemaFromType(reflect.TypeOf(CircularUser{}))
 
 	if schema.Type != "object" {
-		t.Errorf("Expected CircularUser type to be 'object', got '%s'", schema.Type)
+		t.Errorf(
+			"Expected CircularUser type to be 'object', got '%s'",
+			schema.Type,
+		)
 	}
 
 	// Check friends property
@@ -728,7 +905,10 @@ func TestSchemaFromType_UserFriendsCircularReference(t *testing.T) {
 	}
 
 	if friendsProp.Type != "array" {
-		t.Errorf("Expected CircularUser.friends type to be 'array', got '%s'", friendsProp.Type)
+		t.Errorf(
+			"Expected CircularUser.friends type to be 'array', got '%s'",
+			friendsProp.Type,
+		)
 	}
 
 	if friendsProp.Items == nil {
@@ -737,7 +917,9 @@ func TestSchemaFromType_UserFriendsCircularReference(t *testing.T) {
 
 	// Items should be a reference due to circular dependency
 	if friendsProp.Items.Ref == "" {
-		t.Error("Expected CircularUser.friends items to have a $ref due to circular reference")
+		t.Error(
+			"Expected CircularUser.friends items to have a $ref due to circular reference",
+		)
 	}
 
 	// Check profile property (pointer to self)
@@ -748,7 +930,9 @@ func TestSchemaFromType_UserFriendsCircularReference(t *testing.T) {
 
 	// Profile should be a reference due to circular dependency
 	if profileProp.Ref == "" {
-		t.Error("Expected CircularUser.profile to have a $ref due to circular reference")
+		t.Error(
+			"Expected CircularUser.profile to have a $ref due to circular reference",
+		)
 	}
 }
 
@@ -757,7 +941,10 @@ func TestSchemaFromType_IndirectCircularReference(t *testing.T) {
 	schema := SchemaFromType(reflect.TypeOf(UserProfileType{}))
 
 	if schema.Type != "object" {
-		t.Errorf("Expected UserProfileType type to be 'object', got '%s'", schema.Type)
+		t.Errorf(
+			"Expected UserProfileType type to be 'object', got '%s'",
+			schema.Type,
+		)
 	}
 
 	// Check preferences property exists
@@ -770,7 +957,10 @@ func TestSchemaFromType_IndirectCircularReference(t *testing.T) {
 	prefsSchema := SchemaFromType(reflect.TypeOf(UserPrefsType{}))
 
 	if prefsSchema.Type != "object" {
-		t.Errorf("Expected UserPrefsType type to be 'object', got '%s'", prefsSchema.Type)
+		t.Errorf(
+			"Expected UserPrefsType type to be 'object', got '%s'",
+			prefsSchema.Type,
+		)
 	}
 
 	// Check that UserPrefs has a user property that references back to UserProfile
@@ -812,7 +1002,10 @@ func TestSchemaFromType_CircularReferenceInExamples(t *testing.T) {
 		schema := SchemaFromType(reflect.TypeOf(CircularUser{}))
 		// The schema should have been generated without hanging
 		if schema.Type != "object" {
-			t.Errorf("Expected schema type to be 'object', got '%s'", schema.Type)
+			t.Errorf(
+				"Expected schema type to be 'object', got '%s'",
+				schema.Type,
+			)
 		}
 		done <- true
 	}()
@@ -821,7 +1014,9 @@ func TestSchemaFromType_CircularReferenceInExamples(t *testing.T) {
 	case <-done:
 		// Success - both schema and example generation completed
 	case <-time.After(200 * time.Millisecond):
-		t.Fatal("Schema/example generation took too long - likely infinite recursion")
+		t.Fatal(
+			"Schema/example generation took too long - likely infinite recursion",
+		)
 	}
 }
 
@@ -838,7 +1033,10 @@ func TestSchemaFromType_MultipleCircularPaths(t *testing.T) {
 	schema := SchemaFromType(reflect.TypeOf(MultiCircular{}))
 
 	if schema.Type != "object" {
-		t.Errorf("Expected MultiCircular type to be 'object', got '%s'", schema.Type)
+		t.Errorf(
+			"Expected MultiCircular type to be 'object', got '%s'",
+			schema.Type,
+		)
 	}
 
 	// Check that all circular reference fields are properly handled
@@ -852,13 +1050,23 @@ func TestSchemaFromType_MultipleCircularPaths(t *testing.T) {
 		// For array fields, check items; for pointer fields, check the field itself
 		if fieldName == "others" || fieldName == "siblings" {
 			if prop.Type != "array" {
-				t.Errorf("Expected MultiCircular.%s type to be 'array', got '%s'", fieldName, prop.Type)
+				t.Errorf(
+					"Expected MultiCircular.%s type to be 'array', got '%s'",
+					fieldName,
+					prop.Type,
+				)
 			}
 			if prop.Items == nil {
-				t.Fatalf("Expected MultiCircular.%s to have Items schema", fieldName)
+				t.Fatalf(
+					"Expected MultiCircular.%s to have Items schema",
+					fieldName,
+				)
 			}
 			if prop.Items.Ref == "" {
-				t.Errorf("Expected MultiCircular.%s items to have a $ref due to circular reference", fieldName)
+				t.Errorf(
+					"Expected MultiCircular.%s items to have a $ref due to circular reference",
+					fieldName,
+				)
 			}
 		} else {
 			if prop.Ref == "" {

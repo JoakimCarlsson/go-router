@@ -13,7 +13,10 @@ func TestDefaultSetupOptions(t *testing.T) {
 
 	// Test default values
 	if opts.Title != "API Documentation" {
-		t.Errorf("Expected default title 'API Documentation', got '%s'", opts.Title)
+		t.Errorf(
+			"Expected default title 'API Documentation', got '%s'",
+			opts.Title,
+		)
 	}
 
 	if opts.Version != "1.0.0" {
@@ -25,7 +28,10 @@ func TestDefaultSetupOptions(t *testing.T) {
 	}
 
 	if opts.SpecPath != "/openapi.json" {
-		t.Errorf("Expected default spec path '/openapi.json', got '%s'", opts.SpecPath)
+		t.Errorf(
+			"Expected default spec path '/openapi.json', got '%s'",
+			opts.SpecPath,
+		)
 	}
 
 	if opts.DocsPath != "/docs" {
@@ -33,20 +39,32 @@ func TestDefaultSetupOptions(t *testing.T) {
 	}
 
 	if opts.DarkMode != false {
-		t.Errorf("Expected default dark mode to be false, got %t", opts.DarkMode)
+		t.Errorf(
+			"Expected default dark mode to be false, got %t",
+			opts.DarkMode,
+		)
 	}
 
 	// Test that boolean security options default to false
 	if opts.UseBasicAuth != false {
-		t.Errorf("Expected UseBasicAuth to default to false, got %t", opts.UseBasicAuth)
+		t.Errorf(
+			"Expected UseBasicAuth to default to false, got %t",
+			opts.UseBasicAuth,
+		)
 	}
 
 	if opts.UseBearerAuth != false {
-		t.Errorf("Expected UseBearerAuth to default to false, got %t", opts.UseBearerAuth)
+		t.Errorf(
+			"Expected UseBearerAuth to default to false, got %t",
+			opts.UseBearerAuth,
+		)
 	}
 
 	if opts.UseAPIKey != false {
-		t.Errorf("Expected UseAPIKey to default to false, got %t", opts.UseAPIKey)
+		t.Errorf(
+			"Expected UseAPIKey to default to false, got %t",
+			opts.UseAPIKey,
+		)
 	}
 }
 
@@ -213,7 +231,11 @@ func TestSetupOptions_Validation(t *testing.T) {
 
 			if tt.expectError && err != nil && tt.errorMsg != "" {
 				if err.Error() != tt.errorMsg {
-					t.Errorf("Expected error message '%s', got '%s'", tt.errorMsg, err.Error())
+					t.Errorf(
+						"Expected error message '%s', got '%s'",
+						tt.errorMsg,
+						err.Error(),
+					)
 				}
 			}
 		})
@@ -253,7 +275,10 @@ func TestSetup_Integration(t *testing.T) {
 	}
 
 	if !strings.Contains(w.Body.String(), `"id":"123"`) {
-		t.Errorf("Expected response to contain user ID, got: %s", w.Body.String())
+		t.Errorf(
+			"Expected response to contain user ID, got: %s",
+			w.Body.String(),
+		)
 	}
 }
 
@@ -336,7 +361,10 @@ func TestSetup_EdgeCases(t *testing.T) {
 
 		err := Setup(r, opts)
 		if err != nil {
-			t.Errorf("Expected Setup to work with empty options (using defaults), got error: %v", err)
+			t.Errorf(
+				"Expected Setup to work with empty options (using defaults), got error: %v",
+				err,
+			)
 		}
 	})
 
@@ -353,7 +381,10 @@ func TestSetup_EdgeCases(t *testing.T) {
 
 		err := Setup(r, opts)
 		if err != nil {
-			t.Errorf("Expected Setup to work with long paths, got error: %v", err)
+			t.Errorf(
+				"Expected Setup to work with long paths, got error: %v",
+				err,
+			)
 		}
 	})
 
@@ -369,7 +400,10 @@ func TestSetup_EdgeCases(t *testing.T) {
 
 		err := Setup(r, opts)
 		if err != nil {
-			t.Errorf("Expected Setup to work with special characters in paths, got error: %v", err)
+			t.Errorf(
+				"Expected Setup to work with special characters in paths, got error: %v",
+				err,
+			)
 		}
 	})
 }

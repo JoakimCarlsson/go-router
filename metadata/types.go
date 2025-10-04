@@ -380,7 +380,9 @@ func RegisterType(t reflect.Type) string {
 			origFullID := entry.PkgPath + "." + entry.Name
 
 			// Calculate the original's qualified name
-			origQualifiedName := SanitizeSchemaName(entry.PkgPath + "_" + entry.Name)
+			origQualifiedName := SanitizeSchemaName(
+				entry.PkgPath + "_" + entry.Name,
+			)
 			entry.FinalName = origQualifiedName
 
 			// Update map to point to the same entry with full ID
@@ -503,7 +505,9 @@ func (c *OAuth2Config) WithScopes(scopes ...string) *OAuth2Config {
 
 // WithAdditionalQueryParam adds a query parameter to the OAuth2 flow.
 // Returns the OAuth2Config for method chaining.
-func (c *OAuth2Config) WithAdditionalQueryParam(key, value string) *OAuth2Config {
+func (c *OAuth2Config) WithAdditionalQueryParam(
+	key, value string,
+) *OAuth2Config {
 	c.AdditionalQueryParams[key] = value
 	return c
 }
@@ -533,7 +537,12 @@ func EnsureResponsesMap(m *RouteMetadata) {
 
 // AddResponse is a universal helper for adding responses to RouteMetadata.
 // This consolidates the repeated pattern of creating Response structs.
-func AddResponse(m *RouteMetadata, statusCode int, description string, content map[string]MediaType) {
+func AddResponse(
+	m *RouteMetadata,
+	statusCode int,
+	description string,
+	content map[string]MediaType,
+) {
 	EnsureResponsesMap(m)
 	m.Responses[StatusCodeToString(statusCode)] = Response{
 		Description: description,
@@ -547,7 +556,12 @@ func AddSimpleResponse(m *RouteMetadata, statusCode int, description string) {
 }
 
 // AddJSONResponse adds a response with JSON content.
-func AddJSONResponse(m *RouteMetadata, statusCode int, description string, schema Schema) {
+func AddJSONResponse(
+	m *RouteMetadata,
+	statusCode int,
+	description string,
+	schema Schema,
+) {
 	content := map[string]MediaType{
 		ContentTypeJSON: {Schema: schema},
 	}
@@ -555,7 +569,12 @@ func AddJSONResponse(m *RouteMetadata, statusCode int, description string, schem
 }
 
 // AddJSONResponseWithRef adds a response with JSON content using a schema reference.
-func AddJSONResponseWithRef(m *RouteMetadata, statusCode int, description string, ref *Reference) {
+func AddJSONResponseWithRef(
+	m *RouteMetadata,
+	statusCode int,
+	description string,
+	ref *Reference,
+) {
 	content := map[string]MediaType{
 		ContentTypeJSON: {SchemaRef: ref},
 	}
@@ -563,7 +582,13 @@ func AddJSONResponseWithRef(m *RouteMetadata, statusCode int, description string
 }
 
 // AddParameter is a universal helper for adding parameters to RouteMetadata.
-func AddParameter(m *RouteMetadata, name, in, typ string, required bool, description string, example interface{}) {
+func AddParameter(
+	m *RouteMetadata,
+	name, in, typ string,
+	required bool,
+	description string,
+	example interface{},
+) {
 	schema := Schema{
 		Type:    typ,
 		Example: example,
@@ -578,7 +603,13 @@ func AddParameter(m *RouteMetadata, name, in, typ string, required bool, descrip
 }
 
 // AddParameterWithSchema adds a parameter with a full schema specification.
-func AddParameterWithSchema(m *RouteMetadata, name, in string, required bool, description string, schema Schema) {
+func AddParameterWithSchema(
+	m *RouteMetadata,
+	name, in string,
+	required bool,
+	description string,
+	schema Schema,
+) {
 	m.Parameters = append(m.Parameters, Parameter{
 		Name:        name,
 		In:          in,
@@ -589,7 +620,12 @@ func AddParameterWithSchema(m *RouteMetadata, name, in string, required bool, de
 }
 
 // AddArrayJSONResponse adds a JSON response for array types with schema references.
-func AddArrayJSONResponse(m *RouteMetadata, statusCode int, description string, itemSchemaRef string) {
+func AddArrayJSONResponse(
+	m *RouteMetadata,
+	statusCode int,
+	description string,
+	itemSchemaRef string,
+) {
 	content := map[string]MediaType{
 		ContentTypeJSON: {
 			Schema: Schema{
@@ -604,7 +640,12 @@ func AddArrayJSONResponse(m *RouteMetadata, statusCode int, description string, 
 }
 
 // AddJSONRequestBody adds a JSON request body to the route metadata.
-func AddJSONRequestBody(m *RouteMetadata, description string, required bool, schema Schema) {
+func AddJSONRequestBody(
+	m *RouteMetadata,
+	description string,
+	required bool,
+	schema Schema,
+) {
 	m.RequestBody = &RequestBody{
 		Description: description,
 		Required:    required,

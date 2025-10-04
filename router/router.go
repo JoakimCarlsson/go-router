@@ -165,7 +165,11 @@ func (r *Router) Group(path string, fn func(*Router)) {
 // Handle registers a new route with the given pattern and handler.
 // The pattern must be in the format "METHOD /path".
 // Route options can be provided to add OpenAPI documentation to the route.
-func (r *Router) Handle(pattern string, handler HandlerFunc, opts ...RouteOption) {
+func (r *Router) Handle(
+	pattern string,
+	handler HandlerFunc,
+	opts ...RouteOption,
+) {
 	parts := strings.SplitN(pattern, " ", 2)
 	if len(parts) != 2 {
 		panic("invalid route pattern format, expected 'METHOD /path'")

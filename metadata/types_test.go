@@ -48,11 +48,19 @@ func TestRouteMetadata_JSON(t *testing.T) {
 
 	// Check that the unmarshaled data matches the original
 	if unmarshaled.OperationID != metadata.OperationID {
-		t.Errorf("Expected OperationID '%s', got '%s'", metadata.OperationID, unmarshaled.OperationID)
+		t.Errorf(
+			"Expected OperationID '%s', got '%s'",
+			metadata.OperationID,
+			unmarshaled.OperationID,
+		)
 	}
 
 	if unmarshaled.Summary != metadata.Summary {
-		t.Errorf("Expected Summary '%s', got '%s'", metadata.Summary, unmarshaled.Summary)
+		t.Errorf(
+			"Expected Summary '%s', got '%s'",
+			metadata.Summary,
+			unmarshaled.Summary,
+		)
 	}
 
 	if len(unmarshaled.Parameters) != 1 {
@@ -127,7 +135,10 @@ func TestParameter_Validation(t *testing.T) {
 			jsonData, err := json.Marshal(tt.parameter)
 			if err != nil {
 				if tt.valid {
-					t.Errorf("Expected valid parameter to marshal successfully, got error: %v", err)
+					t.Errorf(
+						"Expected valid parameter to marshal successfully, got error: %v",
+						err,
+					)
 				}
 				return
 			}
@@ -135,22 +146,37 @@ func TestParameter_Validation(t *testing.T) {
 			var unmarshaled Parameter
 			if err := json.Unmarshal(jsonData, &unmarshaled); err != nil {
 				if tt.valid {
-					t.Errorf("Expected valid parameter to unmarshal successfully, got error: %v", err)
+					t.Errorf(
+						"Expected valid parameter to unmarshal successfully, got error: %v",
+						err,
+					)
 				}
 				return
 			}
 
 			// Check that the unmarshaled data matches the original
 			if unmarshaled.Name != tt.parameter.Name {
-				t.Errorf("Expected Name '%s', got '%s'", tt.parameter.Name, unmarshaled.Name)
+				t.Errorf(
+					"Expected Name '%s', got '%s'",
+					tt.parameter.Name,
+					unmarshaled.Name,
+				)
 			}
 
 			if unmarshaled.In != tt.parameter.In {
-				t.Errorf("Expected In '%s', got '%s'", tt.parameter.In, unmarshaled.In)
+				t.Errorf(
+					"Expected In '%s', got '%s'",
+					tt.parameter.In,
+					unmarshaled.In,
+				)
 			}
 
 			if unmarshaled.Required != tt.parameter.Required {
-				t.Errorf("Expected Required %t, got %t", tt.parameter.Required, unmarshaled.Required)
+				t.Errorf(
+					"Expected Required %t, got %t",
+					tt.parameter.Required,
+					unmarshaled.Required,
+				)
 			}
 		})
 	}
@@ -231,7 +257,10 @@ func TestSchema_Validation(t *testing.T) {
 			jsonData, err := json.Marshal(tt.schema)
 			if err != nil {
 				if tt.valid {
-					t.Errorf("Expected valid schema to marshal successfully, got error: %v", err)
+					t.Errorf(
+						"Expected valid schema to marshal successfully, got error: %v",
+						err,
+					)
 				}
 				return
 			}
@@ -239,18 +268,29 @@ func TestSchema_Validation(t *testing.T) {
 			var unmarshaled Schema
 			if err := json.Unmarshal(jsonData, &unmarshaled); err != nil {
 				if tt.valid {
-					t.Errorf("Expected valid schema to unmarshal successfully, got error: %v", err)
+					t.Errorf(
+						"Expected valid schema to unmarshal successfully, got error: %v",
+						err,
+					)
 				}
 				return
 			}
 
 			// Check basic fields
 			if unmarshaled.Type != tt.schema.Type {
-				t.Errorf("Expected Type '%s', got '%s'", tt.schema.Type, unmarshaled.Type)
+				t.Errorf(
+					"Expected Type '%s', got '%s'",
+					tt.schema.Type,
+					unmarshaled.Type,
+				)
 			}
 
 			if unmarshaled.Format != tt.schema.Format {
-				t.Errorf("Expected Format '%s', got '%s'", tt.schema.Format, unmarshaled.Format)
+				t.Errorf(
+					"Expected Format '%s', got '%s'",
+					tt.schema.Format,
+					unmarshaled.Format,
+				)
 			}
 
 			// Note: TypeName is not serialized (has json:"-" tag) as it's an internal field
@@ -298,7 +338,11 @@ func TestResponse_Validation(t *testing.T) {
 
 	// Check that the unmarshaled data matches the original
 	if unmarshaled.Description != response.Description {
-		t.Errorf("Expected Description '%s', got '%s'", response.Description, unmarshaled.Description)
+		t.Errorf(
+			"Expected Description '%s', got '%s'",
+			response.Description,
+			unmarshaled.Description,
+		)
 	}
 
 	if len(unmarshaled.Headers) != 1 {
@@ -359,11 +403,19 @@ func TestRequestBody_Validation(t *testing.T) {
 
 	// Check that the unmarshaled data matches the original
 	if unmarshaled.Description != requestBody.Description {
-		t.Errorf("Expected Description '%s', got '%s'", requestBody.Description, unmarshaled.Description)
+		t.Errorf(
+			"Expected Description '%s', got '%s'",
+			requestBody.Description,
+			unmarshaled.Description,
+		)
 	}
 
 	if unmarshaled.Required != requestBody.Required {
-		t.Errorf("Expected Required %t, got %t", requestBody.Required, unmarshaled.Required)
+		t.Errorf(
+			"Expected Required %t, got %t",
+			requestBody.Required,
+			unmarshaled.Required,
+		)
 	}
 
 	if len(unmarshaled.Content) != 2 {
@@ -442,11 +494,19 @@ func TestInfo_Validation(t *testing.T) {
 	}
 
 	if unmarshaled.Version != info.Version {
-		t.Errorf("Expected Version '%s', got '%s'", info.Version, unmarshaled.Version)
+		t.Errorf(
+			"Expected Version '%s', got '%s'",
+			info.Version,
+			unmarshaled.Version,
+		)
 	}
 
 	if unmarshaled.Description != info.Description {
-		t.Errorf("Expected Description '%s', got '%s'", info.Description, unmarshaled.Description)
+		t.Errorf(
+			"Expected Description '%s', got '%s'",
+			info.Description,
+			unmarshaled.Description,
+		)
 	}
 
 	if unmarshaled.Contact == nil {
@@ -497,7 +557,10 @@ func TestTypeHandlerRegistry(t *testing.T) {
 	}
 
 	if schema.TypeName != "CustomType" {
-		t.Errorf("Expected schema TypeName 'CustomType', got '%s'", schema.TypeName)
+		t.Errorf(
+			"Expected schema TypeName 'CustomType', got '%s'",
+			schema.TypeName,
+		)
 	}
 
 	// Test retrieving non-existent handler
@@ -522,13 +585,20 @@ func TestTypeRegistry(t *testing.T) {
 
 	// The registered name should be based on the type name
 	if registeredName != "TestStruct" {
-		t.Errorf("Expected registered name 'TestStruct', got '%s'", registeredName)
+		t.Errorf(
+			"Expected registered name 'TestStruct', got '%s'",
+			registeredName,
+		)
 	}
 
 	// Test registering the same type again (should return the same name)
 	registeredName2 := RegisterType(testType)
 	if registeredName2 != registeredName {
-		t.Errorf("Expected same registered name '%s', got '%s'", registeredName, registeredName2)
+		t.Errorf(
+			"Expected same registered name '%s', got '%s'",
+			registeredName,
+			registeredName2,
+		)
 	}
 
 	// Test registering anonymous struct (name will be empty since t.Name() returns empty for anonymous structs)

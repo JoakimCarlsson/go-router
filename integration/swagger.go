@@ -24,7 +24,10 @@ type SwaggerUIIntegration struct {
 // Parameters:
 //   - r: The router containing the routes to document
 //   - generator: The OpenAPI generator to use for creating the specification
-func NewSwaggerUIIntegration(r *router.Router, generator *openapi.Generator) *SwaggerUIIntegration {
+func NewSwaggerUIIntegration(
+	r *router.Router,
+	generator *openapi.Generator,
+) *SwaggerUIIntegration {
 	return &SwaggerUIIntegration{
 		OpenAPIAdapter: NewRouterOpenAPIAdapter(r, generator),
 		UIConfig:       swagger.DefaultUIConfig(),
@@ -38,7 +41,9 @@ func NewSwaggerUIIntegration(r *router.Router, generator *openapi.Generator) *Sw
 //   - config: The Swagger UI configuration to use
 //
 // Returns the SwaggerUIIntegration for method chaining.
-func (s *SwaggerUIIntegration) WithUIConfig(config swagger.UIConfig) *SwaggerUIIntegration {
+func (s *SwaggerUIIntegration) WithUIConfig(
+	config swagger.UIConfig,
+) *SwaggerUIIntegration {
 	s.UIConfig = config
 	return s
 }
@@ -55,10 +60,16 @@ func (s *SwaggerUIIntegration) WithUIConfig(config swagger.UIConfig) *SwaggerUII
 //   - r: The router to register routes on
 //   - specPath: The path to serve the OpenAPI JSON specification (e.g., "/openapi.json")
 //   - uiPath: The path to serve the Swagger UI (e.g., "/docs")
-func (s *SwaggerUIIntegration) SetupRoutes(r *router.Router, specPath, uiPath string) {
+func (s *SwaggerUIIntegration) SetupRoutes(
+	r *router.Router,
+	specPath, uiPath string,
+) {
 	// Serve OpenAPI JSON - excluded from docs
-	r.GET(specPath, router.FromHTTPHandler(http.HandlerFunc(s.OpenAPIAdapter.ServeHTTP)),
-		router.ExcludeFromDocs())
+	r.GET(
+		specPath,
+		router.FromHTTPHandler(http.HandlerFunc(s.OpenAPIAdapter.ServeHTTP)),
+		router.ExcludeFromDocs(),
+	)
 
 	// Configure UI to use the correct spec path
 	s.UIConfig.SpecURL = specPath
