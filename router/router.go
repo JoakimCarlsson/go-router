@@ -168,6 +168,13 @@ func (r *Router) Handle(pattern string, handler HandlerFunc, opts ...RouteOption
 
 	fullpath := normalizePath(path.Join(r.prefix, subpath))
 
+	// Normalize paths by removing trailing slashes (except for root "/")
+	// This prevents pattern conflicts in Go's ServeMux where patterns like
+	// "GET /posts/{id}/replies" and "GET /posts/feed/" would conflict
+	if len(fullpath) > 1 && fullpath[len(fullpath)-1] == '/' {
+		fullpath = fullpath[:len(fullpath)-1]
+	}
+
 	// Create metadata for documentation
 	metadata := &metadata.RouteMetadata{
 		Method:     method,
@@ -212,18 +219,6 @@ func (r *Router) Handle(pattern string, handler HandlerFunc, opts ...RouteOption
 	}
 
 	r.mux.Handle(method+" "+fullpath, httpHandler)
-
-	// Always register both versions of the path (with and without trailing slash)
-	// Skip for root path "/" to avoid creating "//"
-	if fullpath != "/" {
-		var alternatePath string
-		if len(fullpath) > 1 && fullpath[len(fullpath)-1] == '/' {
-			alternatePath = fullpath[:len(fullpath)-1]
-		} else {
-			alternatePath = fullpath + "/"
-		}
-		r.mux.Handle(method+" "+alternatePath, httpHandler)
-	}
 }
 
 // GET registers a GET route with the given path and handler.

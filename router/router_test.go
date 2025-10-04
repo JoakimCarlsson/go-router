@@ -1118,7 +1118,7 @@ func TestRouter_Group(t *testing.T) {
 			})
 		})
 
-		// Both /api/users and /api/users/ should work due to path normalization
+		// Path normalization removes trailing slashes from group prefix and route path
 		req1 := httptest.NewRequest("GET", "/api/users", nil)
 		w1 := httptest.NewRecorder()
 		r.ServeHTTP(w1, req1)
@@ -1126,13 +1126,57 @@ func TestRouter_Group(t *testing.T) {
 		if w1.Code != 200 {
 			t.Errorf("Expected status 200 for /api/users, got %d", w1.Code)
 		}
+	})
 
-		req2 := httptest.NewRequest("GET", "/api/users/", nil)
+	t.Run("wildcard routes with trailing slash do not conflict", func(t *testing.T) {
+		r := router.New()
+
+		r.GET("/api/v1/posts/{id}/replies", func(c *router.Context) {
+			c.JSON(200, map[string]string{"endpoint": "replies", "id": c.Param("id")})
+		})
+
+		// Path normalization removes trailing slash to prevent conflicts
+		r.GET("/api/v1/posts/feed/", func(c *router.Context) {
+			c.JSON(200, map[string]string{"endpoint": "feed"})
+		})
+
+		req1 := httptest.NewRequest("GET", "/api/v1/posts/123/replies", nil)
+		w1 := httptest.NewRecorder()
+		r.ServeHTTP(w1, req1)
+
+		if w1.Code != 200 {
+			t.Errorf("Expected status 200 for posts/{id}/replies, got %d", w1.Code)
+		}
+
+		var response1 map[string]string
+		if err := json.Unmarshal(w1.Body.Bytes(), &response1); err != nil {
+			t.Errorf("Failed to parse response: %v", err)
+		}
+
+		if response1["endpoint"] != "replies" {
+			t.Errorf("Expected endpoint 'replies', got '%s'", response1["endpoint"])
+		}
+
+		if response1["id"] != "123" {
+			t.Errorf("Expected id '123', got '%s'", response1["id"])
+		}
+
+		// Access without trailing slash due to path normalization
+		req2 := httptest.NewRequest("GET", "/api/v1/posts/feed", nil)
 		w2 := httptest.NewRecorder()
 		r.ServeHTTP(w2, req2)
 
 		if w2.Code != 200 {
-			t.Errorf("Expected status 200 for /api/users/, got %d", w2.Code)
+			t.Errorf("Expected status 200 for posts/feed, got %d", w2.Code)
+		}
+
+		var response2 map[string]string
+		if err := json.Unmarshal(w2.Body.Bytes(), &response2); err != nil {
+			t.Errorf("Failed to parse response: %v", err)
+		}
+
+		if response2["endpoint"] != "feed" {
+			t.Errorf("Expected endpoint 'feed', got '%s'", response2["endpoint"])
 		}
 	})
 }
