@@ -1179,4 +1179,51 @@ func TestRouter_Group(t *testing.T) {
 			t.Errorf("Expected endpoint 'feed', got '%s'", response2["endpoint"])
 		}
 	})
+
+	t.Run("panic recovery with middleware", func(t *testing.T) {
+		r := router.New()
+
+		customHandler := func(w http.ResponseWriter, _ *http.Request, _ interface{}) {
+			http.Error(w, "Recovered from panic", http.StatusInternalServerError)
+		}
+
+		r.Use(func(next http.Handler) http.Handler {
+			return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+				defer func() {
+					if err := recover(); err != nil {
+						customHandler(w, nil, nil)
+					}
+				}()
+				next.ServeHTTP(w, req)
+			})
+		})
+
+		r.GET("/panic", func(c *router.Context) {
+			panic("intentional panic for testing")
+		})
+
+		r.GET("/ok", func(c *router.Context) {
+			c.JSON(200, map[string]string{"status": "ok"})
+		})
+
+		req := httptest.NewRequest("GET", "/panic", nil)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		if w.Code != 500 {
+			t.Errorf("Expected status 500 after panic, got %d", w.Code)
+		}
+
+		if !strings.Contains(w.Body.String(), "Recovered from panic") {
+			t.Errorf("Expected 'Recovered from panic' in response body, got: %s", w.Body.String())
+		}
+
+		req2 := httptest.NewRequest("GET", "/ok", nil)
+		w2 := httptest.NewRecorder()
+		r.ServeHTTP(w2, req2)
+
+		if w2.Code != 200 {
+			t.Errorf("Expected status 200 after panic recovery, got %d. Server should continue working after panic.", w2.Code)
+		}
+	})
 }
