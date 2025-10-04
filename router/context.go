@@ -24,7 +24,6 @@ import (
 const (
 	contentTypeJSON = "application/json; charset=utf-8"
 	contentTypeXML  = "application/xml; charset=utf-8"
-	contentTypeText = "text/plain; charset=utf-8"
 )
 
 // Context represents the context of an HTTP request, including the request and response writer.

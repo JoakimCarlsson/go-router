@@ -37,28 +37,34 @@ type handlerWrapper struct {
 
 func (hw *handlerWrapper) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	ctx := contextPool.Get().(*Context)
-	// Inline initialization for maximum speed
 	ctx.Writer = w
 	ctx.Request = req
 	ctx.ctx = req.Context()
 	ctx.startTimeSet = false
-	ctx.StatusCode = 200 // Default to 200 OK
+	ctx.StatusCode = 200
 	ctx.maxMultipartMemory = hw.maxMultipartMemory
 	ctx.sseInitialized = false
 	ctx.queryCache = nil
 	ctx.statusWritten = false
 
-	hw.handler(ctx)
+	defer func() {
+		if err := recover(); err != nil {
+			panic(err)
+		}
+	}()
 
-	// Optimized cleanup
-	ctx.Writer = nil
-	ctx.Request = nil
-	ctx.queryCache = nil
-	ctx.statusWritten = false
-	if len(ctx.store) > 0 {
-		clearInterfaceMap(ctx.store)
-	}
-	contextPool.Put(ctx)
+	defer func() {
+		ctx.Writer = nil
+		ctx.Request = nil
+		ctx.queryCache = nil
+		ctx.statusWritten = false
+		if len(ctx.store) > 0 {
+			clearInterfaceMap(ctx.store)
+		}
+		contextPool.Put(ctx)
+	}()
+
+	hw.handler(ctx)
 }
 
 // Router is the main HTTP router that registers routes and dispatches requests to handlers.
