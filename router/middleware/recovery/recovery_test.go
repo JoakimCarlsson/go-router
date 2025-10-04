@@ -57,7 +57,7 @@ func TestRecovery_WithCustomHandler(t *testing.T) {
 	customHandler := func(w http.ResponseWriter, req *http.Request, err interface{}) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]string{
+		_ = json.NewEncoder(w).Encode(map[string]string{
 			"error":  "panic_recovered",
 			"detail": fmt.Sprintf("%v", err),
 		})
