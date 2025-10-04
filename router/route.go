@@ -19,6 +19,9 @@ type Route struct {
 // It allows for fluent API-style configuration of routes with documentation.
 type RouteOption = docs.RouteOption
 
+// ExcludeFromDocs marks a route to be excluded from OpenAPI documentation.
+var ExcludeFromDocs = docs.ExcludeFromDocs
+
 // RouteConfig is used to provide configuration options for routes.
 // It contains both core routing properties and optional documentation metadata.
 type RouteConfig struct {

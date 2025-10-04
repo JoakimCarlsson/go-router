@@ -648,3 +648,12 @@ func WithAPIKey() RouteOption {
 func WithOAuth2Scopes(scopes ...string) RouteOption {
 	return WithSecurity(map[string][]string{"oauth2": scopes})
 }
+
+// ExcludeFromDocs marks a route to be excluded from OpenAPI documentation.
+// This is useful for internal routes like health checks, documentation endpoints,
+// or any routes that should not appear in the public API documentation.
+func ExcludeFromDocs() RouteOption {
+	return func(m *metadata.RouteMetadata) {
+		m.ExcludeFromDocs = true
+	}
+}

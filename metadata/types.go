@@ -36,6 +36,9 @@ type RouteMetadata struct {
 	RequestBody *RequestBody          `json:"requestBody,omitempty"`
 	Responses   map[string]Response   `json:"responses"`
 	Security    []SecurityRequirement `json:"security,omitempty"`
+
+	// Internal flag to exclude this route from OpenAPI documentation
+	ExcludeFromDocs bool `json:"-"`
 }
 
 // Parameter represents an API parameter such as path, query, header, or cookie parameters.
