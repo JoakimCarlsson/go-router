@@ -416,7 +416,5 @@ func (g *Generator) Generate(routes []RouteInfo) *metadata.Spec {
 		spec.Paths[route.Path()] = pathItem
 	}
 
-	delete(spec.Paths, "/openapi.json")
-
 	return spec
 }

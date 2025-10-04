@@ -35,14 +35,13 @@ func NewRouterOpenAPIAdapter(r *router.Router, generator *openapi.Generator) *Ro
 
 // ExtractRouteInfo extracts OpenAPI route information from the router.
 // It converts the router's route metadata to the format expected by
-// the OpenAPI generator.
+// the OpenAPI generator, filtering out routes marked as ExcludeFromDocs.
 func (a *RouterOpenAPIAdapter) ExtractRouteInfo() []openapi.RouteInfo {
 	routes := a.Router.Routes()
 	routeInfos := make([]openapi.RouteInfo, 0, len(routes))
 
 	for _, route := range routes {
-		// Convert RouteMetadata to RouteInfo
-		if route.Metadata != nil {
+		if route.Metadata != nil && !route.Metadata.ExcludeFromDocs {
 			routeInfos = append(routeInfos, openapi.RouteInfoFromMetadata(*route.Metadata))
 		}
 	}
