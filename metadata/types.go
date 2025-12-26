@@ -448,6 +448,8 @@ type OAuth2Config struct {
 	UseBasicAuthenticationWithAccessCodeGrant bool
 	// UsePkceWithAuthorizationCodeGrant uses PKCE when available
 	UsePkceWithAuthorizationCodeGrant bool
+	// OAuth2RedirectUrl overrides the default OAuth2 redirect URL
+	OAuth2RedirectUrl string
 }
 
 // NewOAuth2Config creates a new OAuth2 configuration with default values.
@@ -524,6 +526,13 @@ func (c *OAuth2Config) WithBasicAuthentication(use bool) *OAuth2Config {
 // Returns the OAuth2Config for method chaining.
 func (c *OAuth2Config) WithPKCE(use bool) *OAuth2Config {
 	c.UsePkceWithAuthorizationCodeGrant = use
+	return c
+}
+
+// WithOAuth2RedirectUrl sets a custom OAuth2 redirect URL.
+// Returns the OAuth2Config for method chaining.
+func (c *OAuth2Config) WithOAuth2RedirectUrl(url string) *OAuth2Config {
+	c.OAuth2RedirectUrl = url
 	return c
 }
 

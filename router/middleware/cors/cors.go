@@ -90,7 +90,7 @@ func Handler(options Options) func(http.Handler) http.Handler {
 			// Determine allowed origin
 			allowOrigin := ""
 			if origin != "" {
-				allowOrigin = getAllowOrigin(origin, options.AllowOrigins)
+				allowOrigin = getAllowOrigin(origin, options.AllowOrigins, options.AllowCredentials)
 			} else if isPreflight && allowWildcard {
 				allowOrigin = "*"
 			} else if isPreflight {
@@ -150,7 +150,7 @@ func Handler(options Options) func(http.Handler) http.Handler {
 }
 
 // getAllowOrigin returns the allowed origin based on the Origin header and configuration
-func getAllowOrigin(origin string, allowOrigins []string) string {
+func getAllowOrigin(origin string, allowOrigins []string, allowCredentials bool) string {
 	for _, allowOrigin := range allowOrigins {
 		// Exact match
 		if allowOrigin == origin {
@@ -159,6 +159,9 @@ func getAllowOrigin(origin string, allowOrigins []string) string {
 
 		// Wildcard match (*)
 		if allowOrigin == "*" {
+			if allowCredentials && origin != "" {
+				return origin
+			}
 			return "*"
 		}
 
