@@ -49,11 +49,12 @@ func (s *SwaggerUIIntegration) WithUIConfig(
 }
 
 // SetupRoutes sets up the OpenAPI JSON and Swagger UI routes on the router.
-// This registers two routes:
+// This registers three routes:
 //  1. A route to serve the OpenAPI JSON specification
 //  2. A route to serve the Swagger UI that consumes the specification
+//  3. A route to serve the OAuth2 redirect page for OAuth2 authorization code flow
 //
-// Both routes are automatically excluded from the OpenAPI documentation
+// All routes are automatically excluded from the OpenAPI documentation
 // to prevent them from appearing in the Swagger UI.
 //
 // Parameters:
@@ -76,5 +77,9 @@ func (s *SwaggerUIIntegration) SetupRoutes(
 
 	// Serve Swagger UI - excluded from docs
 	r.GET(uiPath, router.FromHTTPHandler(swagger.Handler(s.UIConfig)),
+		router.ExcludeFromDocs())
+
+	// Serve OAuth2 redirect page - excluded from docs
+	r.GET(uiPath+"/oauth2-redirect.html", router.FromHTTPHandler(swagger.OAuth2RedirectHandler()),
 		router.ExcludeFromDocs())
 }

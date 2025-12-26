@@ -313,34 +313,46 @@ func TestCORSOptionsPassthrough(t *testing.T) {
 
 func TestGetAllowOrigin(t *testing.T) {
 	testCases := []struct {
-		name          string
-		origin        string
-		allowOrigins  []string
-		expectedValue string
+		name             string
+		origin           string
+		allowOrigins     []string
+		allowCredentials bool
+		expectedValue    string
 	}{
 		{
-			name:          "Exact match",
-			origin:        "https://example.com",
-			allowOrigins:  []string{"https://example.com"},
-			expectedValue: "https://example.com",
+			name:             "Exact match",
+			origin:           "https://example.com",
+			allowOrigins:     []string{"https://example.com"},
+			allowCredentials: false,
+			expectedValue:    "https://example.com",
 		},
 		{
-			name:          "Wildcard all",
-			origin:        "https://example.com",
-			allowOrigins:  []string{"*"},
-			expectedValue: "*",
+			name:             "Wildcard all without credentials",
+			origin:           "https://example.com",
+			allowOrigins:     []string{"*"},
+			allowCredentials: false,
+			expectedValue:    "*",
 		},
 		{
-			name:          "Wildcard subdomain match",
-			origin:        "https://sub.example.com",
-			allowOrigins:  []string{"https://*.example.com"},
-			expectedValue: "https://sub.example.com",
+			name:             "Wildcard all with credentials echoes origin",
+			origin:           "https://example.com",
+			allowOrigins:     []string{"*"},
+			allowCredentials: true,
+			expectedValue:    "https://example.com",
 		},
 		{
-			name:          "Wildcard subdomain no match",
-			origin:        "https://example.org",
-			allowOrigins:  []string{"https://*.example.com"},
-			expectedValue: "",
+			name:             "Wildcard subdomain match",
+			origin:           "https://sub.example.com",
+			allowOrigins:     []string{"https://*.example.com"},
+			allowCredentials: false,
+			expectedValue:    "https://sub.example.com",
+		},
+		{
+			name:             "Wildcard subdomain no match",
+			origin:           "https://example.org",
+			allowOrigins:     []string{"https://*.example.com"},
+			allowCredentials: false,
+			expectedValue:    "",
 		},
 		{
 			name:   "Multiple origins - first match",
@@ -350,19 +362,21 @@ func TestGetAllowOrigin(t *testing.T) {
 				"https://example.com",
 				"https://bar.com",
 			},
-			expectedValue: "https://example.com",
+			allowCredentials: false,
+			expectedValue:    "https://example.com",
 		},
 		{
-			name:          "No match",
-			origin:        "https://example.com",
-			allowOrigins:  []string{"https://foo.com", "https://bar.com"},
-			expectedValue: "",
+			name:             "No match",
+			origin:           "https://example.com",
+			allowOrigins:     []string{"https://foo.com", "https://bar.com"},
+			allowCredentials: false,
+			expectedValue:    "",
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			result := getAllowOrigin(tc.origin, tc.allowOrigins)
+			result := getAllowOrigin(tc.origin, tc.allowOrigins, tc.allowCredentials)
 			if result != tc.expectedValue {
 				t.Errorf("Expected %q, got %q", tc.expectedValue, result)
 			}

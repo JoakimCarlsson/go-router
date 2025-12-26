@@ -814,6 +814,12 @@ func WithOAuth2Scopes(scopes ...string) RouteOption {
 	return WithSecurity(map[string][]string{"oauth2": scopes})
 }
 
+// WithOAuth2Security adds OAuth2 authentication requirement without specific scopes.
+// This adds a security requirement for OAuth2 authentication.
+func WithOAuth2Security() RouteOption {
+	return WithSecurity(map[string][]string{"oauth2": {}})
+}
+
 // ExcludeFromDocs marks a route to be excluded from OpenAPI documentation.
 // This is useful for internal routes like health checks, documentation endpoints,
 // or any routes that should not appear in the public API documentation.

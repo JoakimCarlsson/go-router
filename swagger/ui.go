@@ -78,6 +78,96 @@ func DefaultUIConfig() UIConfig {
 	}
 }
 
+// OAuth2RedirectHandler returns an http.HandlerFunc that serves the OAuth2 redirect page.
+// This page handles the OAuth2 callback and passes the authorization code back to Swagger UI.
+func OAuth2RedirectHandler() http.HandlerFunc {
+	const redirectHTML = `<!doctype html>
+<html lang="en-US">
+<head>
+    <title>Swagger UI: OAuth2 Redirect</title>
+</head>
+<body>
+<script>
+    'use strict';
+    function run () {
+        var oauth2 = window.opener.swaggerUIRedirectOauth2;
+        var sentState = oauth2.state;
+        var redirectUrl = oauth2.redirectUrl;
+        var isValid, qp, arr;
+
+        if (/code|token|error/.test(window.location.hash)) {
+            qp = window.location.hash.substring(1).replace('?', '&');
+        } else {
+            qp = location.search.substring(1);
+        }
+
+        arr = qp.split("&");
+        arr.forEach(function (v,i,_arr) { _arr[i] = '"' + v.replace('=', '":"') + '"';});
+        qp = qp ? JSON.parse('{' + arr.join() + '}',
+                function (key, value) {
+                    return key === "" ? value : decodeURIComponent(value);
+                }
+        ) : {};
+
+        isValid = qp.state === sentState;
+
+        if ((
+          oauth2.auth.schema.get("flow") === "accessCode" ||
+          oauth2.auth.schema.get("flow") === "authorizationCode" ||
+          oauth2.auth.schema.get("flow") === "authorization_code"
+        ) && !oauth2.auth.code) {
+            if (!isValid) {
+                oauth2.errCb({
+                    authId: oauth2.auth.name,
+                    source: "auth",
+                    level: "warning",
+                    message: "Authorization may be unsafe, passed state was changed in server. The passed state wasn't returned from auth server."
+                });
+            }
+
+            if (qp.code) {
+                delete oauth2.state;
+                oauth2.auth.code = qp.code;
+                oauth2.callback({auth: oauth2.auth, redirectUrl: redirectUrl});
+            } else {
+                let oauthErrorMsg;
+                if (qp.error) {
+                    oauthErrorMsg = "["+qp.error+"]: " +
+                        (qp.error_description ? qp.error_description+ ". " : "no accessCode received from the server. ") +
+                        (qp.error_uri ? "More info: "+qp.error_uri : "");
+                }
+
+                oauth2.errCb({
+                    authId: oauth2.auth.name,
+                    source: "auth",
+                    level: "error",
+                    message: oauthErrorMsg || "[Authorization failed]: no accessCode received from the server."
+                });
+            }
+        } else {
+            oauth2.callback({auth: oauth2.auth, token: qp, isValid: isValid, redirectUrl: redirectUrl});
+        }
+        window.close();
+    }
+
+    if (document.readyState !== 'loading') {
+        run();
+    } else {
+        document.addEventListener('DOMContentLoaded', function () {
+            run();
+        });
+    }
+</script>
+</body>
+</html>`
+
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(redirectHTML))
+	}
+}
+
 // Handler returns an http.HandlerFunc that serves the Swagger UI.
 // It generates an HTML page with Swagger UI configured based on the provided options.
 func Handler(config UIConfig) http.HandlerFunc {
@@ -151,8 +241,10 @@ func Handler(config UIConfig) http.HandlerFunc {
         showExtensions: {{.ShowExtensions}},
         tryItOutEnabled: {{.TryItOutEnabled}},
         requestSnippetsEnabled: {{.RequestSnippetsEnabled}},
-        defaultModelRendering: "{{.DefaultModelRendering}}"
-        {{if .OAuth2Config}},
+        defaultModelRendering: "{{.DefaultModelRendering}}",
+        {{if .OAuth2Config}}{{if .OAuth2Config.OAuth2RedirectUrl}}
+        oauth2RedirectUrl: "{{.OAuth2Config.OAuth2RedirectUrl}}",
+        {{end}}
         initOAuth: {
           clientId: "{{.OAuth2Config.ClientID}}",
           {{if .OAuth2Config.ClientSecret}}clientSecret: "{{.OAuth2Config.ClientSecret}}",{{end}}
