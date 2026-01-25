@@ -7,12 +7,17 @@ on:
       - "openapi/v*"
       - "swaggerui/v*"
 
+permissions:
+  contents: write
+
 jobs:
   release:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
       
       - name: Extract module and version
         id: extract
@@ -20,13 +25,42 @@ jobs:
           TAG="${GITHUB_REF_NAME}"
           MODULE="${TAG%%/*}"
           VERSION="${TAG#*/}"
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
           echo "module=$MODULE" >> $GITHUB_OUTPUT
           echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "Releasing $MODULE version $VERSION"
+      
+      - name: Get previous tag for module
+        id: previous
+        run: |
+          MODULE="${{ steps.extract.outputs.module }}"
+          CURRENT_TAG="${{ steps.extract.outputs.tag }}"
+          PREVIOUS_TAG=$(git tag -l "${MODULE}/v*" --sort=-v:refname | grep -v "^${CURRENT_TAG}$" | head -n1 || true)
+          echo "tag=$PREVIOUS_TAG" >> $GITHUB_OUTPUT
+      
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ steps.extract.outputs.tag }}"
+          MODULE="${{ steps.extract.outputs.module }}"
+          VERSION="${{ steps.extract.outputs.version }}"
+          PREVIOUS="${{ steps.previous.outputs.tag }}"
+          
+          TITLE="${MODULE} ${VERSION}"
+          
+          if [ -n "$PREVIOUS" ]; then
+            gh release create "$TAG" \
+              --title "$TITLE" \
+              --generate-notes \
+              --notes-start-tag "$PREVIOUS"
+          else
+            gh release create "$TAG" \
+              --title "$TITLE" \
+              --generate-notes
+          fi
       
       - name: Trigger Go module reindex (pkg.go.dev)
         run: |
           MODULE="${{ steps.extract.outputs.module }}"
           VERSION="${{ steps.extract.outputs.version }}"
-          echo "Triggering Go module reindex at proxy.golang.org for $MODULE@$VERSION"
           curl -sSf "https://proxy.golang.org/github.com/${GITHUB_REPOSITORY,,}/${MODULE}/@v/${VERSION}.info"
