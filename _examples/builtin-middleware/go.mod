@@ -1,4 +1,4 @@
-module example/server-sent-events
+module example/builtin-middleware
 
 go 1.22
 

@@ -1,4 +1,4 @@
-module example/server-sent-events
+module example/static-files
 
 go 1.22
 

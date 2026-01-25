@@ -1,4 +1,4 @@
-module example/server-sent-events
+module example/cors-middleware
 
 go 1.22
 

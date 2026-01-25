@@ -1,4 +1,4 @@
-module example/server-sent-events
+module example/minimal-api
 
 go 1.22
 
