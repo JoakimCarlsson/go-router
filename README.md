@@ -1,11 +1,15 @@
 # Go Router
 
-[![Go Reference](https://pkg.go.dev/badge/github.com/JoakimCarlsson/go-router.svg)](https://pkg.go.dev/github.com/JoakimCarlsson/go-router)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Go Version](https://img.shields.io/badge/Go-%3E%3D%201.22-blue.svg)](https://golang.org/dl/)
-[![Go Report Card](https://goreportcard.com/badge/github.com/joakimcarlsson/go-router)](https://goreportcard.com/report/github.com/joakimcarlsson/go-router)
 
 A high-performance, modular HTTP router for Go with built-in **OpenAPI 3.0** and **Swagger UI** support.
+
+| Module | Reference | Report Card |
+|--------|-----------|-------------|
+| router | [![Go Reference](https://pkg.go.dev/badge/github.com/joakimcarlsson/go-router/router.svg)](https://pkg.go.dev/github.com/joakimcarlsson/go-router/router) | [![Go Report Card](https://goreportcard.com/badge/github.com/joakimcarlsson/go-router/router)](https://goreportcard.com/report/github.com/joakimcarlsson/go-router/router) |
+| openapi | [![Go Reference](https://pkg.go.dev/badge/github.com/joakimcarlsson/go-router/openapi.svg)](https://pkg.go.dev/github.com/joakimcarlsson/go-router/openapi) | [![Go Report Card](https://goreportcard.com/badge/github.com/joakimcarlsson/go-router/openapi)](https://goreportcard.com/report/github.com/joakimcarlsson/go-router/openapi) |
+| swaggerui | [![Go Reference](https://pkg.go.dev/badge/github.com/joakimcarlsson/go-router/swaggerui.svg)](https://pkg.go.dev/github.com/joakimcarlsson/go-router/swaggerui) | [![Go Report Card](https://goreportcard.com/badge/github.com/joakimcarlsson/go-router/swaggerui)](https://goreportcard.com/report/github.com/joakimcarlsson/go-router/swaggerui) |
 
 ## Features
 
@@ -21,6 +25,35 @@ A high-performance, modular HTTP router for Go with built-in **OpenAPI 3.0** and
 - **Route Groups**: Organize routes with prefixes and shared middleware
 - **Custom Types**: Register custom OpenAPI schemas for your types
 
+## Installation
+
+### Router Only (no documentation)
+
+For basic HTTP routing without OpenAPI documentation:
+
+```bash
+go get github.com/joakimcarlsson/go-router/router@latest
+```
+
+### Full Stack (with Swagger UI)
+
+For routing with auto-generated API documentation and Swagger UI:
+
+```bash
+go get github.com/joakimcarlsson/go-router/router@latest
+go get github.com/joakimcarlsson/go-router/openapi@latest
+go get github.com/joakimcarlsson/go-router/swaggerui@latest
+```
+
+### OpenAPI Only (no UI)
+
+For routing with OpenAPI spec generation but serving your own UI:
+
+```bash
+go get github.com/joakimcarlsson/go-router/router@latest
+go get github.com/joakimcarlsson/go-router/openapi@latest
+```
+
 ## Modules
 
 This router is split into three independent modules, each with its own versioning:
@@ -28,10 +61,6 @@ This router is split into three independent modules, each with its own versionin
 ### router
 
 Core HTTP routing functionality.
-
-```bash
-go get github.com/joakimcarlsson/go-router/router@latest
-```
 
 - Path parameter support
 - Middleware support
@@ -46,10 +75,6 @@ go get github.com/joakimcarlsson/go-router/router@latest
 
 OpenAPI 3.0 specification generation and route documentation.
 
-```bash
-go get github.com/joakimcarlsson/go-router/openapi@latest
-```
-
 - Type-safe route documentation
 - Request/response schema generation
 - Parameter and security documentation
@@ -60,10 +85,6 @@ go get github.com/joakimcarlsson/go-router/openapi@latest
 ### swaggerui
 
 Swagger UI serving and integration.
-
-```bash
-go get github.com/joakimcarlsson/go-router/swaggerui@latest
-```
 
 - Customizable Swagger UI
 - Dark mode support
@@ -601,12 +622,17 @@ func main() {
 Explore the `_examples` directory for complete, runnable examples:
 
 - **minimal-api** - Basic routing without documentation
-- **basic-api-with-docs** - Full OpenAPI integration
-- **file-upload** - Multipart form handling
-- **cors** - Cross-origin resource sharing
-- **oauth2-*** - Various OAuth2 flows
+- **basic-api-with-docs** - Full OpenAPI and Swagger UI integration
+- **file-upload** - Multipart form handling with documentation
+- **parameter-formats** - Path, query, and header parameter examples
+- **cors-middleware** - Cross-origin resource sharing configuration
+- **custom-middleware** - Building your own middleware (logging, auth, request ID)
+- **builtin-middleware** - Recovery and security headers middleware
 - **server-sent-events** - Real-time event streaming
-- **custom-type-handlers** - Custom OpenAPI schemas
+- **static-files** - Serving static files, embedded files, and SPA fallback
+- **oauth2-auth-code-pkce** - OAuth2 Authorization Code + PKCE flow
+- **oauth2-client-credentials** - OAuth2 Client Credentials flow
+- **oauth2-implicit** - OAuth2 Implicit flow
 
 ## Migration from Previous Versions
 
