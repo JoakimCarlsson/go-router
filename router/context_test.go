@@ -651,13 +651,13 @@ func TestContext_File(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temp file: %v", err)
 	}
-	defer os.Remove(tempFile.Name())
+	defer func() { _ = os.Remove(tempFile.Name()) }()
 
 	testContent := "Hello, World!"
 	if _, err := tempFile.WriteString(testContent); err != nil {
 		t.Fatalf("Failed to write to temp file: %v", err)
 	}
-	tempFile.Close()
+	_ = tempFile.Close()
 
 	req := httptest.NewRequest("GET", "/", nil)
 	w := httptest.NewRecorder()

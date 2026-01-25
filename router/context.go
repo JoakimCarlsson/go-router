@@ -657,18 +657,22 @@ func (c *Context) FormValue(name string) string {
 func (c *Context) SaveUploadedFile(
 	file *multipart.FileHeader,
 	dst string,
-) error {
+) (err error) {
 	src, err := file.Open()
 	if err != nil {
 		return err
 	}
-	defer src.Close()
+	defer func() { _ = src.Close() }()
 
 	out, err := os.Create(dst)
 	if err != nil {
 		return err
 	}
-	defer out.Close()
+	defer func() {
+		if cerr := out.Close(); err == nil {
+			err = cerr
+		}
+	}()
 
 	_, err = io.Copy(out, src)
 	return err
