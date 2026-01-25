@@ -24,8 +24,13 @@ type User struct {
 func main() {
 	r := router.New()
 
+	profiles := outputcache.NewProfiles()
+	profiles.Add("aggressive", time.Hour, outputcache.VaryByPath(), outputcache.SlidingExpiration())
+	profiles.Add("api", 5*time.Minute, outputcache.WithRevalidation())
+
 	cache := outputcache.New(outputcache.Config{
 		DefaultDuration: 5 * time.Minute,
+		Profiles:        profiles,
 	})
 
 	r.Use(outputcache.WithRouter(r))
@@ -34,32 +39,67 @@ func main() {
 	r.GET("/", func(c *router.Context) {
 		c.JSON(http.StatusOK, map[string]string{
 			"message": "Output Cache Example",
-			"info":    "Try the /products, /users/{id}, and /search endpoints",
+			"info":    "Try the various endpoints to see different caching strategies",
 		})
 	})
 
 	r.GET("/products", listProducts).
-		WithOutputCache(time.Minute)
+		WithOutputCache(time.Minute, outputcache.Tags("products", "product:list"))
+
+	r.GET("/products/{id}", getProduct).
+		WithOutputCache(time.Hour,
+			outputcache.Tags("products", "product:detail"),
+			outputcache.VaryByPath(),
+			outputcache.WithRevalidation())
 
 	r.GET("/users/{id}", getUser).
-		WithOutputCache(time.Hour, outputcache.VaryByPath())
+		WithProfile("aggressive")
 
 	r.GET("/search", search).
 		WithOutputCache(30*time.Second,
 			outputcache.VaryByQuery("q", "page"),
 			outputcache.VaryByHeader("Accept-Language"))
 
+	r.GET("/prices", getPrices).
+		WithOutputCache(time.Minute,
+			outputcache.VaryByCustom(func(req *http.Request) string {
+				role := req.Header.Get("X-User-Role")
+				if role == "" {
+					role = "guest"
+				}
+				return role
+			}))
+
+	r.GET("/conditional", getConditional).
+		WithOutputCache(time.Minute,
+			outputcache.CacheWhen(func(status int, headers http.Header) bool {
+				return status == 200 && headers.Get("X-No-Cache") == ""
+			}))
+
+	r.GET("/compressed", getCompressed).
+		WithOutputCache(time.Minute, outputcache.VaryByEncoding())
+
 	r.POST("/products", createProduct)
+
+	r.POST("/invalidate", func(c *router.Context) {
+		cache.InvalidateTag("products")
+		c.JSON(http.StatusOK, map[string]string{"message": "Products cache invalidated"})
+	})
 
 	r.GET("/no-cache", noCacheHandler)
 
 	log.Println("Server starting on :8080")
 	log.Println("Endpoints:")
-	log.Println("  GET  /products          - Cached for 1 minute")
-	log.Println("  GET  /users/{id}        - Cached for 1 hour, varies by ID")
-	log.Println("  GET  /search?q=...      - Cached for 30 seconds, varies by query and language")
-	log.Println("  POST /products          - Not cached (POST method)")
-	log.Println("  GET  /no-cache          - Not cached (no WithOutputCache)")
+	log.Println("  GET  /products           - Cached with tags")
+	log.Println("  GET  /products/{id}      - Cached with tags, ETag, varies by path")
+	log.Println("  GET  /users/{id}         - Uses 'aggressive' profile (sliding expiration)")
+	log.Println("  GET  /search?q=...       - Varies by query and language")
+	log.Println("  GET  /prices             - Varies by X-User-Role header (custom)")
+	log.Println("  GET  /conditional        - Conditionally cached")
+	log.Println("  GET  /compressed         - Varies by Accept-Encoding")
+	log.Println("  POST /products           - Not cached (POST method)")
+	log.Println("  POST /invalidate         - Invalidates products tag")
+	log.Println("  GET  /no-cache           - Not cached")
 	log.Fatal(http.ListenAndServe(":8080", r))
 }
 
@@ -71,6 +111,18 @@ func listProducts(c *router.Context) {
 		{ID: 3, Name: "Keyboard", Price: 75},
 	}
 	c.JSON(http.StatusOK, products)
+}
+
+func getProduct(c *router.Context) {
+	id := c.Param("id")
+	log.Printf("Handler: getProduct called for ID %s\n", id)
+
+	product := Product{
+		ID:    1,
+		Name:  "Product " + id,
+		Price: 999,
+	}
+	c.JSON(http.StatusOK, product)
 }
 
 func getUser(c *router.Context) {
@@ -108,6 +160,55 @@ func createProduct(c *router.Context) {
 		return
 	}
 	c.JSON(http.StatusCreated, product)
+}
+
+func getPrices(c *router.Context) {
+	role := c.Request.Header.Get("X-User-Role")
+	if role == "" {
+		role = "guest"
+	}
+	log.Printf("Handler: getPrices called for role %s\n", role)
+
+	prices := map[string]int{
+		"guest":    100,
+		"member":   80,
+		"premium":  60,
+	}
+
+	price := prices[role]
+	if price == 0 {
+		price = 100
+	}
+
+	c.JSON(http.StatusOK, map[string]interface{}{
+		"role":  role,
+		"price": price,
+	})
+}
+
+func getConditional(c *router.Context) {
+	log.Println("Handler: getConditional called")
+
+	shouldNotCache := c.Query().Get("nocache")
+	if shouldNotCache == "true" {
+		c.SetHeader("X-No-Cache", "true")
+	}
+
+	c.JSON(http.StatusOK, map[string]interface{}{
+		"data":      "conditional",
+		"timestamp": time.Now().Unix(),
+	})
+}
+
+func getCompressed(c *router.Context) {
+	log.Println("Handler: getCompressed called")
+	data := make([]byte, 1000)
+	for i := range data {
+		data[i] = 'A'
+	}
+	c.JSON(http.StatusOK, map[string]interface{}{
+		"data": string(data),
+	})
 }
 
 func noCacheHandler(c *router.Context) {

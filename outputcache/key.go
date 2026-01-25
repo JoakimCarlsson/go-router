@@ -10,9 +10,14 @@ import (
 
 // CacheKeyGenerator generates cache keys based on request attributes.
 type CacheKeyGenerator struct {
-	varyByPath    bool
-	varyByQuery   []string
-	varyByHeaders []string
+	varyByPath      bool
+	varyByQuery     []string
+	varyByHeaders   []string
+	customFunc      func(*http.Request) string
+	tags            []string
+	cacheWhenFunc   func(int, http.Header) bool
+	slidingExp      bool
+	withRevalidation bool
 }
 
 // newCacheKeyGenerator creates a new cache key generator with the given options.
@@ -74,6 +79,13 @@ func (g *CacheKeyGenerator) GenerateKey(r *http.Request) string {
 		}
 	}
 
+	if g.customFunc != nil {
+		customValue := g.customFunc(r)
+		if customValue != "" {
+			parts = append(parts, "c:"+customValue)
+		}
+	}
+
 	combined := strings.Join(parts, "|")
 	hash := sha256.Sum256([]byte(combined))
 	return hex.EncodeToString(hash[:])
@@ -111,4 +123,65 @@ func VaryByHeader(headers ...string) interface{} {
 			g.varyByHeaders = append(g.varyByHeaders, http.CanonicalHeaderKey(h))
 		}
 	}
+}
+
+// VaryByCustom returns an option that uses a custom function to generate part of the cache key.
+// This is useful for multi-tenant applications, user roles, or custom business logic.
+//
+// Example:
+//
+//	VaryByCustom(func(r *http.Request) string {
+//	    return getUserRole(r) + ":" + getTenant(r)
+//	})
+func VaryByCustom(fn func(*http.Request) string) interface{} {
+	return func(g *CacheKeyGenerator) {
+		g.customFunc = fn
+	}
+}
+
+// Tags returns an option that associates cache tags with the cached response.
+// Tags allow for group-based cache invalidation.
+//
+// Example:
+//
+//	Tags("products", "product:123")
+func Tags(tags ...string) interface{} {
+	return func(g *CacheKeyGenerator) {
+		g.tags = append(g.tags, tags...)
+	}
+}
+
+// SlidingExpiration returns an option that enables sliding expiration for the cached response.
+// The TTL is extended on each cache hit.
+func SlidingExpiration() interface{} {
+	return func(g *CacheKeyGenerator) {
+		g.slidingExp = true
+	}
+}
+
+// WithRevalidation returns an option that enables ETag-based cache revalidation.
+// Supports 304 Not Modified responses for bandwidth savings.
+func WithRevalidation() interface{} {
+	return func(g *CacheKeyGenerator) {
+		g.withRevalidation = true
+	}
+}
+
+// CacheWhen returns an option that conditionally caches responses based on status and headers.
+//
+// Example:
+//
+//	CacheWhen(func(status int, headers http.Header) bool {
+//	    return status == 200 && headers.Get("X-No-Cache") == ""
+//	})
+func CacheWhen(fn func(int, http.Header) bool) interface{} {
+	return func(g *CacheKeyGenerator) {
+		g.cacheWhenFunc = fn
+	}
+}
+
+// VaryByEncoding returns an option that varies the cache by Accept-Encoding header.
+// This ensures separate cache entries for different compression formats (gzip, br, etc).
+func VaryByEncoding() interface{} {
+	return VaryByHeader("Accept-Encoding")
 }

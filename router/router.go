@@ -1,6 +1,7 @@
 package router
 
 import (
+	"context"
 	"net/http"
 	"path"
 	"slices"
@@ -32,6 +33,20 @@ type handlerWrapper struct {
 	handler            HandlerFunc
 	maxMultipartMemory int64
 }
+
+type contextKey string
+
+const (
+	// RouteMethodKey is the context key for the matched route's HTTP method
+	RouteMethodKey contextKey = "router:method"
+	// RoutePathKey is the context key for the matched route's path pattern
+	RoutePathKey contextKey = "router:path"
+)
+
+var (
+	routeMethodKey = RouteMethodKey
+	routePathKey   = RoutePathKey
+)
 
 func (hw *handlerWrapper) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	ctx := contextPool.Get().(*Context)
@@ -77,6 +92,7 @@ type Router struct {
 	groupOptions       []RouteOption
 	maxMultipartMemory int64
 	cacheConfigs       map[string]CacheConfig
+	cacheProfiles      map[string]string
 }
 
 // New creates a new Router instance with default configuration.
@@ -90,6 +106,7 @@ func New() *Router {
 		groupOptions:       make([]RouteOption, 0),
 		maxMultipartMemory: 32 << 20,
 		cacheConfigs:       make(map[string]CacheConfig),
+		cacheProfiles:      make(map[string]string),
 	}
 }
 
@@ -133,6 +150,7 @@ func (r *Router) Group(path string, fn func(*Router)) {
 		groupOptions:       slices.Clone(r.groupOptions),
 		maxMultipartMemory: r.maxMultipartMemory,
 		cacheConfigs:       r.cacheConfigs,
+		cacheProfiles:      r.cacheProfiles,
 	}
 	fn(group)
 
@@ -171,16 +189,24 @@ func (r *Router) Handle(pattern string, handler HandlerFunc, opts ...RouteOption
 	})
 	r.mu.Unlock()
 
-	var httpHandler http.Handler = &handlerWrapper{
+	baseHandler := &handlerWrapper{
 		handler:            handler,
 		maxMultipartMemory: r.maxMultipartMemory,
 	}
+
+	var httpHandler http.Handler = baseHandler
 
 	for i := len(r.middlewares) - 1; i >= 0; i-- {
 		httpHandler = r.middlewares[i](httpHandler)
 	}
 
-	r.mux.Handle(method+" "+fullpath, httpHandler)
+	routeInfoHandler := http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		ctx := context.WithValue(req.Context(), routeMethodKey, method)
+		ctx = context.WithValue(ctx, routePathKey, fullpath)
+		httpHandler.ServeHTTP(w, req.WithContext(ctx))
+	})
+
+	r.mux.Handle(method+" "+fullpath, routeInfoHandler)
 	
 	return &RouteRegistration{
 		router: r,

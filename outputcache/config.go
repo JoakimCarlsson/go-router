@@ -26,6 +26,9 @@ type Config struct {
 	// CleanupInterval is the interval for cleaning up expired cache entries.
 	// Only applies to MemoryStorage. Default is 1 minute.
 	CleanupInterval time.Duration
+	
+	// Profiles contains reusable cache configurations.
+	Profiles *Profiles
 }
 
 // DefaultConfig returns a configuration with sensible defaults.

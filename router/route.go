@@ -70,6 +70,42 @@ func (rr *RouteRegistration) WithOutputCache(duration time.Duration, opts ...int
 	return rr
 }
 
+// WithProfile enables output caching for this route using a named cache profile.
+// Returns the RouteRegistration for method chaining.
+//
+// Example:
+//
+//	r.GET("/products", handler).WithProfile("aggressive")
+func (rr *RouteRegistration) WithProfile(profileName string) *RouteRegistration {
+	rr.router.setCacheProfile(rr.method, rr.path, profileName)
+	return rr
+}
+
+// GetCacheProfile retrieves the cache profile name for a specific route.
+// Returns empty string if no profile is configured.
+func (r *Router) GetCacheProfile(method, path string) string {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	key := method + " " + path
+	if profile, ok := r.cacheProfiles[key]; ok {
+		return profile
+	}
+	return ""
+}
+
+func (r *Router) setCacheProfile(method, path, profileName string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if r.cacheProfiles == nil {
+		r.cacheProfiles = make(map[string]string)
+	}
+
+	key := method + " " + path
+	r.cacheProfiles[key] = profileName
+}
+
 // GetCacheConfig retrieves the cache configuration for a specific route.
 // Returns nil if no cache configuration is set for the route.
 func (r *Router) GetCacheConfig(method, path string) *CacheConfig {

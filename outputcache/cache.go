@@ -22,6 +22,7 @@ type Cache struct {
 	config  Config
 	storage Storage
 	cleanup func()
+	profiles *Profiles
 }
 
 // New creates a new Cache instance with the given configuration.
@@ -44,8 +45,9 @@ func New(config Config) *Cache {
 	}
 	
 	cache := &Cache{
-		config:  config,
-		storage: config.Storage,
+		config:   config,
+		storage:  config.Storage,
+		profiles: config.Profiles,
 	}
 
 	if ms, ok := config.Storage.(*MemoryStorage); ok {
@@ -71,19 +73,55 @@ func (c *Cache) Middleware() func(http.Handler) http.Handler {
 			}
 
 			var cacheConfig *router.CacheConfig
+			var profileConfig *ProfileConfig
+
 			if rtr != nil {
-				cacheConfig = rtr.GetCacheConfig(r.Method, r.URL.Path)
+				routeMethod := r.Method
+				routePath := r.URL.Path
+
+				if method, ok := r.Context().Value(router.RouteMethodKey).(string); ok && method != "" {
+					routeMethod = method
+				}
+				if path, ok := r.Context().Value(router.RoutePathKey).(string); ok && path != "" {
+					routePath = path
+				}
+
+				cacheConfig = rtr.GetCacheConfig(routeMethod, routePath)
+
+				if cacheConfig == nil {
+					profileName := rtr.GetCacheProfile(routeMethod, routePath)
+					if profileName != "" && c.profiles != nil {
+						profileConfig = c.profiles.Get(profileName)
+					}
+				}
 			}
 
-			if cacheConfig == nil {
+			if cacheConfig == nil && profileConfig == nil {
 				next.ServeHTTP(w, r)
 				return
 			}
 
-			keyGen := newCacheKeyGenerator(cacheConfig.Options)
+			var duration time.Duration
+			var opts []interface{}
+
+			if profileConfig != nil {
+				duration = profileConfig.Duration
+				opts = profileConfig.Options
+			} else {
+				duration = cacheConfig.Duration
+				opts = cacheConfig.Options
+			}
+
+			keyGen := newCacheKeyGenerator(opts)
 			cacheKey := keyGen.GenerateKey(r)
 
 			if cached, ok := c.storage.Get(cacheKey); ok {
+				if keyGen.withRevalidation && cached.ETag != "" {
+					if shouldRevalidate(r.Header.Get("If-None-Match"), cached.ETag) {
+						w.WriteHeader(http.StatusNotModified)
+						return
+					}
+				}
 				c.serveCachedResponse(w, cached)
 				return
 			}
@@ -96,17 +134,34 @@ func (c *Cache) Middleware() func(http.Handler) http.Handler {
 
 			next.ServeHTTP(recorder, r)
 
-			if c.config.shouldCacheStatus(recorder.statusCode) {
-				cached := &CachedResponse{
-					StatusCode: recorder.statusCode,
-					Headers:    recorder.Header().Clone(),
-					Body:       recorder.body.Bytes(),
-					CachedAt:   time.Now(),
+			if keyGen.cacheWhenFunc != nil {
+				if !keyGen.cacheWhenFunc(recorder.statusCode, recorder.Header()) {
+					return
 				}
+			}
 
-				duration := cacheConfig.Duration
+			if c.config.shouldCacheStatus(recorder.statusCode) {
 				if duration == 0 {
 					duration = c.config.DefaultDuration
+				}
+
+				body := recorder.body.Bytes()
+				etag := ""
+
+				if keyGen.withRevalidation {
+					etag = generateETag(body)
+					w.Header().Set("ETag", etag)
+				}
+
+				cached := &CachedResponse{
+					StatusCode:        recorder.statusCode,
+					Headers:           recorder.Header().Clone(),
+					Body:              body,
+					CachedAt:          time.Now(),
+					Tags:              keyGen.tags,
+					SlidingExpiration: keyGen.slidingExp,
+					SlidingDuration:   duration,
+					ETag:              etag,
 				}
 
 				c.storage.Set(cacheKey, cached, duration)
@@ -124,8 +179,6 @@ func (c *Cache) serveCachedResponse(w http.ResponseWriter, cached *CachedRespons
 	}
 
 	w.Header().Set("X-Cache", "HIT")
-	age := time.Since(cached.CachedAt).Seconds()
-	w.Header().Set("Age", string(rune(int(age))))
 
 	w.WriteHeader(cached.StatusCode)
 	_, _ = w.Write(cached.Body)
@@ -134,6 +187,16 @@ func (c *Cache) serveCachedResponse(w http.ResponseWriter, cached *CachedRespons
 // Clear removes all cached responses.
 func (c *Cache) Clear() {
 	c.storage.Clear()
+}
+
+// InvalidateTag removes all cached responses with the given tag.
+func (c *Cache) InvalidateTag(tag string) {
+	c.storage.InvalidateTag(tag)
+}
+
+// InvalidateTags removes all cached responses with any of the given tags.
+func (c *Cache) InvalidateTags(tags ...string) {
+	c.storage.InvalidateTags(tags...)
 }
 
 // Close stops any background cleanup goroutines.

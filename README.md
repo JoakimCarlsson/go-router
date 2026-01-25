@@ -398,6 +398,86 @@ func main() {
 }
 ```
 
+### Advanced Output Caching
+
+#### Cache Tags
+
+Invalidate related content with tags:
+
+```go
+r.GET("/products/{id}", getProduct).
+    WithOutputCache(time.Hour, 
+        outputcache.Tags("products", "product:123"))
+
+cache.InvalidateTag("products")
+```
+
+#### Cache Profiles
+
+Reusable cache configurations:
+
+```go
+profiles := outputcache.NewProfiles()
+profiles.Add("aggressive", time.Hour, outputcache.VaryByPath(), outputcache.SlidingExpiration())
+
+cache := outputcache.New(outputcache.Config{
+    Profiles: profiles,
+})
+
+r.GET("/products", handler).WithProfile("aggressive")
+```
+
+#### Sliding Expiration
+
+Extend TTL on cache hits:
+
+```go
+r.GET("/products", handler).
+    WithOutputCache(time.Minute, outputcache.SlidingExpiration())
+```
+
+#### ETag Revalidation
+
+Support 304 Not Modified responses:
+
+```go
+r.GET("/products", handler).
+    WithOutputCache(time.Minute, outputcache.WithRevalidation())
+```
+
+#### Custom Cache Keys
+
+Vary by custom logic (roles, tenants, etc):
+
+```go
+r.GET("/prices", handler).
+    WithOutputCache(time.Minute,
+        outputcache.VaryByCustom(func(r *http.Request) string {
+            return getUserRole(r) + ":" + getTenant(r)
+        }))
+```
+
+#### Conditional Caching
+
+Cache only when conditions are met:
+
+```go
+r.GET("/admin", handler).
+    WithOutputCache(time.Minute,
+        outputcache.CacheWhen(func(status int, headers http.Header) bool {
+            return status == 200 && headers.Get("X-No-Cache") == ""
+        }))
+```
+
+#### Compression Awareness
+
+Vary by Accept-Encoding:
+
+```go
+r.GET("/data", handler).
+    WithOutputCache(time.Minute, outputcache.VaryByEncoding())
+```
+
 ## CORS Middleware
 
 Configure Cross-Origin Resource Sharing (CORS) with the built-in middleware:
