@@ -1,4 +1,4 @@
-package integration
+package swaggerui
 
 import (
 	"encoding/json"
@@ -6,33 +6,32 @@ import (
 
 	"github.com/joakimcarlsson/go-router/openapi"
 	"github.com/joakimcarlsson/go-router/router"
-	"github.com/joakimcarlsson/go-router/swaggerui"
 )
 
-// SwaggerUIIntegration provides integration between the router, OpenAPI generator, and Swagger UI.
-type SwaggerUIIntegration struct {
+// Setup provides integration between the router, OpenAPI generator, and Swagger UI.
+type Setup struct {
 	router    *router.Router
 	generator *openapi.Generator
-	uiConfig  swaggerui.UIConfig
+	uiConfig  UIConfig
 }
 
-// NewSwaggerUIIntegration creates a new SwaggerUIIntegration.
-func NewSwaggerUIIntegration(r *router.Router, generator *openapi.Generator) *SwaggerUIIntegration {
-	return &SwaggerUIIntegration{
+// NewSetup creates a new Swagger UI setup.
+func NewSetup(r *router.Router, generator *openapi.Generator) *Setup {
+	return &Setup{
 		router:    r,
 		generator: generator,
-		uiConfig:  swaggerui.DefaultUIConfig(),
+		uiConfig:  DefaultUIConfig(),
 	}
 }
 
 // WithUIConfig sets the Swagger UI configuration.
-func (s *SwaggerUIIntegration) WithUIConfig(config swaggerui.UIConfig) *SwaggerUIIntegration {
+func (s *Setup) WithUIConfig(config UIConfig) *Setup {
 	s.uiConfig = config
 	return s
 }
 
-// SetupRoutes registers the OpenAPI spec and Swagger UI routes.
-func (s *SwaggerUIIntegration) SetupRoutes(r *router.Router, specPath, docsPath string) {
+// RegisterRoutes registers the OpenAPI spec and Swagger UI routes.
+func (s *Setup) RegisterRoutes(r *router.Router, specPath, docsPath string) {
 	s.uiConfig.SpecURL = specPath
 
 	r.GET(specPath, func(c *router.Context) {
@@ -44,17 +43,17 @@ func (s *SwaggerUIIntegration) SetupRoutes(r *router.Router, specPath, docsPath 
 		_ = json.NewEncoder(c.Writer).Encode(spec)
 	}, openapi.ExcludeFromDocs())
 
-	r.GET(docsPath, router.FromHTTPHandler(http.HandlerFunc(swaggerui.Handler(s.uiConfig))),
+	r.GET(docsPath, router.FromHTTPHandler(http.HandlerFunc(Handler(s.uiConfig))),
 		openapi.ExcludeFromDocs(),
 	)
 
 	r.GET(docsPath+"/oauth2-redirect.html",
-		router.FromHTTPHandler(http.HandlerFunc(swaggerui.OAuth2RedirectHandler())),
+		router.FromHTTPHandler(http.HandlerFunc(OAuth2RedirectHandler())),
 		openapi.ExcludeFromDocs(),
 	)
 }
 
-func (s *SwaggerUIIntegration) collectRouteInfo() []openapi.RouteInfo {
+func (s *Setup) collectRouteInfo() []openapi.RouteInfo {
 	routes := s.router.Routes()
 	routeInfoList := make([]openapi.RouteInfo, 0, len(routes))
 

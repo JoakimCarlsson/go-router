@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/joakimcarlsson/go-router/integration"
 	"github.com/joakimcarlsson/go-router/openapi"
 	"github.com/joakimcarlsson/go-router/router"
 	"github.com/joakimcarlsson/go-router/swaggerui"
@@ -253,9 +252,9 @@ func main() {
 	uiConfig.DefaultModelRendering = "example"
 	uiConfig.Title = "Product Catalog API"
 
-	swaggerUI := integration.NewSwaggerUIIntegration(r, generator)
-	swaggerUI.WithUIConfig(uiConfig)
-	swaggerUI.SetupRoutes(r, "/openapi.json", "/docs")
+	setup := swaggerui.NewSetup(r, generator)
+	setup.WithUIConfig(uiConfig)
+	setup.RegisterRoutes(r, "/openapi.json", "/docs")
 
 	fmt.Println("Server starting on http://localhost:8080")
 	fmt.Println("API documentation available at http://localhost:8080/docs")
