@@ -1,10 +1,11 @@
 package main
 
 import (
+	"context"
+	_ "embed"
 	"fmt"
 	"log"
 	"net/http"
-	"os"
 	"strconv"
 	"time"
 
@@ -16,25 +17,29 @@ import (
 	"github.com/joakimcarlsson/go-router/swagger"
 )
 
-// Message represents a chat message
-type Message struct {
-	ID        string    `json:"id"`
-	User      string    `json:"user"`
-	Content   string    `json:"content"`
-	Timestamp time.Time `json:"timestamp"`
-}
+//go:embed index.html
+var indexHTML []byte
 
-// StockUpdate represents a stock price update
+// StockUpdate represents a stock price update event
 type StockUpdate struct {
-	Symbol    string    `json:"symbol"`
-	Price     float64   `json:"price"`
-	Change    float64   `json:"change"`
-	Timestamp time.Time `json:"timestamp"`
+	Symbol    string    `json:"symbol" desc:"Stock ticker symbol"`
+	Price     float64   `json:"price" desc:"Current stock price"`
+	Change    float64   `json:"change" desc:"Price change since last update"`
+	Timestamp time.Time `json:"timestamp" desc:"Time of the update"`
 }
 
-var (
-	stocks = []string{"AAPL", "MSFT", "GOOG", "AMZN", "META"}
-)
+// ErrorEvent represents an error event
+type ErrorEvent struct {
+	Code    string `json:"code" desc:"Error code"`
+	Message string `json:"message" desc:"Error message"`
+}
+
+// HeartbeatEvent represents a keep-alive event
+type HeartbeatEvent struct {
+	Timestamp time.Time `json:"timestamp" desc:"Server time"`
+}
+
+var stocks = []string{"AAPL", "MSFT", "GOOG", "AMZN", "META"}
 
 func main() {
 	r := router.New()
@@ -47,22 +52,33 @@ func main() {
 	})
 
 	r.GET("/", func(ctx *router.Context) {
-		content, err := os.ReadFile("index.html")
-		if err != nil {
-			ctx.JSON(http.StatusInternalServerError, map[string]string{"error": "Internal server error"})
-		}
 		ctx.Writer.Header().Set("Content-Type", "text/html")
-		ctx.Writer.Write(content)
+		ctx.Writer.Write(indexHTML)
 	},
 		docs.WithSummary("Home Page"),
-		docs.WithDescription("Serves the home page with chat UI and stock ticker demo"),
+		docs.WithDescription("Serves the home page with stock ticker demo"),
+		docs.ExcludeFromDocs(),
 	)
 
-	r.GET("/events/stocks", stockEvents,
+	// Stock events using the new SSE documentation and handler wrapper
+	r.GET("/events/stocks", stockEventsHandler,
 		docs.WithTags("SSE"),
-		docs.WithSummary("Stock price updates"),
-		docs.WithDescription("Server-sent events stream for stock price updates"),
+		docs.WithSummary("Stock price updates stream"),
+		docs.WithSSEResponse("Real-time stock price updates via Server-Sent Events"),
+		docs.WithSSEEvent[StockUpdate]("stock_update", "Emitted when a stock price changes"),
+		docs.WithSSEEvent[HeartbeatEvent]("heartbeat", "Emitted periodically to keep the connection alive"),
+		docs.WithSSEEvent[ErrorEvent]("error", "Emitted when an error occurs"),
 	)
+
+	// Alternative: Manual SSE handling (shows the old way still works)
+	r.GET("/events/stocks/manual", stockEventsManual,
+		docs.WithTags("SSE"),
+		docs.WithSummary("Stock prices (manual handling)"),
+		docs.WithDescription("Same as /events/stocks but with manual SSE handling for comparison"),
+		docs.WithSSEResponse("Real-time stock price updates"),
+		docs.WithSSEEvent[StockUpdate]("stock_update", "Stock price changed"),
+	)
+
 	// Configure Swagger UI
 	uiConfig := swagger.DefaultUIConfig()
 	uiConfig.Title = "SSE Examples"
@@ -76,12 +92,70 @@ func main() {
 	// Start the server
 	fmt.Println("Server starting on http://localhost:8080")
 	fmt.Println("API documentation available at http://localhost:8080/docs")
-	fmt.Println("Chat demo available at http://localhost:8080/")
+	fmt.Println("Stock ticker demo at http://localhost:8080/")
 	log.Fatal(http.ListenAndServe(":8080", r))
 }
 
-// stockEvents streams simulated stock price updates as SSE
-func stockEvents(c *router.Context) {
+// stockEventsHandler demonstrates the new SSEHandler wrapper
+// This is the recommended way to implement SSE endpoints
+func stockEventsHandler(c *router.Context) {
+	// Initialize stock prices
+	stockPrices := make(map[string]float64)
+	for _, symbol := range stocks {
+		stockPrices[symbol] = 100.0 + float64(time.Now().Nanosecond()%2000)/100.0
+	}
+
+	// Use SSEHandler with custom configuration
+	c.SSEHandler(router.SSEConfig{
+		KeepAliveInterval: 30 * time.Second,
+		KeepAliveEnabled:  true,
+		OnClientDisconnect: func() {
+			log.Println("Client disconnected from stock events")
+		},
+	}, func(ctx context.Context, send router.SSESendFunc) error {
+		ticker := time.NewTicker(2 * time.Second)
+		defer ticker.Stop()
+
+		// Send periodic heartbeats (in addition to keep-alive comments)
+		heartbeatTicker := time.NewTicker(10 * time.Second)
+		defer heartbeatTicker.Stop()
+
+		for {
+			select {
+			case <-ctx.Done():
+				// Client disconnected - context was cancelled
+				return nil
+
+			case <-ticker.C:
+				// Pick a random stock and update its price
+				symbol := stocks[time.Now().Unix()%int64(len(stocks))]
+				change := (float64(time.Now().Nanosecond()%400) - 200.0) / 100.0
+				stockPrices[symbol] += change
+
+				update := StockUpdate{
+					Symbol:    symbol,
+					Price:     stockPrices[symbol],
+					Change:    change,
+					Timestamp: time.Now(),
+				}
+
+				if err := send("stock_update", update); err != nil {
+					return err
+				}
+
+			case <-heartbeatTicker.C:
+				// Send a heartbeat event
+				if err := send("heartbeat", HeartbeatEvent{Timestamp: time.Now()}); err != nil {
+					return err
+				}
+			}
+		}
+	})
+}
+
+// stockEventsManual demonstrates manual SSE handling (the old way)
+// This is still supported for cases where you need more control
+func stockEventsManual(c *router.Context) {
 	c.InitSSE()
 
 	clientGone := c.Request.Context().Done()
@@ -97,20 +171,16 @@ func stockEvents(c *router.Context) {
 		stockPrices[symbol] = 100.0 + float64(time.Now().Nanosecond()%2000)/100.0
 	}
 
-	stockChanges := make(map[string]float64)
-
 	for {
 		select {
 		case <-clientGone:
-			log.Println("Client disconnected from stock events")
+			log.Println("Client disconnected from manual stock events")
 			return
 
 		case <-stockTicker.C:
 			symbol := stocks[time.Now().Unix()%int64(len(stocks))]
-
 			change := (float64(time.Now().Nanosecond()%400) - 200.0) / 100.0
 			stockPrices[symbol] += change
-			stockChanges[symbol] = change
 
 			update := StockUpdate{
 				Symbol:    symbol,
@@ -119,15 +189,14 @@ func stockEvents(c *router.Context) {
 				Timestamp: time.Now(),
 			}
 
-			err := c.SSEJson("stock_update", update, symbol+"-"+strconv.FormatInt(time.Now().Unix(), 10))
-			if err != nil {
+			eventID := symbol + "-" + strconv.FormatInt(time.Now().Unix(), 10)
+			if err := c.SSEJson("stock_update", update, eventID); err != nil {
 				log.Printf("Error sending stock update: %v", err)
 				return
 			}
 
 		case <-keepAliveTicker.C:
-			err := c.SSEKeepAlive()
-			if err != nil {
+			if err := c.SSEKeepAlive(); err != nil {
 				log.Printf("Error sending keep-alive: %v", err)
 				return
 			}

@@ -37,8 +37,23 @@ type RouteMetadata struct {
 	Responses   map[string]Response   `json:"responses"`
 	Security    []SecurityRequirement `json:"security,omitempty"`
 
+	// SSE (Server-Sent Events) specific fields
+	IsSSE     bool             `json:"-"` // Indicates this route returns SSE
+	SSEEvents []SSEEventSchema `json:"-"` // Event types this SSE endpoint can emit
+
 	// Internal flag to exclude this route from OpenAPI documentation
 	ExcludeFromDocs bool `json:"-"`
+}
+
+// SSEEventSchema represents a documented SSE event type.
+// This is used to document the different event types that an SSE endpoint can emit.
+type SSEEventSchema struct {
+	// EventName is the name of the event (sent in the "event:" field of SSE)
+	EventName string `json:"x-event-name"`
+	// Description describes when this event is emitted and its purpose
+	Description string `json:"description,omitempty"`
+	// Schema defines the JSON structure of the event data
+	Schema Schema `json:"schema,omitempty"`
 }
 
 // Parameter represents an API parameter such as path, query, header, or cookie parameters.
@@ -86,12 +101,21 @@ type Response struct {
 // The map keys are security scheme names and the values are required scopes.
 type SecurityRequirement map[string][]string
 
+// Example represents an OpenAPI example object.
+// It provides sample values for request/response content.
+type Example struct {
+	Summary     string      `json:"summary,omitempty"`
+	Description string      `json:"description,omitempty"`
+	Value       interface{} `json:"value,omitempty"`
+}
+
 // MediaType represents the structure of request/response content.
-// It includes a schema and an optional example.
+// It includes a schema and optional examples.
 type MediaType struct {
-	Schema    Schema      `json:"schema,omitempty"`
-	Example   interface{} `json:"example,omitempty"`
-	SchemaRef *Reference  `json:"-"` // Not directly serialized to JSON
+	Schema    Schema             `json:"schema,omitempty"`
+	Example   interface{}        `json:"example,omitempty"`
+	Examples  map[string]Example `json:"examples,omitempty"`
+	SchemaRef *Reference         `json:"-"` // Not directly serialized to JSON
 }
 
 // MarshalJSON implements json.Marshaler for MediaType to handle SchemaRef
@@ -99,21 +123,25 @@ func (m MediaType) MarshalJSON() ([]byte, error) {
 	// If SchemaRef is set, serialize with the Reference instead of Schema
 	if m.SchemaRef != nil {
 		return json.Marshal(struct {
-			Schema  *Reference  `json:"schema"`
-			Example interface{} `json:"example,omitempty"`
+			Schema   *Reference         `json:"schema"`
+			Example  interface{}        `json:"example,omitempty"`
+			Examples map[string]Example `json:"examples,omitempty"`
 		}{
-			Schema:  m.SchemaRef,
-			Example: m.Example,
+			Schema:   m.SchemaRef,
+			Example:  m.Example,
+			Examples: m.Examples,
 		})
 	}
 
 	// Otherwise, use the default serialization (Schema)
 	return json.Marshal(struct {
-		Schema  Schema      `json:"schema,omitempty"`
-		Example interface{} `json:"example,omitempty"`
+		Schema   Schema             `json:"schema,omitempty"`
+		Example  interface{}        `json:"example,omitempty"`
+		Examples map[string]Example `json:"examples,omitempty"`
 	}{
-		Schema:  m.Schema,
-		Example: m.Example,
+		Schema:   m.Schema,
+		Example:  m.Example,
+		Examples: m.Examples,
 	})
 }
 
