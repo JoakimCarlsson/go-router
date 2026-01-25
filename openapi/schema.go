@@ -1,32 +1,25 @@
-package docs
+package openapi
 
 import (
 	"reflect"
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/joakimcarlsson/go-router/metadata"
 )
 
-// SchemaFromType generates a metadata Schema from a Go type
-func SchemaFromType(t reflect.Type) metadata.Schema {
+// SchemaFromType generates a Schema from a Go type.
+func SchemaFromType(t reflect.Type) Schema {
 	return schemaFromTypeWithCycle(t, make(map[string]bool))
 }
 
-// schemaFromTypeWithCycle generates a metadata Schema from a Go type with circular reference detection
-func schemaFromTypeWithCycle(
-	t reflect.Type,
-	visiting map[string]bool,
-) metadata.Schema {
-	// Check if there's a registered custom handler for this type
+func schemaFromTypeWithCycle(t reflect.Type, visiting map[string]bool) Schema {
 	typeName := t.String()
-	if handler, exists := metadata.GetTypeHandler(typeName); exists {
+	if handler, exists := GetTypeHandler(typeName); exists {
 		return handler(t)
 	}
 
 	if typeName == "time.Time" {
-		return metadata.Schema{
+		return Schema{
 			Type:     "string",
 			Format:   "date-time",
 			Example:  time.Now().Format(time.RFC3339),
@@ -35,7 +28,7 @@ func schemaFromTypeWithCycle(
 	}
 
 	if typeName == "uuid.UUID" {
-		return metadata.Schema{
+		return Schema{
 			Type:     "string",
 			Format:   "uuid",
 			Example:  "123e4567-e89b-12d3-a456-426614174000",
@@ -51,8 +44,8 @@ func schemaFromTypeWithCycle(
 	case reflect.Struct:
 		typeID := t.String()
 		if visiting[typeID] {
-			registeredName := metadata.RegisterType(t)
-			return metadata.Schema{
+			registeredName := RegisterType(t)
+			return Schema{
 				Ref:      "#/components/schemas/" + registeredName,
 				TypeName: registeredName,
 			}
@@ -64,11 +57,9 @@ func schemaFromTypeWithCycle(
 		}()
 
 		properties, required := getStructPropertiesWithCycle(t, visiting)
+		typeName := RegisterType(t)
 
-		// Register the type and get a collision-free name
-		typeName := metadata.RegisterType(t)
-
-		schema := metadata.Schema{
+		schema := Schema{
 			Type:       "object",
 			Properties: properties,
 			TypeName:   typeName,
@@ -85,32 +76,26 @@ func schemaFromTypeWithCycle(
 		itemSchema := schemaFromTypeWithCycle(elemType, visiting)
 
 		if elemType.Kind() == reflect.Struct && elemType.Name() != "" {
-			metadata.RegisterType(elemType)
+			RegisterType(elemType)
 		}
 
-		return metadata.Schema{
+		return Schema{
 			Type:     "array",
 			Items:    &itemSchema,
 			TypeName: "[]" + itemSchema.TypeName,
 		}
 	default:
-		// For basic types, include default examples
-		schema := metadata.Schema{
+		schema := Schema{
 			Type:     getGoTypeSchema(t),
 			TypeName: t.Name(),
 		}
-
-		// Set example only if a custom handler hasn't set one
 		schema.Example = getExampleValue(t)
 		return schema
 	}
 }
 
-func getStructPropertiesWithCycle(
-	t reflect.Type,
-	visiting map[string]bool,
-) (map[string]metadata.Schema, []string) {
-	properties := make(map[string]metadata.Schema)
+func getStructPropertiesWithCycle(t reflect.Type, visiting map[string]bool) (map[string]Schema, []string) {
+	properties := make(map[string]Schema)
 	var required []string
 
 	for i := 0; i < t.NumField(); i++ {
@@ -156,10 +141,7 @@ func getStructPropertiesWithCycle(
 	return properties, required
 }
 
-// getValidationRules returns validation rules for a field defined using struct tags with the `validate` key
-func getValidationRules(
-	field reflect.StructField,
-) (required bool, minLen, maxLen *int, min *float64) {
+func getValidationRules(field reflect.StructField) (required bool, minLen, maxLen *int, min *float64) {
 	tag := field.Tag.Get("validate")
 	if tag == "" {
 		return
@@ -210,11 +192,9 @@ func getGoTypeSchema(t reflect.Type) string {
 	}
 }
 
-// getExampleValue returns an appropriate example value for a Go type
-// First checks if there's a custom type handler registered that provides an example
 func getExampleValue(t reflect.Type) interface{} {
 	typeName := t.String()
-	if handler, exists := metadata.GetTypeHandler(typeName); exists {
+	if handler, exists := GetTypeHandler(typeName); exists {
 		schema := handler(t)
 		if schema.Example != nil {
 			return schema.Example
@@ -242,10 +222,7 @@ func generateExample(t reflect.Type) interface{} {
 	return generateExampleWithCycle(t, make(map[string]bool))
 }
 
-func generateExampleWithCycle(
-	t reflect.Type,
-	visiting map[string]bool,
-) interface{} {
+func generateExampleWithCycle(t reflect.Type, visiting map[string]bool) interface{} {
 	if t.Kind() != reflect.Struct {
 		return nil
 	}
@@ -290,7 +267,6 @@ func generateExampleWithCycle(
 				value = generateExampleWithCycle(field.Type, visiting)
 			}
 		case reflect.Ptr:
-			// For pointer fields, generate an example of the underlying type
 			elemType := field.Type.Elem()
 			switch elemType.Kind() {
 			case reflect.Struct:
@@ -326,13 +302,11 @@ func generateExampleWithCycle(
 }
 
 // GetTypeFromGeneric extracts the reflect.Type from a generic type parameter T.
-// This is a utility function to reduce the boilerplate of reflect.TypeOf((*T)(nil)).Elem().
 func GetTypeFromGeneric[T any]() reflect.Type {
 	return reflect.TypeOf((*T)(nil)).Elem()
 }
 
 // IsArrayType checks if a reflect.Type is a slice or array.
-// This is a utility function to reduce repeated slice/array checking.
 func IsArrayType(t reflect.Type) bool {
 	return t.Kind() == reflect.Slice || t.Kind() == reflect.Array
 }

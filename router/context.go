@@ -16,14 +16,14 @@ import (
 	"strings"
 	"sync"
 	"time"
-
-	"github.com/joakimcarlsson/go-router/metadata"
 )
 
-// Pre-allocated common header values to avoid string allocations
 const (
-	contentTypeJSON = "application/json; charset=utf-8"
-	contentTypeXML  = "application/xml; charset=utf-8"
+	contentTypeJSON        = "application/json; charset=utf-8"
+	contentTypeXML         = "application/xml; charset=utf-8"
+	ContentTypeJSON        = "application/json"
+	ContentTypeXML         = "application/xml"
+	ContentTypeEventStream = "text/event-stream"
 )
 
 // Context represents the context of an HTTP request, including the request and response writer.
@@ -538,16 +538,13 @@ func clearInterfaceMap(m map[string]interface{}) {
 	}
 }
 
-// Negotiate performs content negotiation and returns the most appropriate content type
-// based on the Accept header and the offered content types.
-// If no matching content type is found, it returns the first offered type or metadata.ContentTypeJSON by default.
 func (c *Context) Negotiate(offered ...string) string {
 	accept := c.GetHeader("Accept")
 	if accept == "" {
 		if len(offered) > 0 {
 			return offered[0]
 		}
-		return metadata.ContentTypeJSON
+		return ContentTypeJSON
 	}
 
 	accepts := strings.Split(accept, ",")
@@ -563,11 +560,9 @@ func (c *Context) Negotiate(offered ...string) string {
 	return offered[0]
 }
 
-// Respond sends a response with content negotiation.
-// It chooses between JSON and XML based on the Accept header.
 func (c *Context) Respond(code int, obj interface{}) {
-	switch c.Negotiate(metadata.ContentTypeJSON, metadata.ContentTypeXML) {
-	case metadata.ContentTypeXML:
+	switch c.Negotiate(ContentTypeJSON, ContentTypeXML) {
+	case ContentTypeXML:
 		c.XML(code, obj)
 	default:
 		c.JSON(code, obj)
@@ -697,7 +692,7 @@ func (c *Context) InitSSE() {
 	if c.sseInitialized {
 		return
 	}
-	c.Writer.Header().Set("Content-Type", metadata.ContentTypeEventStream)
+	c.Writer.Header().Set("Content-Type", ContentTypeEventStream)
 	c.Writer.Header().Set("Cache-Control", "no-cache")
 	c.Writer.Header().Set("Connection", "keep-alive")
 	c.Writer.Header().Set("X-Accel-Buffering", "no")

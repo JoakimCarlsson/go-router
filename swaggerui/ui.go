@@ -1,10 +1,8 @@
-package swagger
+package swaggerui
 
 import (
 	"html/template"
 	"net/http"
-
-	"github.com/joakimcarlsson/go-router/metadata"
 )
 
 // UIConfig holds configuration options for serving Swagger UI.
@@ -49,7 +47,31 @@ type UIConfig struct {
 	// CustomJS allows injecting custom JavaScript
 	CustomJS string
 	// OAuth2Config contains OAuth2 configuration for Swagger UI
-	OAuth2Config *metadata.OAuth2Config
+	OAuth2Config *OAuth2Config
+}
+
+// OAuth2Config holds OAuth2 configuration for Swagger UI.
+type OAuth2Config struct {
+	// ClientID is the OAuth2 client ID
+	ClientID string
+	// ClientSecret is the OAuth2 client secret (optional, not recommended for public clients)
+	ClientSecret string
+	// Realm is the OAuth2 realm
+	Realm string
+	// AppName is the application name displayed in the authorization dialog
+	AppName string
+	// ScopeSeparator is the separator for scopes
+	ScopeSeparator string
+	// Scopes are the default scopes to request
+	Scopes string
+	// AdditionalQueryParams are additional query parameters to include in the authorization request
+	AdditionalQueryParams map[string]string
+	// UsePkceWithAuthorizationCodeGrant enables PKCE for authorization code grant
+	UsePkceWithAuthorizationCodeGrant bool
+	// UseBasicAuthenticationWithAccessCodeGrant uses basic auth for access code grant
+	UseBasicAuthenticationWithAccessCodeGrant bool
+	// OAuth2RedirectUrl is the redirect URL for OAuth2
+	OAuth2RedirectUrl string
 }
 
 // DefaultUIConfig returns a default configuration for Swagger UI.
@@ -274,7 +296,6 @@ func Handler(config UIConfig) http.HandlerFunc {
 
 	tmpl, err := template.New("swagger-ui").Funcs(template.FuncMap{
 		"last": func(key string, m map[string]string) bool {
-			// Get all keys and find if this is the last one
 			keys := make([]string, 0, len(m))
 			for k := range m {
 				keys = append(keys, k)
@@ -306,7 +327,7 @@ func Handler(config UIConfig) http.HandlerFunc {
 			DefaultModelRendering    string
 			CustomCSS                string
 			CustomJS                 string
-			OAuth2Config             *metadata.OAuth2Config
+			OAuth2Config             *OAuth2Config
 		}{
 			Title:                    config.Title,
 			SpecURL:                  config.SpecURL,

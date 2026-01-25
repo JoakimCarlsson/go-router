@@ -9,12 +9,10 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/joakimcarlsson/go-router/docs"
 	"github.com/joakimcarlsson/go-router/integration"
-	"github.com/joakimcarlsson/go-router/metadata"
 	"github.com/joakimcarlsson/go-router/openapi"
 	"github.com/joakimcarlsson/go-router/router"
-	"github.com/joakimcarlsson/go-router/swagger"
+	"github.com/joakimcarlsson/go-router/swaggerui"
 )
 
 //go:embed index.html
@@ -44,8 +42,7 @@ var stocks = []string{"AAPL", "MSFT", "GOOG", "AMZN", "META"}
 func main() {
 	r := router.New()
 
-	// Create OpenAPI generator
-	generator := openapi.NewGenerator(metadata.Info{
+	generator := openapi.NewGenerator(openapi.Info{
 		Title:       "SSE Example API",
 		Version:     "1.0.0",
 		Description: "Example API demonstrating Server-Sent Events with go-router",
@@ -55,57 +52,50 @@ func main() {
 		ctx.Writer.Header().Set("Content-Type", "text/html")
 		ctx.Writer.Write(indexHTML)
 	},
-		docs.WithSummary("Home Page"),
-		docs.WithDescription("Serves the home page with stock ticker demo"),
-		docs.ExcludeFromDocs(),
+		openapi.WithSummary("Home Page"),
+		openapi.WithDescription("Serves the home page with stock ticker demo"),
+		openapi.ExcludeFromDocs(),
 	)
 
-	// Stock events using the new SSE documentation and handler wrapper
 	r.GET("/events/stocks", stockEventsHandler,
-		docs.WithTags("SSE"),
-		docs.WithSummary("Stock price updates stream"),
-		docs.WithSSEResponse("Real-time stock price updates via Server-Sent Events"),
-		docs.WithSSEEvent[StockUpdate]("stock_update", "Emitted when a stock price changes"),
-		docs.WithSSEEvent[HeartbeatEvent]("heartbeat", "Emitted periodically to keep the connection alive"),
-		docs.WithSSEEvent[ErrorEvent]("error", "Emitted when an error occurs"),
+		openapi.WithTags("SSE"),
+		openapi.WithSummary("Stock price updates stream"),
+		openapi.WithSSEResponse("Real-time stock price updates via Server-Sent Events"),
+		openapi.WithSSEEvent[StockUpdate]("stock_update", "Emitted when a stock price changes"),
+		openapi.WithSSEEvent[HeartbeatEvent]("heartbeat", "Emitted periodically to keep the connection alive"),
+		openapi.WithSSEEvent[ErrorEvent]("error", "Emitted when an error occurs"),
 	)
 
-	// Alternative: Manual SSE handling (shows the old way still works)
 	r.GET("/events/stocks/manual", stockEventsManual,
-		docs.WithTags("SSE"),
-		docs.WithSummary("Stock prices (manual handling)"),
-		docs.WithDescription("Same as /events/stocks but with manual SSE handling for comparison"),
-		docs.WithSSEResponse("Real-time stock price updates"),
-		docs.WithSSEEvent[StockUpdate]("stock_update", "Stock price changed"),
+		openapi.WithTags("SSE"),
+		openapi.WithSummary("Stock prices (manual handling)"),
+		openapi.WithDescription("Same as /events/stocks but with manual SSE handling for comparison"),
+		openapi.WithSSEResponse("Real-time stock price updates"),
+		openapi.WithSSEEvent[StockUpdate]("stock_update", "Stock price changed"),
 	)
 
-	// Configure Swagger UI
-	uiConfig := swagger.DefaultUIConfig()
+	uiConfig := swaggerui.DefaultUIConfig()
 	uiConfig.Title = "SSE Examples"
 	uiConfig.DocExpansion = "list"
 
-	// Set up Swagger integration
 	swaggerUI := integration.NewSwaggerUIIntegration(r, generator)
 	swaggerUI.WithUIConfig(uiConfig)
 	swaggerUI.SetupRoutes(r, "/openapi.json", "/docs")
 
-	// Start the server
 	fmt.Println("Server starting on http://localhost:8080")
 	fmt.Println("API documentation available at http://localhost:8080/docs")
 	fmt.Println("Stock ticker demo at http://localhost:8080/")
 	log.Fatal(http.ListenAndServe(":8080", r))
 }
 
-// stockEventsHandler demonstrates the new SSEHandler wrapper
-// This is the recommended way to implement SSE endpoints
+// stockEventsHandler demonstrates the new SSEHandler wrapper.
+// This is the recommended way to implement SSE endpoints.
 func stockEventsHandler(c *router.Context) {
-	// Initialize stock prices
 	stockPrices := make(map[string]float64)
 	for _, symbol := range stocks {
 		stockPrices[symbol] = 100.0 + float64(time.Now().Nanosecond()%2000)/100.0
 	}
 
-	// Use SSEHandler with custom configuration
 	c.SSEHandler(router.SSEConfig{
 		KeepAliveInterval: 30 * time.Second,
 		KeepAliveEnabled:  true,
@@ -116,18 +106,15 @@ func stockEventsHandler(c *router.Context) {
 		ticker := time.NewTicker(2 * time.Second)
 		defer ticker.Stop()
 
-		// Send periodic heartbeats (in addition to keep-alive comments)
 		heartbeatTicker := time.NewTicker(10 * time.Second)
 		defer heartbeatTicker.Stop()
 
 		for {
 			select {
 			case <-ctx.Done():
-				// Client disconnected - context was cancelled
 				return nil
 
 			case <-ticker.C:
-				// Pick a random stock and update its price
 				symbol := stocks[time.Now().Unix()%int64(len(stocks))]
 				change := (float64(time.Now().Nanosecond()%400) - 200.0) / 100.0
 				stockPrices[symbol] += change
@@ -144,7 +131,6 @@ func stockEventsHandler(c *router.Context) {
 				}
 
 			case <-heartbeatTicker.C:
-				// Send a heartbeat event
 				if err := send("heartbeat", HeartbeatEvent{Timestamp: time.Now()}); err != nil {
 					return err
 				}
@@ -153,8 +139,8 @@ func stockEventsHandler(c *router.Context) {
 	})
 }
 
-// stockEventsManual demonstrates manual SSE handling (the old way)
-// This is still supported for cases where you need more control
+// stockEventsManual demonstrates manual SSE handling (the old way).
+// This is still supported for cases where you need more control.
 func stockEventsManual(c *router.Context) {
 	c.InitSSE()
 
