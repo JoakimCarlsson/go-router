@@ -8,14 +8,17 @@ import (
 	"sync"
 )
 
+// StatusCodeToString converts an HTTP status code to its string representation.
 func StatusCodeToString(code int) string {
 	return strconv.Itoa(code)
 }
 
+// StatusCodeFromString converts a string to an HTTP status code.
 func StatusCodeFromString(code string) (int, error) {
 	return strconv.Atoi(code)
 }
 
+// Content type constants for HTTP responses.
 const (
 	ContentTypeJSON        = "application/json"
 	ContentTypeXML         = "application/xml"
@@ -24,6 +27,7 @@ const (
 	ContentTypeFormData    = "multipart/form-data"
 )
 
+// RouteMetadata contains all metadata for a route used in OpenAPI generation.
 type RouteMetadata struct {
 	Method          string
 	Path            string
@@ -41,12 +45,14 @@ type RouteMetadata struct {
 	ExcludeFromDocs bool
 }
 
+// SSEEventSchema defines the schema for a Server-Sent Event type.
 type SSEEventSchema struct {
 	EventName   string
 	Description string
 	Schema      Schema
 }
 
+// Parameter represents an OpenAPI parameter definition.
 type Parameter struct {
 	Name        string      `json:"name"`
 	In          string      `json:"in"`
@@ -68,26 +74,31 @@ func (p Parameter) MarshalJSON() ([]byte, error) {
 	return json.Marshal(ParameterJSON(p))
 }
 
+// RequestBody represents an OpenAPI request body definition.
 type RequestBody struct {
 	Description string               `json:"description,omitempty"`
 	Required    bool                 `json:"required,omitempty"`
 	Content     map[string]MediaType `json:"content"`
 }
 
+// Response represents an OpenAPI response definition.
 type Response struct {
 	Description string               `json:"description"`
 	Content     map[string]MediaType `json:"content,omitempty"`
 	Headers     map[string]Header    `json:"headers,omitempty"`
 }
 
+// SecurityRequirement represents an OpenAPI security requirement.
 type SecurityRequirement map[string][]string
 
+// Example represents an OpenAPI example.
 type Example struct {
 	Summary     string      `json:"summary,omitempty"`
 	Description string      `json:"description,omitempty"`
 	Value       interface{} `json:"value,omitempty"`
 }
 
+// MediaType represents an OpenAPI media type definition.
 type MediaType struct {
 	Schema    Schema             `json:"schema,omitempty"`
 	Example   interface{}        `json:"example,omitempty"`
@@ -118,11 +129,13 @@ func (m MediaType) MarshalJSON() ([]byte, error) {
 	})
 }
 
+// Header represents an OpenAPI header definition.
 type Header struct {
 	Description string `json:"description,omitempty"`
 	Schema      Schema `json:"schema"`
 }
 
+// Schema represents an OpenAPI schema definition.
 type Schema struct {
 	Type                 string            `json:"type,omitempty"`
 	Ref                  string            `json:"$ref,omitempty"`
@@ -146,10 +159,12 @@ type Schema struct {
 	TypeName             string            `json:"-"`
 }
 
+// Reference represents an OpenAPI reference to another schema.
 type Reference struct {
 	Ref string `json:"$ref"`
 }
 
+// SchemaOrReference represents either an inline schema or a reference.
 type SchemaOrReference struct {
 	Schema    *Schema
 	Reference *Reference
@@ -165,6 +180,7 @@ func (s SchemaOrReference) MarshalJSON() ([]byte, error) {
 	return json.Marshal(nil)
 }
 
+// Spec represents a complete OpenAPI 3.0 specification.
 type Spec struct {
 	OpenAPI      string              `json:"openapi"`
 	Info         Info                `json:"info"`
@@ -175,6 +191,7 @@ type Spec struct {
 	ExternalDocs map[string]string   `json:"externalDocs,omitempty"`
 }
 
+// Info represents the OpenAPI info object with API metadata.
 type Info struct {
 	Title          string   `json:"title"`
 	Description    string   `json:"description,omitempty"`
@@ -184,29 +201,34 @@ type Info struct {
 	License        *License `json:"license,omitempty"`
 }
 
+// Contact represents contact information for the API.
 type Contact struct {
 	Name  string `json:"name,omitempty"`
 	URL   string `json:"url,omitempty"`
 	Email string `json:"email,omitempty"`
 }
 
+// License represents license information for the API.
 type License struct {
 	Name string `json:"name"`
 	URL  string `json:"url,omitempty"`
 }
 
+// Server represents a server URL for the API.
 type Server struct {
 	URL         string                    `json:"url"`
 	Description string                    `json:"description,omitempty"`
 	Variables   map[string]ServerVariable `json:"variables,omitempty"`
 }
 
+// ServerVariable represents a variable for server URL template substitution.
 type ServerVariable struct {
 	Enum        []string `json:"enum,omitempty"`
 	Default     string   `json:"default"`
 	Description string   `json:"description,omitempty"`
 }
 
+// PathItem represents operations available on a single path.
 type PathItem struct {
 	Summary     string     `json:"summary,omitempty"`
 	Description string     `json:"description,omitempty"`
@@ -220,6 +242,7 @@ type PathItem struct {
 	Trace       *Operation `json:"trace,omitempty"`
 }
 
+// Operation represents a single API operation on a path.
 type Operation struct {
 	OperationID string                `json:"operationId,omitempty"`
 	Summary     string                `json:"summary,omitempty"`
@@ -232,11 +255,13 @@ type Operation struct {
 	Deprecated  bool                  `json:"deprecated,omitempty"`
 }
 
+// Components holds a set of reusable objects for the OpenAPI specification.
 type Components struct {
 	Schemas         map[string]Schema         `json:"schemas,omitempty"`
 	SecuritySchemes map[string]SecurityScheme `json:"securitySchemes,omitempty"`
 }
 
+// SecurityScheme represents an OpenAPI security scheme definition.
 type SecurityScheme struct {
 	Type             string      `json:"type"`
 	Scheme           string      `json:"scheme,omitempty"`
@@ -247,6 +272,7 @@ type SecurityScheme struct {
 	OpenIDConnectURL string      `json:"openIdConnectUrl,omitempty"`
 }
 
+// OAuthFlows represents the configuration for OAuth2 flows.
 type OAuthFlows struct {
 	Implicit          *OAuthFlow `json:"implicit,omitempty"`
 	Password          *OAuthFlow `json:"password,omitempty"`
@@ -254,6 +280,7 @@ type OAuthFlows struct {
 	AuthorizationCode *OAuthFlow `json:"authorizationCode,omitempty"`
 }
 
+// OAuthFlow represents configuration for a specific OAuth2 flow.
 type OAuthFlow struct {
 	AuthorizationURL string            `json:"authorizationUrl,omitempty"`
 	TokenURL         string            `json:"tokenUrl,omitempty"`
@@ -261,11 +288,13 @@ type OAuthFlow struct {
 	Scopes           map[string]string `json:"scopes"`
 }
 
+// Tag represents an OpenAPI tag for grouping operations.
 type Tag struct {
 	Name        string `json:"name"`
 	Description string `json:"description,omitempty"`
 }
 
+// TypeHandler is a function that generates a Schema for a custom Go type.
 type TypeHandler func(reflect.Type) Schema
 
 type typeHandlerRegistry struct {
@@ -277,12 +306,14 @@ var globalTypeHandlerRegistry = &typeHandlerRegistry{
 	handlers: make(map[string]TypeHandler),
 }
 
+// RegisterTypeHandler registers a custom type handler for schema generation.
 func RegisterTypeHandler(typeName string, handler TypeHandler) {
 	globalTypeHandlerRegistry.mu.Lock()
 	defer globalTypeHandlerRegistry.mu.Unlock()
 	globalTypeHandlerRegistry.handlers[typeName] = handler
 }
 
+// GetTypeHandler retrieves a custom type handler by type name.
 func GetTypeHandler(typeName string) (TypeHandler, bool) {
 	globalTypeHandlerRegistry.mu.RLock()
 	defer globalTypeHandlerRegistry.mu.RUnlock()
@@ -290,6 +321,7 @@ func GetTypeHandler(typeName string) (TypeHandler, bool) {
 	return handler, exists
 }
 
+// TypeRegistryEntry represents a registered type in the global type registry.
 type TypeRegistryEntry struct {
 	Name      string
 	PkgPath   string
@@ -306,6 +338,8 @@ var globalTypeRegistry = &typeRegistry{
 	types: make(map[string]*TypeRegistryEntry),
 }
 
+// RegisterType registers a Go type and returns its schema name.
+// It handles name collisions by qualifying names with package paths.
 func RegisterType(t reflect.Type) string {
 	globalTypeRegistry.mu.Lock()
 	defer globalTypeRegistry.mu.Unlock()
@@ -348,6 +382,7 @@ func RegisterType(t reflect.Type) string {
 	return name
 }
 
+// SanitizeSchemaName converts a type name to a valid OpenAPI schema name.
 func SanitizeSchemaName(name string) string {
 	name = strings.ReplaceAll(name, ".", "_")
 	name = strings.ReplaceAll(name, "/", "_")
@@ -355,6 +390,7 @@ func SanitizeSchemaName(name string) string {
 	return name
 }
 
+// OAuth2Config holds OAuth2 configuration for the OpenAPI specification.
 type OAuth2Config struct {
 	ClientID                                  string
 	ClientSecret                              string
@@ -368,6 +404,7 @@ type OAuth2Config struct {
 	OAuth2RedirectUrl                         string
 }
 
+// NewOAuth2Config creates a new OAuth2Config with default values.
 func NewOAuth2Config() *OAuth2Config {
 	return &OAuth2Config{
 		ScopeSeparator:                            " ",
@@ -427,6 +464,7 @@ func (c *OAuth2Config) WithOAuth2RedirectUrl(url string) *OAuth2Config {
 	return c
 }
 
+// EnsureResponsesMap initializes the Responses map if it is nil.
 func EnsureResponsesMap(m *RouteMetadata) {
 	if m.Responses == nil {
 		m.Responses = make(map[string]Response)

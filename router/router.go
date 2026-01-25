@@ -8,10 +8,17 @@ import (
 	"sync"
 )
 
+// HandlerFunc defines a function to process HTTP requests in the context of the router.
+// It receives a Context which encapsulates the HTTP request and response writer.
 type HandlerFunc func(*Context)
 
+// MiddlewareFunc defines a function that wraps a HandlerFunc for middleware processing.
+// Middleware functions can perform pre-processing before calling the next handler,
+// or post-processing after the handler returns.
 type MiddlewareFunc func(HandlerFunc) HandlerFunc
 
+// route represents an internal route definition with its HTTP method, path pattern,
+// handler function and options for documentation.
 type route struct {
 	method  string
 	path    string
@@ -19,6 +26,8 @@ type route struct {
 	options []RouteOption
 }
 
+// handlerWrapper wraps a HandlerFunc to be compatible with http.Handler.
+// This is reused to avoid allocation overhead of anonymous functions.
 type handlerWrapper struct {
 	handler            HandlerFunc
 	maxMultipartMemory int64
@@ -56,6 +65,8 @@ func (hw *handlerWrapper) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	hw.handler(ctx)
 }
 
+// Router is the main HTTP router that registers routes and dispatches requests to handlers.
+// It supports middleware, route groups, and OpenAPI documentation generation.
 type Router struct {
 	mux                *http.ServeMux
 	prefix             string
@@ -67,6 +78,8 @@ type Router struct {
 	maxMultipartMemory int64
 }
 
+// New creates a new Router instance with default configuration.
+// The returned router is ready to register routes and handle HTTP requests.
 func New() *Router {
 	return &Router{
 		mux:                http.NewServeMux(),
@@ -78,15 +91,36 @@ func New() *Router {
 	}
 }
 
+// WithOptions adds route options to a router group.
+// Options are used for OpenAPI documentation configuration.
+// Returns the router for method chaining.
 func (r *Router) WithOptions(opts ...RouteOption) *Router {
 	r.groupOptions = append(r.groupOptions, opts...)
 	return r
 }
 
+// Use adds standard HTTP middleware to the router.
+//
+// It accepts middleware that follows the standard Go HTTP middleware pattern:
+// func(http.Handler) http.Handler
+//
+// Example usage:
+//
+//	r.Use(cors.Default())
+//	r.Use(logger, recovery, cors.Default())
 func (r *Router) Use(middlewares ...func(http.Handler) http.Handler) {
 	r.middlewares = append(r.middlewares, middlewares...)
 }
 
+// Group creates a route group with a path prefix and shared middleware.
+//
+// Example usage:
+//
+//	r.Group("/api/v1", func(api *router.Router) {
+//	    api.Use(authMiddleware)
+//	    api.GET("/users", listUsers)
+//	    api.POST("/users", createUser)
+//	})
 func (r *Router) Group(path string, fn func(*Router)) {
 	group := &Router{
 		mux:                r.mux,
@@ -104,6 +138,9 @@ func (r *Router) Group(path string, fn func(*Router)) {
 	r.mu.Unlock()
 }
 
+// Handle registers a new route with the given pattern and handler.
+// The pattern must be in the format "METHOD /path".
+// Route options can be provided to add OpenAPI documentation to the route.
 func (r *Router) Handle(pattern string, handler HandlerFunc, opts ...RouteOption) {
 	parts := strings.SplitN(pattern, " ", 2)
 	if len(parts) != 2 {
@@ -142,35 +179,52 @@ func (r *Router) Handle(pattern string, handler HandlerFunc, opts ...RouteOption
 	r.mux.Handle(method+" "+fullpath, httpHandler)
 }
 
+// GET registers a GET route with the given path and handler.
+// Route options can be provided to add OpenAPI documentation.
 func (r *Router) GET(path string, handler HandlerFunc, opts ...RouteOption) {
 	r.Handle("GET "+path, handler, opts...)
 }
 
+// POST registers a POST route with the given path and handler.
+// Route options can be provided to add OpenAPI documentation.
 func (r *Router) POST(path string, handler HandlerFunc, opts ...RouteOption) {
 	r.Handle("POST "+path, handler, opts...)
 }
 
+// PUT registers a PUT route with the given path and handler.
+// Route options can be provided to add OpenAPI documentation.
 func (r *Router) PUT(path string, handler HandlerFunc, opts ...RouteOption) {
 	r.Handle("PUT "+path, handler, opts...)
 }
 
+// DELETE registers a DELETE route with the given path and handler.
+// Route options can be provided to add OpenAPI documentation.
 func (r *Router) DELETE(path string, handler HandlerFunc, opts ...RouteOption) {
 	r.Handle("DELETE "+path, handler, opts...)
 }
 
+// PATCH registers a PATCH route with the given path and handler.
+// Route options can be provided to add OpenAPI documentation.
 func (r *Router) PATCH(path string, handler HandlerFunc, opts ...RouteOption) {
 	r.Handle("PATCH "+path, handler, opts...)
 }
 
+// WithMultipartConfig sets the maximum memory allocation for multipart form data parsing.
+// This affects how much of a file upload will be stored in memory before being written to disk.
+// Default is 32MB if not specified.
 func (r *Router) WithMultipartConfig(maxMemory int64) *Router {
 	r.maxMultipartMemory = maxMemory
 	return r
 }
 
+// ServeHTTP implements the http.Handler interface.
+// This allows the router to be used directly with http.ListenAndServe.
 func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	r.mux.ServeHTTP(w, req)
 }
 
+// Routes returns all registered routes.
+// This is used by external modules (e.g., OpenAPI) to collect route information.
 func (r *Router) Routes() []Route {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
@@ -187,6 +241,9 @@ func (r *Router) Routes() []Route {
 	return routes
 }
 
+// AutoRegisterOptions automatically registers OPTIONS handlers for all routes.
+// This is useful for CORS preflight requests.
+// Returns the router for method chaining.
 func (r *Router) AutoRegisterOptions() *Router {
 	r.mu.RLock()
 
@@ -222,6 +279,8 @@ func (r *Router) AutoRegisterOptions() *Router {
 	return r
 }
 
+// normalizePath ensures the path starts with a slash and is cleaned.
+// It handles edge cases like empty paths and relative paths.
 func normalizePath(p string) string {
 	if p == "" {
 		return "/"
@@ -232,6 +291,8 @@ func normalizePath(p string) string {
 	return path.Clean(p)
 }
 
+// ToHTTPHandlerFunc converts a router.HandlerFunc to a standard http.HandlerFunc.
+// This allows router handlers to be used in contexts that expect standard HTTP handlers.
 func ToHTTPHandlerFunc(h HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := acquireContext(w, r)
@@ -240,6 +301,8 @@ func ToHTTPHandlerFunc(h HandlerFunc) http.HandlerFunc {
 	}
 }
 
+// FromHTTPHandler converts a standard http.Handler to a router.HandlerFunc.
+// This allows standard HTTP handlers to be used with the router.
 func FromHTTPHandler(handler http.Handler) HandlerFunc {
 	return func(c *Context) {
 		handler.ServeHTTP(c.Writer, c.Request)

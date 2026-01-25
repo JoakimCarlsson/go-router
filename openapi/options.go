@@ -6,13 +6,25 @@ import (
 	"github.com/joakimcarlsson/go-router/router"
 )
 
+// OperationIDOption sets the operationId for a route.
 type OperationIDOption struct{ OperationID string }
+
+// SummaryOption sets the summary for a route.
 type SummaryOption struct{ Summary string }
+
+// DescriptionOption sets the description for a route.
 type DescriptionOption struct{ Description string }
+
+// TagsOption adds tags to a route.
 type TagsOption struct{ Tags []string }
+
+// DeprecatedOption marks a route as deprecated.
 type DeprecatedOption struct{ Message string }
+
+// ExcludeFromDocsOption excludes a route from OpenAPI documentation.
 type ExcludeFromDocsOption struct{}
 
+// ParameterOption adds a parameter to a route.
 type ParameterOption struct {
 	Name        string
 	In          string
@@ -22,6 +34,7 @@ type ParameterOption struct {
 	Example     interface{}
 }
 
+// ParameterWithSchemaOption adds a parameter with a full schema to a route.
 type ParameterWithSchemaOption struct {
 	Name        string
 	In          string
@@ -30,6 +43,7 @@ type ParameterWithSchemaOption struct {
 	Schema      Schema
 }
 
+// RequestBodyOption adds a request body with a specific content type.
 type RequestBodyOption struct {
 	ContentType string
 	Schema      Schema
@@ -37,47 +51,56 @@ type RequestBodyOption struct {
 	Description string
 }
 
+// JSONRequestBodyOption adds a JSON request body with schema inferred from a type.
 type JSONRequestBodyOption struct {
 	Type        reflect.Type
 	Required    bool
 	Description string
 }
 
+// MultipartFormDataOption adds a multipart form data request body.
 type MultipartFormDataOption struct {
 	Description string
 	FormFields  map[string]FormFieldSpec
 }
 
+// MultipartFormStructOption adds a multipart form data request body from a struct type.
 type MultipartFormStructOption struct {
 	Type        reflect.Type
 	Description string
 }
 
+// ResponseOption adds a response to a route.
 type ResponseOption struct {
 	StatusCode  int
 	Description string
 }
 
+// JSONResponseOption adds a JSON response with schema inferred from a type.
 type JSONResponseOption struct {
 	StatusCode  int
 	Description string
 	Type        reflect.Type
 }
 
+// SecurityOption adds security requirements to a route.
 type SecurityOption struct {
 	Requirements []map[string][]string
 }
 
+// SSEResponseOption marks a route as returning Server-Sent Events.
 type SSEResponseOption struct {
 	Description string
 }
 
+// SSEEventOption documents a specific SSE event type.
 type SSEEventOption struct {
 	EventName   string
 	Description string
 	Type        reflect.Type
 }
 
+// SSEEventsOption documents multiple SSE event types.
 type SSEEventsOption struct {
 	Description string
 	Events      []SSEEventSpec
