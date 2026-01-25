@@ -37,6 +37,34 @@ jobs:
           PREVIOUS_TAG=$(git tag -l "${MODULE}/v*" --sort=-v:refname | grep -v "^${CURRENT_TAG}$" | head -n1 || true)
           echo "tag=$PREVIOUS_TAG" >> $GITHUB_OUTPUT
       
+      - name: Generate release notes
+        id: notes
+        run: |
+          MODULE="${{ steps.extract.outputs.module }}"
+          VERSION="${{ steps.extract.outputs.version }}"
+          PREVIOUS="${{ steps.previous.outputs.tag }}"
+          
+          if [ -n "$PREVIOUS" ]; then
+            RANGE="$PREVIOUS..HEAD"
+          else
+            RANGE=$(git rev-list --max-parents=0 HEAD)..HEAD
+          fi
+          
+          echo "## What's Changed" > notes.md
+          echo "" >> notes.md
+          
+          git log $RANGE --oneline --no-merges -- "${MODULE}/" | while read -r line; do
+            echo "- $line" >> notes.md
+          done
+          
+          if [ ! -s notes.md ] || [ $(wc -l < notes.md) -le 2 ]; then
+            echo "## What's Changed" > notes.md
+            echo "" >> notes.md
+            echo "Initial release of ${MODULE} module" >> notes.md
+          fi
+          
+          cat notes.md
+      
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -44,20 +72,11 @@ jobs:
           TAG="${{ steps.extract.outputs.tag }}"
           MODULE="${{ steps.extract.outputs.module }}"
           VERSION="${{ steps.extract.outputs.version }}"
-          PREVIOUS="${{ steps.previous.outputs.tag }}"
-          
           TITLE="${MODULE} ${VERSION}"
           
-          if [ -n "$PREVIOUS" ]; then
-            gh release create "$TAG" \
-              --title "$TITLE" \
-              --generate-notes \
-              --notes-start-tag "$PREVIOUS"
-          else
-            gh release create "$TAG" \
-              --title "$TITLE" \
-              --generate-notes
-          fi
+          gh release create "$TAG" \
+            --title "$TITLE" \
+            --notes-file notes.md
       
       - name: Trigger Go module reindex (pkg.go.dev)
         run: |
