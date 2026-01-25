@@ -1,6 +1,7 @@
 package router
 
 import (
+	"context"
 	"net/http"
 	"path"
 	"slices"
@@ -32,6 +33,20 @@ type handlerWrapper struct {
 	handler            HandlerFunc
 	maxMultipartMemory int64
 }
+
+type contextKey string
+
+const (
+	// RouteMethodKey is the context key for the matched route's HTTP method
+	RouteMethodKey contextKey = "router:method"
+	// RoutePathKey is the context key for the matched route's path pattern
+	RoutePathKey contextKey = "router:path"
+)
+
+var (
+	routeMethodKey = RouteMethodKey
+	routePathKey   = RoutePathKey
+)
 
 func (hw *handlerWrapper) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	ctx := contextPool.Get().(*Context)
@@ -76,6 +91,8 @@ type Router struct {
 	mu                 sync.RWMutex
 	groupOptions       []RouteOption
 	maxMultipartMemory int64
+	cacheConfigs       map[string]CacheConfig
+	cacheProfiles      map[string]string
 }
 
 // New creates a new Router instance with default configuration.
@@ -88,6 +105,8 @@ func New() *Router {
 		routes:             make([]route, 0),
 		groupOptions:       make([]RouteOption, 0),
 		maxMultipartMemory: 32 << 20,
+		cacheConfigs:       make(map[string]CacheConfig),
+		cacheProfiles:      make(map[string]string),
 	}
 }
 
@@ -130,6 +149,8 @@ func (r *Router) Group(path string, fn func(*Router)) {
 		routes:             make([]route, 0),
 		groupOptions:       slices.Clone(r.groupOptions),
 		maxMultipartMemory: r.maxMultipartMemory,
+		cacheConfigs:       r.cacheConfigs,
+		cacheProfiles:      r.cacheProfiles,
 	}
 	fn(group)
 
@@ -141,7 +162,8 @@ func (r *Router) Group(path string, fn func(*Router)) {
 // Handle registers a new route with the given pattern and handler.
 // The pattern must be in the format "METHOD /path".
 // Route options can be provided to add OpenAPI documentation to the route.
-func (r *Router) Handle(pattern string, handler HandlerFunc, opts ...RouteOption) {
+// Returns a RouteRegistration that allows for fluent configuration with WithOutputCache.
+func (r *Router) Handle(pattern string, handler HandlerFunc, opts ...RouteOption) *RouteRegistration {
 	parts := strings.SplitN(pattern, " ", 2)
 	if len(parts) != 2 {
 		panic("invalid route pattern format, expected 'METHOD /path'")
@@ -167,46 +189,65 @@ func (r *Router) Handle(pattern string, handler HandlerFunc, opts ...RouteOption
 	})
 	r.mu.Unlock()
 
-	var httpHandler http.Handler = &handlerWrapper{
+	baseHandler := &handlerWrapper{
 		handler:            handler,
 		maxMultipartMemory: r.maxMultipartMemory,
 	}
+
+	var httpHandler http.Handler = baseHandler
 
 	for i := len(r.middlewares) - 1; i >= 0; i-- {
 		httpHandler = r.middlewares[i](httpHandler)
 	}
 
-	r.mux.Handle(method+" "+fullpath, httpHandler)
+	routeInfoHandler := http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		ctx := context.WithValue(req.Context(), routeMethodKey, method)
+		ctx = context.WithValue(ctx, routePathKey, fullpath)
+		httpHandler.ServeHTTP(w, req.WithContext(ctx))
+	})
+
+	r.mux.Handle(method+" "+fullpath, routeInfoHandler)
+	
+	return &RouteRegistration{
+		router: r,
+		method: method,
+		path:   fullpath,
+	}
 }
 
 // GET registers a GET route with the given path and handler.
 // Route options can be provided to add OpenAPI documentation.
-func (r *Router) GET(path string, handler HandlerFunc, opts ...RouteOption) {
-	r.Handle("GET "+path, handler, opts...)
+// Returns a RouteRegistration that allows for fluent configuration.
+func (r *Router) GET(path string, handler HandlerFunc, opts ...RouteOption) *RouteRegistration {
+	return r.Handle("GET "+path, handler, opts...)
 }
 
 // POST registers a POST route with the given path and handler.
 // Route options can be provided to add OpenAPI documentation.
-func (r *Router) POST(path string, handler HandlerFunc, opts ...RouteOption) {
-	r.Handle("POST "+path, handler, opts...)
+// Returns a RouteRegistration that allows for fluent configuration.
+func (r *Router) POST(path string, handler HandlerFunc, opts ...RouteOption) *RouteRegistration {
+	return r.Handle("POST "+path, handler, opts...)
 }
 
 // PUT registers a PUT route with the given path and handler.
 // Route options can be provided to add OpenAPI documentation.
-func (r *Router) PUT(path string, handler HandlerFunc, opts ...RouteOption) {
-	r.Handle("PUT "+path, handler, opts...)
+// Returns a RouteRegistration that allows for fluent configuration.
+func (r *Router) PUT(path string, handler HandlerFunc, opts ...RouteOption) *RouteRegistration {
+	return r.Handle("PUT "+path, handler, opts...)
 }
 
 // DELETE registers a DELETE route with the given path and handler.
 // Route options can be provided to add OpenAPI documentation.
-func (r *Router) DELETE(path string, handler HandlerFunc, opts ...RouteOption) {
-	r.Handle("DELETE "+path, handler, opts...)
+// Returns a RouteRegistration that allows for fluent configuration.
+func (r *Router) DELETE(path string, handler HandlerFunc, opts ...RouteOption) *RouteRegistration {
+	return r.Handle("DELETE "+path, handler, opts...)
 }
 
 // PATCH registers a PATCH route with the given path and handler.
 // Route options can be provided to add OpenAPI documentation.
-func (r *Router) PATCH(path string, handler HandlerFunc, opts ...RouteOption) {
-	r.Handle("PATCH "+path, handler, opts...)
+// Returns a RouteRegistration that allows for fluent configuration.
+func (r *Router) PATCH(path string, handler HandlerFunc, opts ...RouteOption) *RouteRegistration {
+	return r.Handle("PATCH "+path, handler, opts...)
 }
 
 // WithMultipartConfig sets the maximum memory allocation for multipart form data parsing.
@@ -270,7 +311,7 @@ func (r *Router) AutoRegisterOptions() *Router {
 		r.mu.RUnlock()
 
 		if !found {
-			r.Handle("OPTIONS "+path, func(c *Context) {
+			_ = r.Handle("OPTIONS "+path, func(c *Context) {
 				c.Status(http.StatusNoContent)
 			})
 		}

@@ -6,6 +6,7 @@ on:
       - "router/v*"
       - "openapi/v*"
       - "swaggerui/v*"
+      - "outputcache/v*"
 
 permissions:
   contents: write
@@ -82,4 +83,4 @@ jobs:
         run: |
           MODULE="${{ steps.extract.outputs.module }}"
           VERSION="${{ steps.extract.outputs.version }}"
-          curl -sSf "https://proxy.golang.org/github.com/${GITHUB_REPOSITORY,,}/${MODULE}/@v/${VERSION}.info"
+          curl -sS "https://proxy.golang.org/github.com/${GITHUB_REPOSITORY,,}/${MODULE}/@v/${VERSION}.info" || true
