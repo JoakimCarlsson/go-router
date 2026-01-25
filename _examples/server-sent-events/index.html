@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SSE Stock Ticker Demo</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0f0f0f;
+            color: #e0e0e0;
+            min-height: 100vh;
+            padding: 2rem;
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 0.5rem;
+            color: #fff;
+        }
+        .subtitle {
+            text-align: center;
+            color: #888;
+            margin-bottom: 2rem;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .status {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 1.5rem;
+            padding: 0.75rem 1rem;
+            background: #1a1a1a;
+            border-radius: 8px;
+        }
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #666;
+        }
+        .status-dot.connected {
+            background: #22c55e;
+            box-shadow: 0 0 8px #22c55e;
+        }
+        .status-dot.error {
+            background: #ef4444;
+        }
+        .stocks {
+            display: grid;
+            gap: 1rem;
+        }
+        .stock {
+            background: #1a1a1a;
+            border-radius: 12px;
+            padding: 1.25rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: background 0.2s;
+        }
+        .stock.updated {
+            background: #1f2937;
+        }
+        .stock-info {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+        .stock-symbol {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #fff;
+        }
+        .stock-time {
+            font-size: 0.75rem;
+            color: #666;
+        }
+        .stock-price {
+            text-align: right;
+        }
+        .price {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #fff;
+        }
+        .change {
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+        .change.positive {
+            color: #22c55e;
+        }
+        .change.negative {
+            color: #ef4444;
+        }
+        .events {
+            margin-top: 2rem;
+            background: #1a1a1a;
+            border-radius: 12px;
+            padding: 1rem;
+        }
+        .events h3 {
+            margin-bottom: 0.75rem;
+            color: #888;
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .event-log {
+            font-family: 'SF Mono', Monaco, monospace;
+            font-size: 0.75rem;
+            max-height: 200px;
+            overflow-y: auto;
+            color: #666;
+        }
+        .event-log div {
+            padding: 0.25rem 0;
+            border-bottom: 1px solid #222;
+        }
+        .event-log .event-type {
+            color: #60a5fa;
+        }
+        a {
+            color: #60a5fa;
+            text-decoration: none;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+        .links {
+            text-align: center;
+            margin-top: 2rem;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Stock Ticker</h1>
+        <p class="subtitle">Real-time updates via Server-Sent Events</p>
+        
+        <div class="status">
+            <div class="status-dot" id="statusDot"></div>
+            <span id="statusText">Connecting...</span>
+        </div>
+        
+        <div class="stocks" id="stocks"></div>
+        
+        <div class="events">
+            <h3>Event Log</h3>
+            <div class="event-log" id="eventLog"></div>
+        </div>
+        
+        <div class="links">
+            <a href="/docs">API Documentation</a>
+        </div>
+    </div>
+
+    <script>
+        const stocksContainer = document.getElementById('stocks');
+        const eventLog = document.getElementById('eventLog');
+        const statusDot = document.getElementById('statusDot');
+        const statusText = document.getElementById('statusText');
+        
+        const stockData = {};
+        
+        function formatPrice(price) {
+            return '$' + price.toFixed(2);
+        }
+        
+        function formatChange(change) {
+            const sign = change >= 0 ? '+' : '';
+            return sign + change.toFixed(2);
+        }
+        
+        function formatTime(timestamp) {
+            return new Date(timestamp).toLocaleTimeString();
+        }
+        
+        function renderStocks() {
+            const symbols = Object.keys(stockData).sort();
+            stocksContainer.innerHTML = symbols.map(symbol => {
+                const data = stockData[symbol];
+                const changeClass = data.change >= 0 ? 'positive' : 'negative';
+                const updatedClass = data.justUpdated ? 'updated' : '';
+                return `
+                    <div class="stock ${updatedClass}" id="stock-${symbol}">
+                        <div class="stock-info">
+                            <div class="stock-symbol">${symbol}</div>
+                            <div class="stock-time">Last update: ${formatTime(data.timestamp)}</div>
+                        </div>
+                        <div class="stock-price">
+                            <div class="price">${formatPrice(data.price)}</div>
+                            <div class="change ${changeClass}">${formatChange(data.change)}</div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        function logEvent(type, data) {
+            const div = document.createElement('div');
+            div.innerHTML = `<span class="event-type">${type}</span>: ${JSON.stringify(data)}`;
+            eventLog.insertBefore(div, eventLog.firstChild);
+            if (eventLog.children.length > 50) {
+                eventLog.removeChild(eventLog.lastChild);
+            }
+        }
+        
+        function connect() {
+            const eventSource = new EventSource('/events/stocks');
+            
+            eventSource.onopen = () => {
+                statusDot.className = 'status-dot connected';
+                statusText.textContent = 'Connected';
+            };
+            
+            eventSource.onerror = () => {
+                statusDot.className = 'status-dot error';
+                statusText.textContent = 'Disconnected - Reconnecting...';
+            };
+            
+            eventSource.addEventListener('stock_update', (e) => {
+                const data = JSON.parse(e.data);
+                
+                Object.keys(stockData).forEach(s => stockData[s].justUpdated = false);
+                
+                stockData[data.symbol] = {
+                    price: data.price,
+                    change: data.change,
+                    timestamp: data.timestamp,
+                    justUpdated: true
+                };
+                
+                renderStocks();
+                logEvent('stock_update', data);
+                
+                setTimeout(() => {
+                    stockData[data.symbol].justUpdated = false;
+                    renderStocks();
+                }, 500);
+            });
+            
+            eventSource.addEventListener('heartbeat', (e) => {
+                const data = JSON.parse(e.data);
+                logEvent('heartbeat', data);
+            });
+            
+            eventSource.addEventListener('error', (e) => {
+                const data = JSON.parse(e.data);
+                logEvent('error', data);
+            });
+        }
+        
+        connect();
+    </script>
+</body>
+</html>

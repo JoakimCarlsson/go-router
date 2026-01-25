@@ -15,6 +15,8 @@ type RouteInfo interface {
 	Responses() map[string]metadata.Response
 	Security() []metadata.SecurityRequirement
 	IsDeprecated() bool
+	IsSSE() bool
+	SSEEvents() []metadata.SSEEventSchema
 }
 
 // RouteMetadataAdapter adapts the RouteMetadata structure to the RouteInfo interface
@@ -75,6 +77,16 @@ func (a *RouteMetadataAdapter) Security() []metadata.SecurityRequirement {
 // IsDeprecated returns whether the route is deprecated
 func (a *RouteMetadataAdapter) IsDeprecated() bool {
 	return a.Metadata.Deprecated
+}
+
+// IsSSE returns whether this route returns Server-Sent Events
+func (a *RouteMetadataAdapter) IsSSE() bool {
+	return a.Metadata.IsSSE
+}
+
+// SSEEvents returns the SSE event types this endpoint can emit
+func (a *RouteMetadataAdapter) SSEEvents() []metadata.SSEEventSchema {
+	return a.Metadata.SSEEvents
 }
 
 // RouteInfoList is a collection of RouteInfo objects

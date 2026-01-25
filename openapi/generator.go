@@ -1,6 +1,7 @@
 package openapi
 
 import (
+	"encoding/json"
 	"strings"
 
 	"github.com/joakimcarlsson/go-router/docs"
@@ -428,6 +429,17 @@ func (g *Generator) Generate(routes []RouteInfo) *metadata.Spec {
 			responses[statusCode] = response
 		}
 
+		// Add SSE examples if this is an SSE route with events
+		if route.IsSSE() && len(route.SSEEvents()) > 0 {
+			if resp, ok := responses["200"]; ok {
+				if mediaType, ok := resp.Content[metadata.ContentTypeEventStream]; ok {
+					mediaType.Examples = g.buildSSEExamples(route.SSEEvents())
+					resp.Content[metadata.ContentTypeEventStream] = mediaType
+					responses["200"] = resp
+				}
+			}
+		}
+
 		// Properly copy parameters from the route
 		routeParams := route.Parameters()
 		parameters := make([]metadata.Parameter, len(routeParams))
@@ -472,4 +484,39 @@ func (g *Generator) Generate(routes []RouteInfo) *metadata.Spec {
 	}
 
 	return spec
+}
+
+// buildSSEExamples generates OpenAPI examples for SSE events in wire format.
+// It creates an example showing all event types with their JSON-encoded data.
+func (g *Generator) buildSSEExamples(events []metadata.SSEEventSchema) map[string]metadata.Example {
+	if len(events) == 0 {
+		return nil
+	}
+
+	var sb strings.Builder
+	for i, event := range events {
+		exampleData := event.Schema.Example
+		if exampleData == nil {
+			exampleData = map[string]interface{}{}
+		}
+
+		jsonBytes, _ := json.Marshal(exampleData)
+
+		sb.WriteString("event: ")
+		sb.WriteString(event.EventName)
+		sb.WriteString("\ndata: ")
+		sb.Write(jsonBytes)
+		sb.WriteString("\n")
+
+		if i < len(events)-1 {
+			sb.WriteString("\n")
+		}
+	}
+
+	return map[string]metadata.Example{
+		"eventStream": {
+			Summary: "Example event stream",
+			Value:   sb.String(),
+		},
+	}
 }

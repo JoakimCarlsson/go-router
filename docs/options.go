@@ -828,3 +828,127 @@ func ExcludeFromDocs() RouteOption {
 		m.ExcludeFromDocs = true
 	}
 }
+
+// SSEEventSpec defines the specification for an SSE event type.
+// Use this with WithSSEEvents to document multiple event types manually.
+type SSEEventSpec struct {
+	// Name is the event name (sent in the "event:" field)
+	Name string
+	// Description describes when this event is emitted
+	Description string
+	// Schema is the JSON schema for the event data
+	Schema metadata.Schema
+}
+
+// WithSSEResponse marks an endpoint as returning Server-Sent Events.
+// This sets up the response with the text/event-stream content type
+// and adds appropriate documentation.
+//
+// Parameters:
+//   - description: A description of the SSE stream
+func WithSSEResponse(description string) RouteOption {
+	return func(m *metadata.RouteMetadata) {
+		metadata.EnsureResponsesMap(m)
+		m.Responses["200"] = metadata.Response{
+			Description: description,
+			Content: map[string]metadata.MediaType{
+				metadata.ContentTypeEventStream: {
+					Schema: metadata.Schema{
+						Type:        "string",
+						Description: "Server-Sent Events stream",
+					},
+				},
+			},
+		}
+		m.IsSSE = true
+	}
+}
+
+// WithSSEEvent documents a specific event type that the SSE endpoint can emit.
+// The event schema is inferred from the provided type parameter T.
+// Call this multiple times to document multiple event types.
+//
+// Type Parameters:
+//   - T: The Go type representing the event data structure
+//
+// Parameters:
+//   - eventName: The name of the event (sent in the "event:" field)
+//   - description: A description of when this event is emitted
+//
+// Example:
+//
+//	r.GET("/events", handler,
+//	    docs.WithSSEResponse("Real-time updates"),
+//	    docs.WithSSEEvent[StockUpdate]("stock_update", "Emitted when a stock price changes"),
+//	    docs.WithSSEEvent[ErrorEvent]("error", "Emitted when an error occurs"),
+//	)
+func WithSSEEvent[T any](eventName, description string) RouteOption {
+	return func(m *metadata.RouteMetadata) {
+		t := GetTypeFromGeneric[T]()
+		schema := SchemaFromType(t)
+
+		if m.SSEEvents == nil {
+			m.SSEEvents = make([]metadata.SSEEventSchema, 0)
+		}
+
+		m.SSEEvents = append(m.SSEEvents, metadata.SSEEventSchema{
+			EventName:   eventName,
+			Description: description,
+			Schema:      schema,
+		})
+	}
+}
+
+// WithSSEEvents documents multiple SSE event types using manual specifications.
+// This is useful when you need more control over the event schemas or when
+// the event types are not easily representable as Go structs.
+//
+// Parameters:
+//   - description: A description of the SSE stream
+//   - events: One or more SSEEventSpec defining the event types
+//
+// Example:
+//
+//	r.GET("/events", handler,
+//	    docs.WithSSEEvents("Real-time updates",
+//	        docs.SSEEventSpec{
+//	            Name:        "message",
+//	            Description: "A chat message",
+//	            Schema:      metadata.Schema{Type: "object", Properties: ...},
+//	        },
+//	        docs.SSEEventSpec{
+//	            Name:        "ping",
+//	            Description: "Keep-alive ping",
+//	            Schema:      metadata.Schema{Type: "string"},
+//	        },
+//	    ),
+//	)
+func WithSSEEvents(description string, events ...SSEEventSpec) RouteOption {
+	return func(m *metadata.RouteMetadata) {
+		metadata.EnsureResponsesMap(m)
+		m.Responses["200"] = metadata.Response{
+			Description: description,
+			Content: map[string]metadata.MediaType{
+				metadata.ContentTypeEventStream: {
+					Schema: metadata.Schema{
+						Type:        "string",
+						Description: "Server-Sent Events stream",
+					},
+				},
+			},
+		}
+		m.IsSSE = true
+
+		if m.SSEEvents == nil {
+			m.SSEEvents = make([]metadata.SSEEventSchema, 0, len(events))
+		}
+
+		for _, event := range events {
+			m.SSEEvents = append(m.SSEEvents, metadata.SSEEventSchema{
+				EventName:   event.Name,
+				Description: event.Description,
+				Schema:      event.Schema,
+			})
+		}
+	}
+}
