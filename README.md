@@ -10,11 +10,13 @@ A high-performance, modular HTTP router for Go with built-in **OpenAPI 3.0** and
 | router | [![Go Reference](https://pkg.go.dev/badge/github.com/joakimcarlsson/go-router/router.svg)](https://pkg.go.dev/github.com/joakimcarlsson/go-router/router) | [![Go Report Card](https://goreportcard.com/badge/github.com/joakimcarlsson/go-router/router)](https://goreportcard.com/report/github.com/joakimcarlsson/go-router/router) |
 | openapi | [![Go Reference](https://pkg.go.dev/badge/github.com/joakimcarlsson/go-router/openapi.svg)](https://pkg.go.dev/github.com/joakimcarlsson/go-router/openapi) | [![Go Report Card](https://goreportcard.com/badge/github.com/joakimcarlsson/go-router/openapi)](https://goreportcard.com/report/github.com/joakimcarlsson/go-router/openapi) |
 | swaggerui | [![Go Reference](https://pkg.go.dev/badge/github.com/joakimcarlsson/go-router/swaggerui.svg)](https://pkg.go.dev/github.com/joakimcarlsson/go-router/swaggerui) | [![Go Report Card](https://goreportcard.com/badge/github.com/joakimcarlsson/go-router/swaggerui)](https://goreportcard.com/report/github.com/joakimcarlsson/go-router/swaggerui) |
+| outputcache | [![Go Reference](https://pkg.go.dev/badge/github.com/joakimcarlsson/go-router/outputcache.svg)](https://pkg.go.dev/github.com/joakimcarlsson/go-router/outputcache) | [![Go Report Card](https://goreportcard.com/badge/github.com/joakimcarlsson/go-router/outputcache)](https://goreportcard.com/report/github.com/joakimcarlsson/go-router/outputcache) |
 
 ## Features
 
 - **Auto Documentation**: Built-in OpenAPI 3.0 spec generation with type safety
 - **Interactive UI**: Integrated Swagger UI for API exploration and testing
+- **Output Caching**: Smart HTTP response caching with flexible cache key strategies
 - **Modular Design**: Use only what you need - core routing or full documentation stack
 - **Standard Compatible**: Works with any `http.Handler` middleware from the ecosystem
 - **Modern Go**: Built for Go 1.22+ with new routing patterns and features
@@ -54,9 +56,18 @@ go get github.com/joakimcarlsson/go-router/router@latest
 go get github.com/joakimcarlsson/go-router/openapi@latest
 ```
 
+### With Output Caching
+
+For routing with smart HTTP response caching:
+
+```bash
+go get github.com/joakimcarlsson/go-router/router@latest
+go get github.com/joakimcarlsson/go-router/outputcache@latest
+```
+
 ## Modules
 
-This router is split into three independent modules, each with its own versioning:
+This router is split into four independent modules, each with its own versioning:
 
 ### router
 
@@ -91,6 +102,16 @@ Swagger UI serving and integration.
 - OAuth2 configuration
 - Custom CSS/JS support
 - Easy setup with router and openapi
+
+### outputcache
+
+Smart HTTP response caching similar to ASP.NET output caching.
+
+- In-memory caching with automatic expiration
+- Pluggable storage backends
+- Cache key variation by path, query, and headers
+- Per-route cache configuration
+- Thread-safe concurrent access
 
 ## Quick Start
 
@@ -334,6 +355,46 @@ func updateTask(c *router.Context) {
 
 func deleteTask(c *router.Context) {
     c.Status(204)
+}
+```
+
+## Output Caching
+
+Improve performance by caching HTTP responses with smart cache key strategies:
+
+```go
+import (
+    "time"
+
+    "github.com/joakimcarlsson/go-router/outputcache"
+    "github.com/joakimcarlsson/go-router/router"
+)
+
+func main() {
+    r := router.New()
+    
+    // Create cache with configuration
+    cache := outputcache.New(outputcache.Config{
+        DefaultDuration: 5 * time.Minute,
+    })
+    
+    // Register cache middleware
+    r.Use(outputcache.WithRouter(r))
+    r.Use(cache.Middleware())
+    
+    // Enable caching on specific routes
+    r.GET("/products", listProducts).
+        WithOutputCache(time.Minute)
+    
+    // Vary cache by path parameters
+    r.GET("/users/{id}", getUser).
+        WithOutputCache(time.Hour, outputcache.VaryByPath())
+    
+    // Vary cache by query parameters and headers
+    r.GET("/search", search).
+        WithOutputCache(30*time.Second,
+            outputcache.VaryByQuery("q", "page"),
+            outputcache.VaryByHeader("Accept-Language"))
 }
 ```
 
@@ -628,6 +689,7 @@ Explore the `_examples` directory for complete, runnable examples:
 - **cors-middleware** - Cross-origin resource sharing configuration
 - **custom-middleware** - Building your own middleware (logging, auth, request ID)
 - **builtin-middleware** - Recovery and security headers middleware
+- **output-cache** - HTTP response caching with flexible cache strategies
 - **server-sent-events** - Real-time event streaming
 - **static-files** - Serving static files, embedded files, and SPA fallback
 - **oauth2-auth-code-pkce** - OAuth2 Authorization Code + PKCE flow
