@@ -3,149 +3,72 @@ package main
 import (
 	"context"
 	_ "embed"
-	"fmt"
 	"log"
 	"net/http"
 	"strconv"
 	"time"
 
-	"github.com/joakimcarlsson/go-router/docs"
-	"github.com/joakimcarlsson/go-router/integration"
-	"github.com/joakimcarlsson/go-router/metadata"
-	"github.com/joakimcarlsson/go-router/openapi"
 	"github.com/joakimcarlsson/go-router/router"
-	"github.com/joakimcarlsson/go-router/swagger"
 )
 
 //go:embed index.html
 var indexHTML []byte
 
-// StockUpdate represents a stock price update event
-type StockUpdate struct {
-	Symbol    string    `json:"symbol" desc:"Stock ticker symbol"`
-	Price     float64   `json:"price" desc:"Current stock price"`
-	Change    float64   `json:"change" desc:"Price change since last update"`
-	Timestamp time.Time `json:"timestamp" desc:"Time of the update"`
+type Message struct {
+	ID        int       `json:"id"`
+	Text      string    `json:"text"`
+	Timestamp time.Time `json:"timestamp"`
 }
 
-// ErrorEvent represents an error event
-type ErrorEvent struct {
-	Code    string `json:"code" desc:"Error code"`
-	Message string `json:"message" desc:"Error message"`
+type ServerTime struct {
+	Time   string `json:"time"`
+	Unix   int64  `json:"unix"`
+	Uptime string `json:"uptime"`
 }
 
-// HeartbeatEvent represents a keep-alive event
-type HeartbeatEvent struct {
-	Timestamp time.Time `json:"timestamp" desc:"Server time"`
-}
-
-var stocks = []string{"AAPL", "MSFT", "GOOG", "AMZN", "META"}
+var serverStart = time.Now()
 
 func main() {
 	r := router.New()
 
-	// Create OpenAPI generator
-	generator := openapi.NewGenerator(metadata.Info{
-		Title:       "SSE Example API",
-		Version:     "1.0.0",
-		Description: "Example API demonstrating Server-Sent Events with go-router",
+	r.GET("/", func(c *router.Context) {
+		c.Writer.Header().Set("Content-Type", "text/html")
+		c.Writer.Write(indexHTML)
 	})
 
-	r.GET("/", func(ctx *router.Context) {
-		ctx.Writer.Header().Set("Content-Type", "text/html")
-		ctx.Writer.Write(indexHTML)
-	},
-		docs.WithSummary("Home Page"),
-		docs.WithDescription("Serves the home page with stock ticker demo"),
-		docs.ExcludeFromDocs(),
-	)
+	r.GET("/events/time", timeStreamHandler)
+	r.GET("/events/messages", messageStreamHandler)
+	r.GET("/events/manual", manualStreamHandler)
 
-	// Stock events using the new SSE documentation and handler wrapper
-	r.GET("/events/stocks", stockEventsHandler,
-		docs.WithTags("SSE"),
-		docs.WithSummary("Stock price updates stream"),
-		docs.WithSSEResponse("Real-time stock price updates via Server-Sent Events"),
-		docs.WithSSEEvent[StockUpdate]("stock_update", "Emitted when a stock price changes"),
-		docs.WithSSEEvent[HeartbeatEvent]("heartbeat", "Emitted periodically to keep the connection alive"),
-		docs.WithSSEEvent[ErrorEvent]("error", "Emitted when an error occurs"),
-	)
-
-	// Alternative: Manual SSE handling (shows the old way still works)
-	r.GET("/events/stocks/manual", stockEventsManual,
-		docs.WithTags("SSE"),
-		docs.WithSummary("Stock prices (manual handling)"),
-		docs.WithDescription("Same as /events/stocks but with manual SSE handling for comparison"),
-		docs.WithSSEResponse("Real-time stock price updates"),
-		docs.WithSSEEvent[StockUpdate]("stock_update", "Stock price changed"),
-	)
-
-	// Configure Swagger UI
-	uiConfig := swagger.DefaultUIConfig()
-	uiConfig.Title = "SSE Examples"
-	uiConfig.DocExpansion = "list"
-
-	// Set up Swagger integration
-	swaggerUI := integration.NewSwaggerUIIntegration(r, generator)
-	swaggerUI.WithUIConfig(uiConfig)
-	swaggerUI.SetupRoutes(r, "/openapi.json", "/docs")
-
-	// Start the server
-	fmt.Println("Server starting on http://localhost:8080")
-	fmt.Println("API documentation available at http://localhost:8080/docs")
-	fmt.Println("Stock ticker demo at http://localhost:8080/")
 	log.Fatal(http.ListenAndServe(":8080", r))
 }
 
-// stockEventsHandler demonstrates the new SSEHandler wrapper
-// This is the recommended way to implement SSE endpoints
-func stockEventsHandler(c *router.Context) {
-	// Initialize stock prices
-	stockPrices := make(map[string]float64)
-	for _, symbol := range stocks {
-		stockPrices[symbol] = 100.0 + float64(time.Now().Nanosecond()%2000)/100.0
-	}
-
-	// Use SSEHandler with custom configuration
+func timeStreamHandler(c *router.Context) {
 	c.SSEHandler(router.SSEConfig{
 		KeepAliveInterval: 30 * time.Second,
 		KeepAliveEnabled:  true,
-		OnClientDisconnect: func() {
-			log.Println("Client disconnected from stock events")
-		},
 	}, func(ctx context.Context, send router.SSESendFunc) error {
 		ticker := time.NewTicker(2 * time.Second)
 		defer ticker.Stop()
 
-		// Send periodic heartbeats (in addition to keep-alive comments)
-		heartbeatTicker := time.NewTicker(10 * time.Second)
-		defer heartbeatTicker.Stop()
+		if err := send("time", ServerTime{
+			Time:   time.Now().Format(time.RFC3339),
+			Unix:   time.Now().Unix(),
+			Uptime: time.Since(serverStart).Round(time.Second).String(),
+		}); err != nil {
+			return err
+		}
 
 		for {
 			select {
 			case <-ctx.Done():
-				// Client disconnected - context was cancelled
 				return nil
-
 			case <-ticker.C:
-				// Pick a random stock and update its price
-				symbol := stocks[time.Now().Unix()%int64(len(stocks))]
-				change := (float64(time.Now().Nanosecond()%400) - 200.0) / 100.0
-				stockPrices[symbol] += change
-
-				update := StockUpdate{
-					Symbol:    symbol,
-					Price:     stockPrices[symbol],
-					Change:    change,
-					Timestamp: time.Now(),
-				}
-
-				if err := send("stock_update", update); err != nil {
-					return err
-				}
-
-			case <-heartbeatTicker.C:
-				// Send a heartbeat event
-				if err := send("heartbeat", HeartbeatEvent{Timestamp: time.Now()}); err != nil {
+				if err := send("time", ServerTime{
+					Time:   time.Now().Format(time.RFC3339),
+					Unix:   time.Now().Unix(),
+					Uptime: time.Since(serverStart).Round(time.Second).String(),
+				}); err != nil {
 					return err
 				}
 			}
@@ -153,51 +76,63 @@ func stockEventsHandler(c *router.Context) {
 	})
 }
 
-// stockEventsManual demonstrates manual SSE handling (the old way)
-// This is still supported for cases where you need more control
-func stockEventsManual(c *router.Context) {
+func messageStreamHandler(c *router.Context) {
+	messages := []string{
+		"Welcome to the SSE demo!",
+		"Server-Sent Events are great for real-time updates",
+		"Perfect for notifications and live feeds",
+	}
+
+	c.SSEHandlerSimple(func(ctx context.Context, send router.SSESendFunc) error {
+		messageID := 0
+		for {
+			select {
+			case <-ctx.Done():
+				return nil
+			default:
+				if err := send("message", Message{
+					ID:        messageID,
+					Text:      messages[messageID%len(messages)],
+					Timestamp: time.Now(),
+				}); err != nil {
+					return err
+				}
+				messageID++
+				select {
+				case <-ctx.Done():
+					return nil
+				case <-time.After(3 * time.Second):
+				}
+			}
+		}
+	})
+}
+
+func manualStreamHandler(c *router.Context) {
 	c.InitSSE()
 
 	clientGone := c.Request.Context().Done()
-
-	stockTicker := time.NewTicker(2 * time.Second)
-	defer stockTicker.Stop()
+	eventTicker := time.NewTicker(2 * time.Second)
+	defer eventTicker.Stop()
 
 	keepAliveTicker := time.NewTicker(15 * time.Second)
 	defer keepAliveTicker.Stop()
 
-	stockPrices := make(map[string]float64)
-	for _, symbol := range stocks {
-		stockPrices[symbol] = 100.0 + float64(time.Now().Nanosecond()%2000)/100.0
-	}
-
+	counter := 0
 	for {
 		select {
 		case <-clientGone:
-			log.Println("Client disconnected from manual stock events")
 			return
-
-		case <-stockTicker.C:
-			symbol := stocks[time.Now().Unix()%int64(len(stocks))]
-			change := (float64(time.Now().Nanosecond()%400) - 200.0) / 100.0
-			stockPrices[symbol] += change
-
-			update := StockUpdate{
-				Symbol:    symbol,
-				Price:     stockPrices[symbol],
-				Change:    change,
-				Timestamp: time.Now(),
-			}
-
-			eventID := symbol + "-" + strconv.FormatInt(time.Now().Unix(), 10)
-			if err := c.SSEJson("stock_update", update, eventID); err != nil {
-				log.Printf("Error sending stock update: %v", err)
+		case <-eventTicker.C:
+			counter++
+			if err := c.SSEJson("counter", map[string]interface{}{
+				"count": counter,
+				"time":  time.Now().Format(time.RFC3339),
+			}, strconv.Itoa(counter)); err != nil {
 				return
 			}
-
 		case <-keepAliveTicker.C:
 			if err := c.SSEKeepAlive(); err != nil {
-				log.Printf("Error sending keep-alive: %v", err)
 				return
 			}
 		}

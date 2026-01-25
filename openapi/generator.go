@@ -4,62 +4,55 @@ import (
 	"encoding/json"
 	"strings"
 
-	"github.com/joakimcarlsson/go-router/docs"
-	"github.com/joakimcarlsson/go-router/metadata"
+	"github.com/joakimcarlsson/go-router/router"
 )
 
 // Generator handles OpenAPI 3.0 specification generation from router routes.
-// It collects route metadata, security schemes, and server information to
-// generate complete OpenAPI documentation.
 type Generator struct {
-	info            metadata.Info
-	securitySchemes map[string]metadata.SecurityScheme
-	servers         []metadata.Server
-	schemas         map[string]metadata.Schema
+	info            Info
+	securitySchemes map[string]SecurityScheme
+	servers         []Server
+	schemas         map[string]Schema
 	routeInfo       []RouteInfo
 }
 
 // NewGenerator creates a new OpenAPI generator with the provided API information.
-// The info parameter should contain basic API details like title, version, and description.
-func NewGenerator(info metadata.Info) *Generator {
+func NewGenerator(info Info) *Generator {
 	return &Generator{
 		info:            info,
-		securitySchemes: make(map[string]metadata.SecurityScheme),
-		servers:         make([]metadata.Server, 0),
-		schemas:         make(map[string]metadata.Schema),
+		securitySchemes: make(map[string]SecurityScheme),
+		servers:         make([]Server, 0),
+		schemas:         make(map[string]Schema),
 		routeInfo:       make([]RouteInfo, 0),
 	}
 }
 
-// WithSecurityScheme adds a security scheme to the OpenAPI specification
-func (g *Generator) WithSecurityScheme(
-	name string,
-	scheme metadata.SecurityScheme,
-) {
+// WithSecurityScheme adds a security scheme to the OpenAPI specification.
+func (g *Generator) WithSecurityScheme(name string, scheme SecurityScheme) {
 	g.securitySchemes[name] = scheme
 }
 
-// WithBasicAuth adds a basic authentication security scheme
+// WithBasicAuth adds a basic authentication security scheme.
 func (g *Generator) WithBasicAuth(name, description string) {
-	g.WithSecurityScheme(name, metadata.SecurityScheme{
+	g.WithSecurityScheme(name, SecurityScheme{
 		Type:        "http",
 		Scheme:      "basic",
 		Description: description,
 	})
 }
 
-// WithBearerAuth adds a bearer token authentication security scheme
+// WithBearerAuth adds a bearer token authentication security scheme.
 func (g *Generator) WithBearerAuth(name, description string) {
-	g.WithSecurityScheme(name, metadata.SecurityScheme{
+	g.WithSecurityScheme(name, SecurityScheme{
 		Type:        "http",
 		Scheme:      "bearer",
 		Description: description,
 	})
 }
 
-// WithAPIKey adds an API key authentication security scheme
+// WithAPIKey adds an API key authentication security scheme.
 func (g *Generator) WithAPIKey(name, description, in, paramName string) {
-	g.WithSecurityScheme(name, metadata.SecurityScheme{
+	g.WithSecurityScheme(name, SecurityScheme{
 		Type:        "apiKey",
 		Description: description,
 		Name:        paramName,
@@ -67,16 +60,13 @@ func (g *Generator) WithAPIKey(name, description, in, paramName string) {
 	})
 }
 
-// WithOAuth2ImplicitFlow adds an OAuth2 security scheme with implicit flow
-func (g *Generator) WithOAuth2ImplicitFlow(
-	name, description, authorizationURL string,
-	scopes map[string]string,
-) {
-	g.WithSecurityScheme(name, metadata.SecurityScheme{
+// WithOAuth2ImplicitFlow adds an OAuth2 security scheme with implicit flow.
+func (g *Generator) WithOAuth2ImplicitFlow(name, description, authorizationURL string, scopes map[string]string) {
+	g.WithSecurityScheme(name, SecurityScheme{
 		Type:        "oauth2",
 		Description: description,
-		Flows: &metadata.OAuthFlows{
-			Implicit: &metadata.OAuthFlow{
+		Flows: &OAuthFlows{
+			Implicit: &OAuthFlow{
 				AuthorizationURL: authorizationURL,
 				Scopes:           scopes,
 			},
@@ -84,16 +74,13 @@ func (g *Generator) WithOAuth2ImplicitFlow(
 	})
 }
 
-// WithOAuth2PasswordFlow adds an OAuth2 security scheme with password flow
-func (g *Generator) WithOAuth2PasswordFlow(
-	name, description, tokenURL string,
-	scopes map[string]string,
-) {
-	g.WithSecurityScheme(name, metadata.SecurityScheme{
+// WithOAuth2PasswordFlow adds an OAuth2 security scheme with password flow.
+func (g *Generator) WithOAuth2PasswordFlow(name, description, tokenURL string, scopes map[string]string) {
+	g.WithSecurityScheme(name, SecurityScheme{
 		Type:        "oauth2",
 		Description: description,
-		Flows: &metadata.OAuthFlows{
-			Password: &metadata.OAuthFlow{
+		Flows: &OAuthFlows{
+			Password: &OAuthFlow{
 				TokenURL: tokenURL,
 				Scopes:   scopes,
 			},
@@ -101,16 +88,13 @@ func (g *Generator) WithOAuth2PasswordFlow(
 	})
 }
 
-// WithOAuth2ClientCredentialsFlow adds an OAuth2 security scheme with client credentials flow
-func (g *Generator) WithOAuth2ClientCredentialsFlow(
-	name, description, tokenURL string,
-	scopes map[string]string,
-) {
-	g.WithSecurityScheme(name, metadata.SecurityScheme{
+// WithOAuth2ClientCredentialsFlow adds an OAuth2 security scheme with client credentials flow.
+func (g *Generator) WithOAuth2ClientCredentialsFlow(name, description, tokenURL string, scopes map[string]string) {
+	g.WithSecurityScheme(name, SecurityScheme{
 		Type:        "oauth2",
 		Description: description,
-		Flows: &metadata.OAuthFlows{
-			ClientCredentials: &metadata.OAuthFlow{
+		Flows: &OAuthFlows{
+			ClientCredentials: &OAuthFlow{
 				TokenURL: tokenURL,
 				Scopes:   scopes,
 			},
@@ -118,16 +102,13 @@ func (g *Generator) WithOAuth2ClientCredentialsFlow(
 	})
 }
 
-// WithOAuth2AuthorizationCodeFlow adds an OAuth2 security scheme with authorization code flow
-func (g *Generator) WithOAuth2AuthorizationCodeFlow(
-	name, description, authorizationURL, tokenURL string,
-	scopes map[string]string,
-) {
-	g.WithSecurityScheme(name, metadata.SecurityScheme{
+// WithOAuth2AuthorizationCodeFlow adds an OAuth2 security scheme with authorization code flow.
+func (g *Generator) WithOAuth2AuthorizationCodeFlow(name, description, authorizationURL, tokenURL string, scopes map[string]string) {
+	g.WithSecurityScheme(name, SecurityScheme{
 		Type:        "oauth2",
 		Description: description,
-		Flows: &metadata.OAuthFlows{
-			AuthorizationCode: &metadata.OAuthFlow{
+		Flows: &OAuthFlows{
+			AuthorizationCode: &OAuthFlow{
 				AuthorizationURL: authorizationURL,
 				TokenURL:         tokenURL,
 				Scopes:           scopes,
@@ -136,36 +117,31 @@ func (g *Generator) WithOAuth2AuthorizationCodeFlow(
 	})
 }
 
-// WithOpenIDConnect adds an OpenID Connect security scheme
-func (g *Generator) WithOpenIDConnect(
-	name, description, openIDConnectURL string,
-) {
-	g.WithSecurityScheme(name, metadata.SecurityScheme{
+// WithOpenIDConnect adds an OpenID Connect security scheme.
+func (g *Generator) WithOpenIDConnect(name, description, openIDConnectURL string) {
+	g.WithSecurityScheme(name, SecurityScheme{
 		Type:             "openIdConnect",
 		Description:      description,
 		OpenIDConnectURL: openIDConnectURL,
 	})
 }
 
-// WithServer adds a server to the OpenAPI specification
+// WithServer adds a server to the OpenAPI specification.
 func (g *Generator) WithServer(url string, description string) {
-	g.servers = append(g.servers, metadata.Server{
+	g.servers = append(g.servers, Server{
 		URL:         url,
 		Description: description,
 	})
 }
 
-// collectSchemas recursively collects schemas from route info
 func (g *Generator) collectSchemas() {
 	for _, route := range g.routeInfo {
-		// Collect from request bodies
 		if reqBody := route.RequestBody(); reqBody != nil {
 			for _, mediaType := range reqBody.Content {
 				g.collectSchemaComponents(mediaType.Schema)
 			}
 		}
 
-		// Collect from responses
 		for _, response := range route.Responses() {
 			if response.Content != nil {
 				for _, mediaType := range response.Content {
@@ -176,205 +152,146 @@ func (g *Generator) collectSchemas() {
 	}
 }
 
-// collectSchemaComponents recursively collects component schemas
-func (g *Generator) collectSchemaComponents(schema metadata.Schema) {
-	// If it's an array type, process the item type
+func (g *Generator) collectSchemaComponents(schema Schema) {
 	if schema.Type == "array" && schema.Items != nil {
-		// Register the array item type if it's an object
-		if schema.Items.Type == "object" && schema.Items.Properties != nil &&
-			schema.Items.TypeName != "" {
-			name := metadata.SanitizeSchemaName(schema.Items.TypeName)
+		if schema.Items.Type == "object" && schema.Items.Properties != nil && schema.Items.TypeName != "" {
+			name := SanitizeSchemaName(schema.Items.TypeName)
 			g.schemas[name] = *schema.Items
 		}
-
-		// Continue processing the items schema
 		g.collectSchemaComponents(*schema.Items)
 		return
 	}
 
-	// If it's a struct type, register it as a component
-	if schema.Type == "object" && schema.Properties != nil &&
-		schema.TypeName != "" {
+	if schema.Type == "object" && schema.Properties != nil && schema.TypeName != "" {
 		name := g.generateSchemaName(schema)
 		if name != "" {
 			g.schemas[name] = schema
 		}
 
-		// Recurse into properties
 		for _, prop := range schema.Properties {
 			g.collectSchemaComponents(prop)
 		}
 	}
 }
 
-// generateSchemaName generates a name for a schema based on its structure
-func (g *Generator) generateSchemaName(schema metadata.Schema) string {
+func (g *Generator) generateSchemaName(schema Schema) string {
 	if schema.TypeName != "" {
-		// For arrays, we only want the element type name
 		if strings.HasPrefix(schema.TypeName, "[]") {
-			return metadata.SanitizeSchemaName(
-				strings.TrimPrefix(schema.TypeName, "[]"),
-			)
+			return SanitizeSchemaName(strings.TrimPrefix(schema.TypeName, "[]"))
 		}
-		return metadata.SanitizeSchemaName(schema.TypeName)
+		return SanitizeSchemaName(schema.TypeName)
 	}
 	return ""
 }
 
-// createSchemaReference creates a reference to a schema component
-func (g *Generator) createSchemaReference(
-	schemaName string,
-) *metadata.Reference {
-	return &metadata.Reference{
+func (g *Generator) createSchemaReference(schemaName string) *Reference {
+	return &Reference{
 		Ref: "#/components/schemas/" + schemaName,
 	}
 }
 
-// WithResponseSchema adds a response with content schema to the route
-func WithResponseSchema(
-	statusCode int,
-	description string,
-	contentType string,
-	schema metadata.Schema,
-) docs.RouteOption {
-	return func(m *metadata.RouteMetadata) {
-		content := map[string]metadata.MediaType{
-			contentType: {Schema: schema},
-		}
-		metadata.AddResponse(m, statusCode, description, content)
+// WithResponseSchema adds a response with content schema to the route.
+func WithResponseSchema(statusCode int, description string, contentType string, schema Schema) router.RouteOption {
+	return ResponseSchemaOption{
+		StatusCode:  statusCode,
+		Description: description,
+		ContentType: contentType,
+		Schema:      schema,
 	}
 }
 
-// WithEmptyResponse adds a response without any content schema
-func WithEmptyResponse(statusCode int, description string) docs.RouteOption {
-	return func(m *metadata.RouteMetadata) {
-		metadata.AddSimpleResponse(m, statusCode, description)
+// ResponseSchemaOption represents a response with a custom schema.
+type ResponseSchemaOption struct {
+	StatusCode  int
+	Description string
+	ContentType string
+	Schema      Schema
+}
+
+// WithEmptyResponse adds a response without any content schema.
+func WithEmptyResponse(statusCode int, description string) router.RouteOption {
+	return ResponseOption{
+		StatusCode:  statusCode,
+		Description: description,
 	}
 }
 
-// WithJSONResponseAdvanced adds a JSON response with schema inferred from the provided type T
-// It automatically handles both array and non-array types with schema references
-func WithJSONResponseAdvanced[T any](
-	statusCode int,
-	description string,
-) docs.RouteOption {
-	return func(m *metadata.RouteMetadata) {
-		t := docs.GetTypeFromGeneric[T]()
-
-		metadata.EnsureResponsesMap(m)
-
-		// Special handling for array types
-		if docs.IsArrayType(t) {
-			elemType := t.Elem()
-			// Register the element type to ensure it appears in components
-			itemTypeName := metadata.RegisterType(elemType)
-			sanitizedName := metadata.SanitizeSchemaName(itemTypeName)
-			metadata.AddArrayJSONResponse(
-				m,
-				statusCode,
-				description,
-				sanitizedName,
-			)
-			return
-		}
-
-		// For non-array types
-		schema := docs.SchemaFromType(t)
-		if schema.Type == "object" && schema.Properties != nil &&
-			schema.TypeName != "" {
-			// Use reference for object types
-			ref := &metadata.Reference{
-				Ref: "#/components/schemas/" + metadata.SanitizeSchemaName(
-					schema.TypeName,
-				),
-			}
-			metadata.AddJSONResponseWithRef(m, statusCode, description, ref)
-		} else {
-			// Use inline schema for primitive types
-			metadata.AddJSONResponse(m, statusCode, description, schema)
-		}
+// WithJSONResponseAdvanced adds a JSON response with schema inferred from the provided type T.
+func WithJSONResponseAdvanced[T any](statusCode int, description string) router.RouteOption {
+	return JSONResponseAdvancedOption{
+		StatusCode:  statusCode,
+		Description: description,
+		Type:        GetTypeFromGeneric[T](),
 	}
 }
 
-// WithResponseType adds a response with schema inferred from the provided type
-// It automatically detects if the type is a slice/array.
-// This is functionally identical to WithJSONResponseAdvanced.
-func WithResponseType[T any](
-	statusCode int,
-	description string,
-	_ T,
-) docs.RouteOption {
+// JSONResponseAdvancedOption represents an advanced JSON response option.
+type JSONResponseAdvancedOption struct {
+	StatusCode  int
+	Description string
+	Type        interface{}
+}
+
+// WithResponseType adds a response with schema inferred from the provided type.
+func WithResponseType[T any](statusCode int, description string, _ T) router.RouteOption {
 	return WithJSONResponseAdvanced[T](statusCode, description)
 }
 
-// WithRequestBody adds a request body schema to the route
-func WithRequestBody[T any](
-	description string,
-	required bool,
-	_ T,
-) docs.RouteOption {
-	return func(m *metadata.RouteMetadata) {
-		t := docs.GetTypeFromGeneric[T]()
-		schema := docs.SchemaFromType(t)
-		metadata.AddJSONRequestBody(m, description, required, schema)
+// WithRequestBodyAdvanced adds a request body schema to the route.
+func WithRequestBodyAdvanced[T any](description string, required bool, _ T) router.RouteOption {
+	return JSONRequestBodyOption{
+		Type:        GetTypeFromGeneric[T](),
+		Required:    required,
+		Description: description,
 	}
 }
 
-// WithResponseExample adds a response with a specific example
-func WithResponseExample[T any](
-	statusCode int,
-	description string,
-	example T,
-) docs.RouteOption {
-	return func(m *metadata.RouteMetadata) {
-		metadata.EnsureResponsesMap(m)
-
-		t := docs.GetTypeFromGeneric[T]()
-		schema := docs.SchemaFromType(t)
-		schema.Example = example
-
-		m.Responses[metadata.StatusCodeToString(statusCode)] = metadata.Response{
-			Description: description,
-			Content: map[string]metadata.MediaType{
-				metadata.ContentTypeJSON: {Schema: schema},
-			},
-		}
+// WithResponseExample adds a response with a specific example.
+func WithResponseExample[T any](statusCode int, description string, example T) router.RouteOption {
+	return ResponseExampleOption{
+		StatusCode:  statusCode,
+		Description: description,
+		Type:        GetTypeFromGeneric[T](),
+		Example:     example,
 	}
 }
 
-// WithRequestBodyExample adds a request body schema with example to the route
-func WithRequestBodyExample[T any](
-	description string,
-	required bool,
-	example T,
-) docs.RouteOption {
-	return func(m *metadata.RouteMetadata) {
-		t := docs.GetTypeFromGeneric[T]()
-		schema := docs.SchemaFromType(t)
-		schema.Example = example
+// ResponseExampleOption represents a response with an example.
+type ResponseExampleOption struct {
+	StatusCode  int
+	Description string
+	Type        interface{}
+	Example     interface{}
+}
 
-		m.RequestBody = &metadata.RequestBody{
-			Description: description,
-			Required:    required,
-			Content: map[string]metadata.MediaType{
-				metadata.ContentTypeJSON: {
-					Schema: schema,
-				},
-			},
-		}
+// WithRequestBodyExample adds a request body schema with example to the route.
+func WithRequestBodyExample[T any](description string, required bool, example T) router.RouteOption {
+	return RequestBodyExampleOption{
+		Description: description,
+		Required:    required,
+		Type:        GetTypeFromGeneric[T](),
+		Example:     example,
 	}
 }
 
-// Generate creates an OpenAPI specification from the collected route information
-func (g *Generator) Generate(routes []RouteInfo) *metadata.Spec {
+// RequestBodyExampleOption represents a request body with an example.
+type RequestBodyExampleOption struct {
+	Description string
+	Required    bool
+	Type        interface{}
+	Example     interface{}
+}
+
+// Generate creates an OpenAPI specification from the collected route information.
+func (g *Generator) Generate(routes []RouteInfo) *Spec {
 	g.routeInfo = routes
 	g.collectSchemas()
 
-	spec := &metadata.Spec{
+	spec := &Spec{
 		OpenAPI: "3.0.0",
 		Info:    g.info,
-		Paths:   make(map[string]metadata.PathItem),
-		Components: &metadata.Components{
+		Paths:   make(map[string]PathItem),
+		Components: &Components{
 			SecuritySchemes: g.securitySchemes,
 			Schemas:         g.schemas,
 		},
@@ -387,10 +304,10 @@ func (g *Generator) Generate(routes []RouteInfo) *metadata.Spec {
 	for _, route := range routes {
 		pathItem, ok := spec.Paths[route.Path()]
 		if !ok {
-			pathItem = metadata.PathItem{}
+			pathItem = PathItem{}
 		}
 
-		var requestBody *metadata.RequestBody
+		var requestBody *RequestBody
 		if rb := route.RequestBody(); rb != nil {
 			requestBody = rb
 
@@ -398,20 +315,19 @@ func (g *Generator) Generate(routes []RouteInfo) *metadata.Spec {
 				schemaName := g.generateSchemaName(mediaType.Schema)
 				if schemaName != "" && g.schemas[schemaName].Type != "" {
 					mediaType.SchemaRef = g.createSchemaReference(schemaName)
-					mediaType.Schema = metadata.Schema{}
+					mediaType.Schema = Schema{}
 					requestBody.Content[contentType] = mediaType
 				}
 			}
 		}
 
-		// Convert responses
-		responses := make(map[string]metadata.Response)
+		responses := make(map[string]Response)
 		for statusCode, response := range route.Responses() {
 			for contentType, mediaType := range response.Content {
 				schemaName := g.generateSchemaName(mediaType.Schema)
 				if schemaName != "" && g.schemas[schemaName].Type != "" {
 					mediaType.SchemaRef = g.createSchemaReference(schemaName)
-					mediaType.Schema = metadata.Schema{}
+					mediaType.Schema = Schema{}
 					response.Content[contentType] = mediaType
 				} else if mediaType.Schema.Type == "array" && mediaType.Schema.Items != nil {
 					itemSchemaName := g.generateSchemaName(*mediaType.Schema.Items)
@@ -429,33 +345,30 @@ func (g *Generator) Generate(routes []RouteInfo) *metadata.Spec {
 			responses[statusCode] = response
 		}
 
-		// Add SSE examples if this is an SSE route with events
 		if route.IsSSE() && len(route.SSEEvents()) > 0 {
 			if resp, ok := responses["200"]; ok {
-				if mediaType, ok := resp.Content[metadata.ContentTypeEventStream]; ok {
+				if mediaType, ok := resp.Content[ContentTypeEventStream]; ok {
 					mediaType.Examples = g.buildSSEExamples(route.SSEEvents())
-					resp.Content[metadata.ContentTypeEventStream] = mediaType
+					resp.Content[ContentTypeEventStream] = mediaType
 					responses["200"] = resp
 				}
 			}
 		}
 
-		// Properly copy parameters from the route
 		routeParams := route.Parameters()
-		parameters := make([]metadata.Parameter, len(routeParams))
+		parameters := make([]Parameter, len(routeParams))
 		copy(parameters, routeParams)
 
-		// Convert security requirements
-		security := make([]metadata.SecurityRequirement, len(route.Security()))
+		security := make([]SecurityRequirement, len(route.Security()))
 		for i, sec := range route.Security() {
-			secReq := make(metadata.SecurityRequirement)
+			secReq := make(SecurityRequirement)
 			for k, v := range sec {
 				secReq[k] = v
 			}
 			security[i] = secReq
 		}
 
-		operation := &metadata.Operation{
+		operation := &Operation{
 			OperationID: route.OperationID(),
 			Summary:     route.Summary(),
 			Description: route.Description(),
@@ -486,9 +399,7 @@ func (g *Generator) Generate(routes []RouteInfo) *metadata.Spec {
 	return spec
 }
 
-// buildSSEExamples generates OpenAPI examples for SSE events in wire format.
-// It creates an example showing all event types with their JSON-encoded data.
-func (g *Generator) buildSSEExamples(events []metadata.SSEEventSchema) map[string]metadata.Example {
+func (g *Generator) buildSSEExamples(events []SSEEventSchema) map[string]Example {
 	if len(events) == 0 {
 		return nil
 	}
@@ -513,7 +424,7 @@ func (g *Generator) buildSSEExamples(events []metadata.SSEEventSchema) map[strin
 		}
 	}
 
-	return map[string]metadata.Example{
+	return map[string]Example{
 		"eventStream": {
 			Summary: "Example event stream",
 			Value:   sb.String(),

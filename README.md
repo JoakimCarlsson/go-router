@@ -1,11 +1,15 @@
 # Go Router
 
-[![Go Reference](https://pkg.go.dev/badge/github.com/JoakimCarlsson/go-router.svg)](https://pkg.go.dev/github.com/JoakimCarlsson/go-router)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Go Version](https://img.shields.io/badge/Go-%3E%3D%201.22-blue.svg)](https://golang.org/dl/)
-[![Go Report Card](https://goreportcard.com/badge/github.com/joakimcarlsson/go-router)](https://goreportcard.com/report/github.com/joakimcarlsson/go-router)
 
 A high-performance, modular HTTP router for Go with built-in **OpenAPI 3.0** and **Swagger UI** support.
+
+| Module | Reference | Report Card |
+|--------|-----------|-------------|
+| router | [![Go Reference](https://pkg.go.dev/badge/github.com/joakimcarlsson/go-router/router.svg)](https://pkg.go.dev/github.com/joakimcarlsson/go-router/router) | [![Go Report Card](https://goreportcard.com/badge/github.com/joakimcarlsson/go-router/router)](https://goreportcard.com/report/github.com/joakimcarlsson/go-router/router) |
+| openapi | [![Go Reference](https://pkg.go.dev/badge/github.com/joakimcarlsson/go-router/openapi.svg)](https://pkg.go.dev/github.com/joakimcarlsson/go-router/openapi) | [![Go Report Card](https://goreportcard.com/badge/github.com/joakimcarlsson/go-router/openapi)](https://goreportcard.com/report/github.com/joakimcarlsson/go-router/openapi) |
+| swaggerui | [![Go Reference](https://pkg.go.dev/badge/github.com/joakimcarlsson/go-router/swaggerui.svg)](https://pkg.go.dev/github.com/joakimcarlsson/go-router/swaggerui) | [![Go Report Card](https://goreportcard.com/badge/github.com/joakimcarlsson/go-router/swaggerui)](https://goreportcard.com/report/github.com/joakimcarlsson/go-router/swaggerui) |
 
 ## Features
 
@@ -21,81 +25,90 @@ A high-performance, modular HTTP router for Go with built-in **OpenAPI 3.0** and
 - **Route Groups**: Organize routes with prefixes and shared middleware
 - **Custom Types**: Register custom OpenAPI schemas for your types
 
-## Overview
-
-This router is designed with modularity in mind, allowing you to use only the components you need. The project is structured into several packages, each with a specific responsibility:
-
-### Core Packages
-
-- **router**: The core HTTP routing functionality
-  - Path parameter support
-  - Middleware support
-  - Router groups
-  - HTTP method helpers
-  - Multipart form data handling
-  - File upload support
-
-- **middleware**: Built-in middleware components
-  - CORS middleware with extensive configuration options
-  - Support for custom headers, origins, and methods
-  - Wildcard support for domain matching
-
-- **metadata**: Shared type definitions
-  - OpenAPI/Swagger shared types
-  - OAuth2 configuration
-  - Common utilities
-  - Custom type handler registry
-
-### Documentation Packages
-
-- **docs**: API documentation utilities
-  - Type-safe route documentation
-  - Request/response schema generation
-  - Parameter and security documentation
-  - Validation tag support
-  - Custom type schema generation
-
-- **openapi**: OpenAPI specification generation
-  - OpenAPI 3.0 support
-  - Schema generation from Go types
-  - Security scheme configuration
-  - Server and info configuration
-
-- **swagger**: Swagger UI configuration and serving
-  - Customizable UI
-  - Dark mode support
-  - OAuth2 configuration
-  - Custom CSS/JS support
-
-### Integration
-
-- **integration**: Component integration
-  - OpenAPI adapter
-  - Swagger UI integration
-  - Clean separation of concerns
-
 ## Installation
 
+### Router Only (no documentation)
+
+For basic HTTP routing without OpenAPI documentation:
+
 ```bash
-go get github.com/joakimcarlsson/go-router
+go get github.com/joakimcarlsson/go-router/router@latest
 ```
+
+### Full Stack (with Swagger UI)
+
+For routing with auto-generated API documentation and Swagger UI:
+
+```bash
+go get github.com/joakimcarlsson/go-router/router@latest
+go get github.com/joakimcarlsson/go-router/openapi@latest
+go get github.com/joakimcarlsson/go-router/swaggerui@latest
+```
+
+### OpenAPI Only (no UI)
+
+For routing with OpenAPI spec generation but serving your own UI:
+
+```bash
+go get github.com/joakimcarlsson/go-router/router@latest
+go get github.com/joakimcarlsson/go-router/openapi@latest
+```
+
+## Modules
+
+This router is split into three independent modules, each with its own versioning:
+
+### router
+
+Core HTTP routing functionality.
+
+- Path parameter support
+- Middleware support
+- Router groups
+- HTTP method helpers
+- Multipart form data handling
+- File upload support
+- Server-Sent Events
+- Built-in CORS middleware
+
+### openapi
+
+OpenAPI 3.0 specification generation and route documentation.
+
+- Type-safe route documentation
+- Request/response schema generation
+- Parameter and security documentation
+- Validation tag support
+- Custom type schema generation
+- SSE event documentation
+
+### swaggerui
+
+Swagger UI serving and integration.
+
+- Customizable Swagger UI
+- Dark mode support
+- OAuth2 configuration
+- Custom CSS/JS support
+- Easy setup with router and openapi
 
 ## Quick Start
 
-### Basic HTTP Server
+### Basic HTTP Server (router only)
 
 ```go
 package main
 
 import (
-    "github.com/joakimcarlsson/go-router/router"
     "log"
+    "net/http"
+
+    "github.com/joakimcarlsson/go-router/router"
 )
 
 func main() {
     r := router.New()
     
-    // Simple routes
     r.GET("/", func(c *router.Context) {
         c.JSON(200, map[string]string{"message": "Hello, World!"})
     })
@@ -105,8 +118,7 @@ func main() {
         c.JSON(200, map[string]string{"user_id": userID})
     })
     
-    // Start server
-    log.Fatal(r.Run(":8080"))
+    log.Fatal(http.ListenAndServe(":8080", r))
 }
 ```
 
@@ -116,10 +128,12 @@ func main() {
 package main
 
 import (
-    "github.com/joakimcarlsson/go-router/router"
-    "github.com/joakimcarlsson/go-router/docs"
-    "github.com/joakimcarlsson/go-router/integration"
     "log"
+    "net/http"
+
+    "github.com/joakimcarlsson/go-router/openapi"
+    "github.com/joakimcarlsson/go-router/router"
+    "github.com/joakimcarlsson/go-router/swaggerui"
 )
 
 type User struct {
@@ -135,31 +149,30 @@ type ErrorResponse struct {
 func main() {
     r := router.New()
     
-    // Setup auto-documentation
-    err := integration.Setup(r, integration.SetupOptions{
+    // Create OpenAPI generator
+    generator := openapi.NewGenerator(openapi.Info{
         Title:       "My API",
         Version:     "1.0.0",
         Description: "A sample API with auto-generated documentation",
-        SpecPath:    "/openapi.json",
-        DocsPath:    "/docs",
     })
-    if err != nil {
-        log.Fatal(err)
-    }
     
     // Documented route with type safety
     r.GET("/users/{id}", getUser,
-        docs.WithSummary("Get user by ID"),
-        docs.WithDescription("Retrieves a user by their unique identifier"),
-        docs.WithTags("Users"),
-        docs.WithPathParam("id", "string", true, "User ID", "123"),
-        docs.WithJSONResponse[User](200, "User found"),
-        docs.WithJSONResponse[ErrorResponse](404, "User not found"),
+        openapi.WithSummary("Get user by ID"),
+        openapi.WithDescription("Retrieves a user by their unique identifier"),
+        openapi.WithTags("Users"),
+        openapi.WithPathParam("id", "string", true, "User ID", "123"),
+        openapi.WithJSONResponse[User](200, "User found"),
+        openapi.WithJSONResponse[ErrorResponse](404, "User not found"),
     )
+    
+    // Setup Swagger UI
+    setup := swaggerui.NewSetup(r, generator)
+    setup.RegisterRoutes(r, "/openapi.json", "/docs")
     
     log.Printf("Server starting on :8080")
     log.Printf("API docs available at: http://localhost:8080/docs")
-    log.Fatal(r.Run(":8080"))
+    log.Fatal(http.ListenAndServe(":8080", r))
 }
 
 func getUser(c *router.Context) {
@@ -177,12 +190,13 @@ func getUser(c *router.Context) {
 package main
 
 import (
+    "net/http"
     "strconv"
     "time"
-    
+
+    "github.com/joakimcarlsson/go-router/openapi"
     "github.com/joakimcarlsson/go-router/router"
-    "github.com/joakimcarlsson/go-router/docs"
-    "github.com/joakimcarlsson/go-router/integration"
+    "github.com/joakimcarlsson/go-router/swaggerui"
 )
 
 type Task struct {
@@ -205,71 +219,74 @@ type UpdateTaskRequest struct {
     Completed   *bool   `json:"completed,omitempty"`
 }
 
+type ErrorResponse struct {
+    Error string `json:"error"`
+}
+
 func main() {
     r := router.New()
     
-    // Setup documentation
-    integration.Setup(r, integration.SetupOptions{
+    // Create OpenAPI generator
+    generator := openapi.NewGenerator(openapi.Info{
         Title:       "Task Manager API",
         Version:     "1.0.0",
         Description: "A RESTful API for managing tasks",
     })
     
     // API routes with documentation
-    api := r.Group("/api/v1", func(api *router.Router) {
-        api.WithTags("Tasks")
+    r.Group("/api/v1", func(api *router.Router) {
+        api.WithOptions(openapi.WithTags("Tasks"))
         
         // List tasks
         api.GET("/tasks", listTasks,
-            docs.WithSummary("List all tasks"),
-            docs.WithQueryParam("completed", "boolean", false, "Filter by completion status", nil),
-            docs.WithQueryParam("limit", "integer", false, "Number of tasks to return", 10),
-            docs.WithJSONResponse[[]Task](200, "List of tasks"),
+            openapi.WithSummary("List all tasks"),
+            openapi.WithQueryParam("completed", "boolean", false, "Filter by completion status", nil),
+            openapi.WithQueryParam("limit", "integer", false, "Number of tasks to return", 10),
+            openapi.WithJSONResponse[[]Task](200, "List of tasks"),
         )
         
         // Create task
         api.POST("/tasks", createTask,
-            docs.WithSummary("Create a new task"),
-            docs.WithJSONRequestBody[CreateTaskRequest](true, "Task data"),
-            docs.WithJSONResponse[Task](201, "Task created"),
-            docs.WithJSONResponse[ErrorResponse](400, "Invalid input"),
+            openapi.WithSummary("Create a new task"),
+            openapi.WithJSONRequestBody[CreateTaskRequest](true, "Task data"),
+            openapi.WithJSONResponse[Task](201, "Task created"),
+            openapi.WithJSONResponse[ErrorResponse](400, "Invalid input"),
         )
         
         // Get task
         api.GET("/tasks/{id}", getTask,
-            docs.WithSummary("Get task by ID"),
-            docs.WithPathParam("id", "integer", true, "Task ID", 1),
-            docs.WithJSONResponse[Task](200, "Task found"),
-            docs.WithJSONResponse[ErrorResponse](404, "Task not found"),
+            openapi.WithSummary("Get task by ID"),
+            openapi.WithPathParam("id", "integer", true, "Task ID", 1),
+            openapi.WithJSONResponse[Task](200, "Task found"),
+            openapi.WithJSONResponse[ErrorResponse](404, "Task not found"),
         )
         
         // Update task
         api.PUT("/tasks/{id}", updateTask,
-            docs.WithSummary("Update a task"),
-            docs.WithPathParam("id", "integer", true, "Task ID", 1),
-            docs.WithJSONRequestBody[UpdateTaskRequest](true, "Updated task data"),
-            docs.WithJSONResponse[Task](200, "Task updated"),
-            docs.WithJSONResponse[ErrorResponse](404, "Task not found"),
+            openapi.WithSummary("Update a task"),
+            openapi.WithPathParam("id", "integer", true, "Task ID", 1),
+            openapi.WithJSONRequestBody[UpdateTaskRequest](true, "Updated task data"),
+            openapi.WithJSONResponse[Task](200, "Task updated"),
+            openapi.WithJSONResponse[ErrorResponse](404, "Task not found"),
         )
         
         // Delete task
         api.DELETE("/tasks/{id}", deleteTask,
-            docs.WithSummary("Delete a task"),
-            docs.WithPathParam("id", "integer", true, "Task ID", 1),
-            docs.WithResponse(204, "Task deleted"),
-            docs.WithJSONResponse[ErrorResponse](404, "Task not found"),
+            openapi.WithSummary("Delete a task"),
+            openapi.WithPathParam("id", "integer", true, "Task ID", 1),
+            openapi.WithResponse(204, "Task deleted"),
+            openapi.WithJSONResponse[ErrorResponse](404, "Task not found"),
         )
     })
     
-    r.Run(":8080")
+    // Setup Swagger UI
+    setup := swaggerui.NewSetup(r, generator)
+    setup.RegisterRoutes(r, "/openapi.json", "/docs")
+    
+    http.ListenAndServe(":8080", r)
 }
 
-// Handler implementations
 func listTasks(c *router.Context) {
-    completed := c.QueryBoolDefault("completed", false)
-    limit := c.QueryIntDefault("limit", 10)
-    
-    // Implementation here
     c.JSON(200, []Task{})
 }
 
@@ -280,7 +297,6 @@ func createTask(c *router.Context) {
         return
     }
     
-    // Implementation here
     task := Task{
         ID:          1,
         Title:       req.Title,
@@ -297,8 +313,6 @@ func getTask(c *router.Context) {
         c.JSON(400, ErrorResponse{Error: "Invalid task ID"})
         return
     }
-    
-    // Implementation here
     c.JSON(200, Task{ID: id})
 }
 
@@ -315,18 +329,10 @@ func updateTask(c *router.Context) {
         return
     }
     
-    // Implementation here
     c.JSON(200, Task{ID: id})
 }
 
 func deleteTask(c *router.Context) {
-    id, err := strconv.Atoi(c.Param("id"))
-    if err != nil {
-        c.JSON(400, ErrorResponse{Error: "Invalid task ID"})
-        return
-    }
-    
-    // Implementation here
     c.Status(204)
 }
 ```
@@ -337,6 +343,8 @@ Configure Cross-Origin Resource Sharing (CORS) with the built-in middleware:
 
 ```go
 import (
+    "net/http"
+
     "github.com/joakimcarlsson/go-router/router"
     "github.com/joakimcarlsson/go-router/router/middleware/cors"
 )
@@ -347,36 +355,27 @@ func main() {
     // Use default CORS settings (allow all origins)
     r.Use(cors.Default())
     
-    // Or use custom CORS configuration with the simple API
+    // Or use custom CORS configuration
     r.Use(cors.Handler(cors.Options{
         AllowOrigins:     []string{"https://example.com", "https://*.trusted-domain.com"},
         AllowMethods:     []string{http.MethodGet, http.MethodPost, http.MethodPut},
         AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
         ExposeHeaders:    []string{"Content-Length", "X-Request-ID"},
         AllowCredentials: true,
-        MaxAge:           86400, // Cache preflight response for 24 hours
+        MaxAge:           86400,
     }))
-    
-    // Different CORS settings for specific route groups
-    r.Group("/api", func(api *router.Router) {
-        api.Use(cors.Handler(cors.Options{
-            AllowOrigins: []string{"https://api.example.com"},
-            // Other options...
-        }))
-        
-        // API routes...
-    })
 }
 ```
 
 ## Standard Middleware Compatibility
 
-The router exclusively uses standard HTTP middleware, making it compatible with the vast ecosystem of existing Go middleware:
+The router uses standard HTTP middleware, making it compatible with the ecosystem:
 
 ```go
 import (
+    "net/http"
+
     "github.com/joakimcarlsson/go-router/router"
-    "github.com/justinas/nosurf"  // Example of a standard middleware package
 )
 
 func main() {
@@ -384,9 +383,6 @@ func main() {
     
     // Use any standard HTTP middleware
     r.Use(loggingMiddleware, cors.Default())
-    
-    // Standard middleware is any function with signature:
-    // func(http.Handler) http.Handler
     
     // Convert a standard http.Handler to a router.HandlerFunc
     fileServer := http.FileServer(http.Dir("./static"))
@@ -396,8 +392,6 @@ func main() {
     customHandler := func(c *router.Context) {
         c.JSON(200, map[string]string{"message": "Hello"})
     }
-    
-    // Use with standard http package
     http.Handle("/api/hello", router.ToHTTPHandlerFunc(customHandler))
 }
 ```
@@ -407,292 +401,186 @@ func main() {
 Handle file uploads with built-in multipart form support:
 
 ```go
-// Define your upload struct with form tags
+import (
+    "mime/multipart"
+    "path/filepath"
+
+    "github.com/joakimcarlsson/go-router/openapi"
+    "github.com/joakimcarlsson/go-router/router"
+)
+
 type FileUpload struct {
     File        *multipart.FileHeader `form:"file" file:"true" required:"true" description:"The file to upload"`
     Name        string                `form:"name" description:"Optional name for the file"`
     Description string                `form:"description" description:"Description of the file"`
 }
 
-// Handle single file upload
-r.POST("/upload", func(c *router.Context) {
-    var upload FileUpload
-    if err := c.BindForm(&upload); err != nil {
-        c.JSON(400, map[string]string{"error": err.Error()})
-        return
-    }
+func main() {
+    r := router.New()
+    
+    r.POST("/upload", func(c *router.Context) {
+        var upload FileUpload
+        if err := c.BindForm(&upload); err != nil {
+            c.JSON(400, map[string]string{"error": err.Error()})
+            return
+        }
 
-    // Save the file
-    dst := filepath.Join("uploads", upload.File.Filename)
-    if err := c.SaveUploadedFile(upload.File, dst); err != nil {
-        c.JSON(500, map[string]string{"error": err.Error()})
-        return
-    }
+        dst := filepath.Join("uploads", upload.File.Filename)
+        if err := c.SaveUploadedFile(upload.File, dst); err != nil {
+            c.JSON(500, map[string]string{"error": err.Error()})
+            return
+        }
 
-    c.JSON(201, map[string]string{
-        "message": "File uploaded successfully",
-        "name": upload.Name,
-        "path": dst,
-    })
-})
-
-// Configure upload size limit
-r.WithMultipartConfig(32 << 20) // 32 MB
+        c.JSON(201, map[string]string{
+            "message": "File uploaded successfully",
+            "path":    dst,
+        })
+    },
+        openapi.WithSummary("Upload file"),
+        openapi.WithMultipartFormStruct[FileUpload]("File upload with metadata"),
+    )
+    
+    // Configure upload size limit
+    r.WithMultipartConfig(32 << 20) // 32 MB
+}
 ```
 
-## Documentation Support
-
-Add OpenAPI documentation to your routes:
+## Server-Sent Events
 
 ```go
-import "github.com/joakimcarlsson/go-router/docs"
+import (
+    "fmt"
+    "time"
 
-// Document a JSON endpoint
-r.GET("/users/{id}", getUser,
-    docs.WithSummary("Get user by ID"),
-    docs.WithPathParam("id", "string", true, "User ID", nil),
-    docs.WithJSONResponse[User](200, "User found"),
+    "github.com/joakimcarlsson/go-router/openapi"
+    "github.com/joakimcarlsson/go-router/router"
 )
 
-// Document a file upload endpoint
-r.POST("/upload", uploadHandler,
-    docs.WithSummary("Upload a file"),
-    docs.WithMultipartFormStruct[FileUpload]("File upload with metadata"),
-    docs.WithJSONResponse[UploadResponse](201, "File uploaded successfully"),
-)
+type EventData struct {
+    Message   string    `json:"message"`
+    Timestamp time.Time `json:"timestamp"`
+}
+
+func main() {
+    r := router.New()
+    
+    r.GET("/events", func(c *router.Context) {
+        c.InitSSE()
+        
+        for i := 0; i < 10; i++ {
+            err := c.SSEJson("message", EventData{
+                Message:   fmt.Sprintf("Event %d", i),
+                Timestamp: time.Now(),
+            }, fmt.Sprintf("msg-%d", i))
+            if err != nil {
+                break
+            }
+            time.Sleep(time.Second)
+        }
+    },
+        openapi.WithSummary("Event stream"),
+        openapi.WithSSEResponse("Real-time event stream"),
+        openapi.WithSSEEvent[EventData]("message", "Periodic message event"),
+    )
+}
 ```
 
 ## Custom Type Handlers
 
-Register custom OpenAPI schema handlers for your own types:
+Register custom OpenAPI schema handlers for your types:
 
 ```go
 import (
     "reflect"
-    "github.com/joakimcarlsson/go-router/metadata"
+
+    "github.com/joakimcarlsson/go-router/openapi"
 )
 
-// Define a custom type
 type EmailAddress string
 
-// Register a type handler
-metadata.RegisterTypeHandler("mypackage.EmailAddress", func(t reflect.Type) metadata.Schema {
-    return metadata.Schema{
-        Type:        "string",
-        Format:      "email",
-        Example:     "user@example.com",
-        Description: "Email address in standard format",
-    }
-})
+func init() {
+    openapi.RegisterTypeHandler("main.EmailAddress", func(t reflect.Type) openapi.Schema {
+        return openapi.Schema{
+            Type:        "string",
+            Format:      "email",
+            Example:     "user@example.com",
+            Description: "Email address in standard format",
+        }
+    })
+}
 
-// Use it in your models
 type User struct {
     Email EmailAddress `json:"email"`
-    // Other fields...
 }
 ```
 
-## Swagger UI Integration
-
-Add interactive API documentation:
+## Swagger UI Configuration
 
 ```go
 import (
-    "github.com/joakimcarlsson/go-router/integration"
     "github.com/joakimcarlsson/go-router/openapi"
-    "github.com/joakimcarlsson/go-router/swagger"
+    "github.com/joakimcarlsson/go-router/router"
+    "github.com/joakimcarlsson/go-router/swaggerui"
 )
 
-// Create OpenAPI generator
-generator := openapi.NewGenerator(openapi.Info{
-    Title:   "My API",
-    Version: "1.0.0",
-})
-
-// Configure Swagger UI
-swaggerUI := integration.NewSwaggerUIIntegration(r, generator)
-swaggerUI.SetupRoutes(r, "/openapi.json", "/docs")
-```
-
-## Advanced Features
-
-### File Uploads
-
-```go
-type FileUpload struct {
-    File        *multipart.FileHeader `form:"file" file:"true" required:"true"`
-    Name        string                `form:"name"`
-    Description string                `form:"description"`
-}
-
-r.POST("/upload", func(c *router.Context) {
-    var upload FileUpload
-    if err := c.BindForm(&upload); err != nil {
-        c.JSON(400, map[string]string{"error": err.Error()})
-        return
-    }
-
-    // Save the file
-    dst := filepath.Join("uploads", upload.File.Filename)
-    if err := c.SaveUploadedFile(upload.File, dst); err != nil {
-        c.JSON(500, map[string]string{"error": err.Error()})
-        return
-    }
-
-    c.JSON(201, map[string]string{"message": "File uploaded successfully"})
-},
-docs.WithSummary("Upload file"),
-docs.WithMultipartFormStruct[FileUpload]("File upload with metadata"),
-docs.WithJSONResponse[map[string]string](201, "Upload successful"),
-)
-```
-
-### Server-Sent Events
-
-```go
-r.GET("/events", func(c *router.Context) {
-    c.InitSSE()
+func main() {
+    r := router.New()
     
-    // Send events
-    for i := 0; i < 10; i++ {
-        err := c.SSE(router.SSEEvent{
-            Event: "message",
-            Data:  fmt.Sprintf("Event %d", i),
-            ID:    fmt.Sprintf("msg-%d", i),
-        })
-        if err != nil {
-            break
-        }
-        time.Sleep(time.Second)
-    }
-})
+    generator := openapi.NewGenerator(openapi.Info{
+        Title:   "My API",
+        Version: "1.0.0",
+    })
+    
+    // Configure Swagger UI
+    config := swaggerui.DefaultUIConfig()
+    config.Title = "My API Documentation"
+    config.DarkMode = true
+    config.TryItOutEnabled = true
+    
+    setup := swaggerui.NewSetup(r, generator)
+    setup.WithUIConfig(config)
+    setup.RegisterRoutes(r, "/openapi.json", "/docs")
+}
 ```
 
-### Custom Type Handlers
+## Authentication & Security
 
 ```go
 import (
-    "reflect"
-    "github.com/joakimcarlsson/go-router/metadata"
+    "github.com/joakimcarlsson/go-router/openapi"
+    "github.com/joakimcarlsson/go-router/router"
+    "github.com/joakimcarlsson/go-router/swaggerui"
 )
 
-type UserID string
-
-// Register custom schema for OpenAPI documentation
-metadata.RegisterTypeHandler("main.UserID", func(t reflect.Type) metadata.Schema {
-    return metadata.Schema{
-        Type:    "string",
-        Format:  "uuid",
-        Example: "550e8400-e29b-41d4-a716-446655440000",
-    }
-})
-
-type User struct {
-    ID   UserID `json:"id"`
-    Name string `json:"name"`
+func main() {
+    r := router.New()
+    
+    generator := openapi.NewGenerator(openapi.Info{
+        Title:   "Secure API",
+        Version: "1.0.0",
+    })
+    
+    // Add OAuth2 security scheme
+    generator.WithOAuth2ImplicitFlow("oauth2", "OAuth2 authentication",
+        "https://auth.example.com/oauth/authorize",
+        map[string]string{
+            "read":  "Read access",
+            "write": "Write access",
+        },
+    )
+    
+    // Add Bearer auth security scheme
+    generator.WithBearerAuth("bearerAuth", "JWT Bearer token")
+    
+    // Protected route
+    r.GET("/protected", protectedHandler,
+        openapi.WithSummary("Protected resource"),
+        openapi.WithBearerAuth(),
+    )
+    
+    setup := swaggerui.NewSetup(r, generator)
+    setup.RegisterRoutes(r, "/openapi.json", "/docs")
 }
-```
-
-### Authentication & Security
-
-```go
-// Setup OAuth2 security scheme
-generator := openapi.NewGenerator(openapi.Info{
-    Title:   "Secure API",
-    Version: "1.0.0",
-})
-
-generator.WithOAuth2ImplicitFlow("oauth2", "OAuth2 authentication",
-    "https://auth.example.com/oauth/authorize",
-    map[string]string{
-        "read":  "Read access",
-        "write": "Write access",
-    },
-)
-
-// Add security to routes
-r.GET("/protected", protectedHandler,
-    docs.WithSummary("Protected resource"),
-    docs.WithOAuth2Scopes("read"),
-    docs.WithBearerAuth(),
-)
-```
-
-## Performance
-
-Go Router is designed for high performance:
-
-- **Zero allocations** in hot routing paths
-- **Object pooling** for contexts and encoders
-- **Efficient path matching** using Go 1.22+ patterns
-- **Minimal middleware overhead**
-- **Concurrent request handling**
-
-### Benchmarks
-
-Run benchmarks to see performance characteristics:
-
-```bash
-# Core router benchmarks
-cd benchmarks && go test -bench=BenchmarkRouter_ -benchmem
-
-# Comparison with standard library
-cd benchmarks && go test -bench=BenchmarkComparison_ -benchmem
-
-# Memory allocation tests
-cd benchmarks && go test -bench=BenchmarkRouter_MemoryAllocation -benchmem
-```
-
-Typical results show excellent performance compared to standard library while providing significantly more features.
-
-## Migration Guides
-
-### From Gin
-
-```go
-// Gin
-gin.GET("/users/:id", func(c *gin.Context) {
-    id := c.Param("id")
-    c.JSON(200, gin.H{"id": id})
-})
-
-// Go Router
-r.GET("/users/{id}", func(c *router.Context) {
-    id := c.Param("id")
-    c.JSON(200, map[string]string{"id": id})
-})
-```
-
-### From Echo
-
-```go
-// Echo
-e.GET("/users/:id", func(c echo.Context) error {
-    id := c.Param("id")
-    return c.JSON(200, map[string]string{"id": id})
-})
-
-// Go Router
-r.GET("/users/{id}", func(c *router.Context) {
-    id := c.Param("id")
-    c.JSON(200, map[string]string{"id": id})
-})
-```
-
-### From Chi
-
-```go
-// Chi
-r.Get("/users/{id}", func(w http.ResponseWriter, r *http.Request) {
-    id := chi.URLParam(r, "id")
-    json.NewEncoder(w).Encode(map[string]string{"id": id})
-})
-
-// Go Router
-r.GET("/users/{id}", func(c *router.Context) {
-    id := c.Param("id")
-    c.JSON(200, map[string]string{"id": id})
-})
 ```
 
 ## API Reference
@@ -703,7 +591,7 @@ r.GET("/users/{id}", func(c *router.Context) {
 - `GET/POST/PUT/DELETE/PATCH(path, handler, ...options)` - Register routes
 - `Group(prefix, func)` - Create route groups
 - `Use(middleware...)` - Add middleware
-- `Run(addr)` - Start HTTP server
+- `WithOptions(options...)` - Add options to route groups
 - `ServeHTTP(w, r)` - Implement http.Handler
 
 ### Context Methods
@@ -716,33 +604,53 @@ r.GET("/users/{id}", func(c *router.Context) {
 - `SetHeader/GetHeader(key, value)` - Manage headers
 - `File(path)` - Serve files
 - `Redirect(code, url)` - HTTP redirects
+- `InitSSE()` - Initialize SSE stream
+- `SSEJson(event, data, id)` - Send SSE event
 
-### Documentation Options
+### Documentation Options (openapi package)
 
-- `docs.WithSummary/WithDescription` - Basic documentation
-- `docs.WithTags` - Group operations
-- `docs.WithPathParam/WithQueryParam` - Document parameters
-- `docs.WithJSONRequest/Response[T]` - Type-safe schemas
-- `docs.WithSecurity/WithAuth` - Authentication requirements
+- `WithSummary/WithDescription` - Basic documentation
+- `WithTags` - Group operations
+- `WithPathParam/WithQueryParam` - Document parameters
+- `WithJSONRequestBody[T]` - Type-safe request body
+- `WithJSONResponse[T]` - Type-safe response
+- `WithSecurity/WithBearerAuth` - Authentication requirements
+- `WithSSEResponse/WithSSEEvent[T]` - SSE documentation
 
 ## Examples Directory
 
 Explore the `_examples` directory for complete, runnable examples:
 
 - **minimal-api** - Basic routing without documentation
-- **basic-api-with-docs** - Full OpenAPI integration
-- **file-upload** - Multipart form handling
-- **cors** - Cross-origin resource sharing
-- **oauth2-*** - Various OAuth2 flows
+- **basic-api-with-docs** - Full OpenAPI and Swagger UI integration
+- **file-upload** - Multipart form handling with documentation
+- **parameter-formats** - Path, query, and header parameter examples
+- **cors-middleware** - Cross-origin resource sharing configuration
+- **custom-middleware** - Building your own middleware (logging, auth, request ID)
+- **builtin-middleware** - Recovery and security headers middleware
 - **server-sent-events** - Real-time event streaming
-- **custom-type-handlers** - Custom OpenAPI schemas
+- **static-files** - Serving static files, embedded files, and SPA fallback
+- **oauth2-auth-code-pkce** - OAuth2 Authorization Code + PKCE flow
+- **oauth2-client-credentials** - OAuth2 Client Credentials flow
+- **oauth2-implicit** - OAuth2 Implicit flow
 
-## Design Goals
+## Migration from Previous Versions
 
-1. **Modularity**: Use only the components you need
-2. **Type Safety**: Leverage Go's type system for documentation
-5. **Developer Experience**: Intuitive APIs with comprehensive examples
-6. **Extensibility**: Easy to add custom functionality
+If upgrading from the monolithic version:
+
+| Old Import | New Import |
+|------------|------------|
+| `github.com/joakimcarlsson/go-router/docs` | `github.com/joakimcarlsson/go-router/openapi` |
+| `github.com/joakimcarlsson/go-router/metadata` | `github.com/joakimcarlsson/go-router/openapi` |
+| `github.com/joakimcarlsson/go-router/swagger` | `github.com/joakimcarlsson/go-router/swaggerui` |
+| `github.com/joakimcarlsson/go-router/integration` | `github.com/joakimcarlsson/go-router/swaggerui` |
+
+| Old Usage | New Usage |
+|-----------|-----------|
+| `docs.WithSummary(...)` | `openapi.WithSummary(...)` |
+| `metadata.RegisterTypeHandler(...)` | `openapi.RegisterTypeHandler(...)` |
+| `integration.NewSwaggerUIIntegration(...)` | `swaggerui.NewSetup(...)` |
+| `swaggerUI.SetupRoutes(...)` | `setup.RegisterRoutes(...)` |
 
 ## Contributing
 
@@ -751,30 +659,19 @@ We welcome contributions! Please see:
 - **Issues**: Report bugs or request features
 - **Pull Requests**: Submit improvements
 - **Documentation**: Help improve examples and guides
-- **Testing**: Add test cases or benchmarks
 
 ### Development
 
 ```bash
-# Run tests
-go test ./...
-
-# Run benchmarks
-cd benchmarks && go test -bench=. -benchmem
+# Run tests for all modules
+cd router && go test -v ./...
+cd ../openapi && go test -v ./...
+cd ../swaggerui && go test -v ./...
 
 # Run linter
-golangci-lint run
-
-# Check all examples
-find _examples -name "*.go" -exec go run {} \;
+golangci-lint run ./...
 ```
 
 ## License
 
 MIT License - see [LICENSE](LICENSE) file for details
-
-## Support
-
-- **Documentation**: [pkg.go.dev](https://pkg.go.dev/github.com/JoakimCarlsson/go-router)
-- **Examples**: See `_examples/` directory
-- **Issues**: [GitHub Issues](https://github.com/JoakimCarlsson/go-router/issues)

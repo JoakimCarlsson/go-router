@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Static Files Demo</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Static Files Demo</h1>
+        <h2>Test Links</h2>
+        <ul>
+            <li><a href="/static/css/style.css">CSS via FileServer</a></li>
+            <li><a href="/static/js/app.js">JS via FileServer</a></li>
+            <li><a href="/embedded/css/style.css">CSS via Embedded FS</a></li>
+            <li><a href="/spa/any/route">SPA route (falls back to index)</a></li>
+            <li><a href="/api/data">API Endpoint</a></li>
+        </ul>
+        <h2>API Response</h2>
+        <pre id="api-response">Loading...</pre>
+    </div>
+    <script src="/static/js/app.js"></script>
+</body>
+</html>

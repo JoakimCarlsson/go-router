@@ -9,12 +9,9 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/joakimcarlsson/go-router/docs"
-	"github.com/joakimcarlsson/go-router/integration"
-	"github.com/joakimcarlsson/go-router/metadata"
 	"github.com/joakimcarlsson/go-router/openapi"
 	"github.com/joakimcarlsson/go-router/router"
-	"github.com/joakimcarlsson/go-router/swagger"
+	"github.com/joakimcarlsson/go-router/swaggerui"
 )
 
 // Product represents a product in the catalog
@@ -52,7 +49,6 @@ func NewProductStore() *ProductStore {
 		counter:  100,
 	}
 
-	// Add some sample products
 	store.AddProduct(Product{
 		ID:          uuid.New(),
 		Name:        "Wireless Earbuds",
@@ -138,7 +134,6 @@ func (s *ProductStore) UpdateProduct(product Product) bool {
 		return false
 	}
 
-	// Preserve creation time
 	product.CreatedAt = s.products[product.ID].CreatedAt
 	product.UpdatedAt = time.Now()
 
@@ -179,99 +174,93 @@ func main() {
 		})
 	})
 
-	// Public endpoints
 	r.GET("/health", healthCheck,
-		docs.WithTags("System"),
-		docs.WithSummary("Health check endpoint"),
-		docs.WithDescription("Returns the health status of the API"),
-		docs.WithResponse(200, "API is healthy"),
+		openapi.WithTags("System"),
+		openapi.WithSummary("Health check endpoint"),
+		openapi.WithDescription("Returns the health status of the API"),
+		openapi.WithResponse(200, "API is healthy"),
 	)
 
-	// Products endpoints
 	r.GET("/products", func(c *router.Context) { listProducts(c, store) },
-		docs.WithTags("Products"),
-		docs.WithSummary("List all products"),
-		docs.WithDescription("Returns a list of all products in the catalog"),
-		docs.WithQueryParam("category", "string", false, "Filter products by category", "Electronics"),
-		docs.WithQueryParam("inStock", "boolean", false, "Filter by stock availability", true),
-		docs.WithResponse(200, "Products retrieved successfully"),
-		docs.WithJSONResponse[[]Product](200, "List of products"),
+		openapi.WithTags("Products"),
+		openapi.WithSummary("List all products"),
+		openapi.WithDescription("Returns a list of all products in the catalog"),
+		openapi.WithQueryParam("category", "string", false, "Filter products by category", "Electronics"),
+		openapi.WithQueryParam("inStock", "boolean", false, "Filter by stock availability", true),
+		openapi.WithResponse(200, "Products retrieved successfully"),
+		openapi.WithJSONResponse[[]Product](200, "List of products"),
 	)
 
 	r.POST("/products", func(c *router.Context) { createProduct(c, store) },
-		docs.WithTags("Products"),
-		docs.WithSummary("Create a product"),
-		docs.WithDescription("Creates a new product in the catalog"),
-		docs.WithJSONRequestBody[NewProductRequest](true, "Product information"),
-		docs.WithResponse(201, "Product created successfully"),
-		docs.WithJSONResponse[Product](201, "Created product"),
-		docs.WithResponse(400, "Invalid product data"),
+		openapi.WithTags("Products"),
+		openapi.WithSummary("Create a product"),
+		openapi.WithDescription("Creates a new product in the catalog"),
+		openapi.WithJSONRequestBody[NewProductRequest](true, "Product information"),
+		openapi.WithResponse(201, "Product created successfully"),
+		openapi.WithJSONResponse[Product](201, "Created product"),
+		openapi.WithResponse(400, "Invalid product data"),
 	)
 
 	r.POST("/products/batch", func(c *router.Context) { createProductBatch(c, store) },
-		docs.WithTags("Products"),
-		docs.WithSummary("Creates a batch of products"),
-		docs.WithDescription("Creates multiple products in the catalog"),
-		docs.WithJSONRequestBody[[]NewProductRequest](true, "Product information"),
-		docs.WithResponse(201, "Product created successfully"),
-		docs.WithJSONResponse[[]Product](201, "Created product"),
-		docs.WithResponse(400, "Invalid product data"),
+		openapi.WithTags("Products"),
+		openapi.WithSummary("Creates a batch of products"),
+		openapi.WithDescription("Creates multiple products in the catalog"),
+		openapi.WithJSONRequestBody[[]NewProductRequest](true, "Product information"),
+		openapi.WithResponse(201, "Product created successfully"),
+		openapi.WithJSONResponse[[]Product](201, "Created product"),
+		openapi.WithResponse(400, "Invalid product data"),
 	)
 
 	r.GET("/products/{id}", func(c *router.Context) { getProduct(c, store) },
-		docs.WithTags("Products"),
-		docs.WithSummary("Get product by ID"),
-		docs.WithDescription("Returns a specific product by its ID"),
-		docs.WithPathParam("id", "string", true, "Product ID", "6B29FC40-CA47-1067-B31D-00DD010662DA"),
-		docs.WithResponse(200, "Product found"),
-		docs.WithJSONResponse[Product](200, "Product details"),
-		docs.WithResponse(404, "Product not found"),
+		openapi.WithTags("Products"),
+		openapi.WithSummary("Get product by ID"),
+		openapi.WithDescription("Returns a specific product by its ID"),
+		openapi.WithPathParam("id", "string", true, "Product ID", "6B29FC40-CA47-1067-B31D-00DD010662DA"),
+		openapi.WithResponse(200, "Product found"),
+		openapi.WithJSONResponse[Product](200, "Product details"),
+		openapi.WithResponse(404, "Product not found"),
 	)
 
 	r.PUT("/products/{id}", func(c *router.Context) { updateProduct(c, store) },
-		docs.WithTags("Products"),
-		docs.WithSummary("Update product"),
-		docs.WithDescription("Updates an existing product"),
-		docs.WithPathParam("id", "string", true, "Product ID", "6B29FC40-CA47-1067-B31D-00DD010662DA"),
-		docs.WithJSONRequestBody[NewProductRequest](true, "Updated product information"),
-		docs.WithResponse(200, "Product updated successfully"),
-		docs.WithJSONResponse[Product](200, "Updated product"),
-		docs.WithResponse(400, "Invalid product data"),
-		docs.WithResponse(404, "Product not found"),
+		openapi.WithTags("Products"),
+		openapi.WithSummary("Update product"),
+		openapi.WithDescription("Updates an existing product"),
+		openapi.WithPathParam("id", "string", true, "Product ID", "6B29FC40-CA47-1067-B31D-00DD010662DA"),
+		openapi.WithJSONRequestBody[NewProductRequest](true, "Updated product information"),
+		openapi.WithResponse(200, "Product updated successfully"),
+		openapi.WithJSONResponse[Product](200, "Updated product"),
+		openapi.WithResponse(400, "Invalid product data"),
+		openapi.WithResponse(404, "Product not found"),
 	)
 
 	r.DELETE("/products/{id}", func(c *router.Context) { deleteProduct(c, store) },
-		docs.WithTags("Products"),
-		docs.WithSummary("Delete product"),
-		docs.WithDescription("Deletes a product from the catalog"),
-		docs.WithPathParam("id", "string", true, "Product ID", "6B29FC40-CA47-1067-B31D-00DD010662DA"),
-		docs.WithResponse(204, "Product deleted successfully"),
-		docs.WithResponse(404, "Product not found"),
+		openapi.WithTags("Products"),
+		openapi.WithSummary("Delete product"),
+		openapi.WithDescription("Deletes a product from the catalog"),
+		openapi.WithPathParam("id", "string", true, "Product ID", "6B29FC40-CA47-1067-B31D-00DD010662DA"),
+		openapi.WithResponse(204, "Product deleted successfully"),
+		openapi.WithResponse(404, "Product not found"),
 	)
 
-	// Create OpenAPI generator
-	generator := openapi.NewGenerator(metadata.Info{
+	generator := openapi.NewGenerator(openapi.Info{
 		Title:       "Product Catalog API",
 		Version:     "1.0.0",
 		Description: "A sample product catalog API built with go-router",
 	})
 
-	// Configure Swagger UI with specific settings for pointer fields
-	uiConfig := swagger.DefaultUIConfig()
+	uiConfig := swaggerui.DefaultUIConfig()
 	uiConfig.DefaultModelRendering = "example"
 	uiConfig.Title = "Product Catalog API"
 
-	// Set up the integration
-	swaggerUI := integration.NewSwaggerUIIntegration(r, generator)
-	swaggerUI.WithUIConfig(uiConfig)
-	swaggerUI.SetupRoutes(r, "/openapi.json", "/docs")
+	setup := swaggerui.NewSetup(r, generator)
+	setup.WithUIConfig(uiConfig)
+	setup.RegisterRoutes(r, "/openapi.json", "/docs")
 
 	fmt.Println("Server starting on http://localhost:8080")
 	fmt.Println("API documentation available at http://localhost:8080/docs")
 	log.Fatal(http.ListenAndServe(":8080", r))
 }
 
-// Handler implementations
 func healthCheck(c *router.Context) {
 	c.JSON(http.StatusOK, map[string]string{
 		"status": "healthy",
@@ -290,7 +279,6 @@ func createProductBatch(c *router.Context, store *ProductStore) {
 
 	products := make([]Product, 0, len(requests))
 	for _, request := range requests {
-		// Simple validation
 		if request.Name == "" {
 			c.JSON(http.StatusBadRequest, map[string]string{
 				"error": "Name is required",
@@ -322,10 +310,8 @@ func createProductBatch(c *router.Context, store *ProductStore) {
 }
 
 func listProducts(c *router.Context, store *ProductStore) {
-	// Get all products
 	products := store.GetProducts()
 
-	// Apply category filter if provided
 	if category := c.QueryDefault("category", ""); category != "" {
 		filtered := make([]Product, 0)
 		for _, product := range products {
@@ -336,7 +322,6 @@ func listProducts(c *router.Context, store *ProductStore) {
 		products = filtered
 	}
 
-	// Apply inStock filter if provided
 	if inStockParam := c.QueryDefault("inStock", ""); inStockParam != "" {
 		inStock, err := strconv.ParseBool(inStockParam)
 		if err == nil {
@@ -377,7 +362,6 @@ func createProduct(c *router.Context, store *ProductStore) {
 		return
 	}
 
-	// Simple validation
 	if request.Name == "" {
 		c.JSON(http.StatusBadRequest, map[string]string{
 			"error": "Name is required",
@@ -427,7 +411,6 @@ func updateProduct(c *router.Context, store *ProductStore) {
 		return
 	}
 
-	// Simple validation
 	if request.Name == "" {
 		c.JSON(http.StatusBadRequest, map[string]string{
 			"error": "Name is required",

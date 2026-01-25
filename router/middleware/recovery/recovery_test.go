@@ -164,7 +164,7 @@ func TestRecovery_WithConfig(t *testing.T) {
 		Handler: func(w http.ResponseWriter, req *http.Request, err interface{}) {
 			handlerCalled = true
 			w.WriteHeader(http.StatusTeapot)
-			fmt.Fprintf(w, "Custom: %v", err)
+			_, _ = fmt.Fprintf(w, "Custom: %v", err)
 		},
 	}))
 

@@ -1,20 +1,15 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"net/http"
 	"time"
 
-	"github.com/joakimcarlsson/go-router/docs"
-	"github.com/joakimcarlsson/go-router/integration"
-	"github.com/joakimcarlsson/go-router/metadata"
 	"github.com/joakimcarlsson/go-router/openapi"
 	"github.com/joakimcarlsson/go-router/router"
-	"github.com/joakimcarlsson/go-router/swagger"
+	"github.com/joakimcarlsson/go-router/swaggerui"
 )
 
-// ServiceMetrics represents API metrics
 type ServiceMetrics struct {
 	Uptime          string           `json:"uptime"`
 	RequestCount    int64            `json:"requestCount"`
@@ -23,7 +18,6 @@ type ServiceMetrics struct {
 	EndpointMetrics map[string]int64 `json:"endpointMetrics"`
 }
 
-// ServiceStatus represents API status information
 type ServiceStatus struct {
 	Status      string         `json:"status"`
 	Version     string         `json:"version"`
@@ -31,70 +25,42 @@ type ServiceStatus struct {
 	Metrics     ServiceMetrics `json:"metrics"`
 }
 
-// ErrorResponse represents an API error response
-type ErrorResponse struct {
-	Status  int    `json:"status"`
-	Message string `json:"message"`
-	Error   string `json:"error"`
-}
+var maintenanceMode bool
 
 func main() {
 	r := router.New()
 
-	// Public endpoints
 	r.GET("/health", healthCheck,
-		docs.WithTags("Health"),
-		docs.WithSummary("Basic health check"),
-		docs.WithDescription("Public endpoint to check if service is running"),
-		docs.WithResponse(http.StatusOK, "Service is healthy"),
+		openapi.WithTags("Health"),
+		openapi.WithSummary("Basic health check"),
+		openapi.WithResponse(http.StatusOK, "Service is healthy"),
 	)
 
-	// Protected endpoints for service-to-service communication
 	r.GET("/status", getStatus,
-		docs.WithTags("Status"),
-		docs.WithSummary("Get detailed service status"),
-		docs.WithDescription("Returns detailed status information (requires service authentication)"),
-		docs.WithResponse(http.StatusOK, "Status information retrieved"),
-		docs.WithJSONResponse[ServiceStatus](http.StatusOK, "Service status details"),
-		docs.WithResponse(http.StatusUnauthorized, "Unauthorized"),
-		docs.WithJSONResponse[ErrorResponse](http.StatusUnauthorized, "Authentication error"),
-		docs.WithResponse(http.StatusForbidden, "Forbidden - insufficient permissions"),
-		docs.WithJSONResponse[ErrorResponse](http.StatusForbidden, "Missing required scope"),
-		docs.WithOAuth2Scopes("status:read"),
+		openapi.WithTags("Status"),
+		openapi.WithSummary("Get detailed service status"),
+		openapi.WithJSONResponse[ServiceStatus](http.StatusOK, "Service status"),
+		openapi.WithOAuth2Scopes("status:read"),
 	)
 
 	r.POST("/maintenance/start", startMaintenance,
-		docs.WithTags("Maintenance"),
-		docs.WithSummary("Start maintenance mode"),
-		docs.WithDescription("Puts the service into maintenance mode (requires service authentication)"),
-		docs.WithResponse(http.StatusOK, "Maintenance mode activated"),
-		docs.WithResponse(http.StatusUnauthorized, "Unauthorized"),
-		docs.WithJSONResponse[ErrorResponse](http.StatusUnauthorized, "Authentication error"),
-		docs.WithResponse(http.StatusForbidden, "Forbidden - insufficient permissions"),
-		docs.WithJSONResponse[ErrorResponse](http.StatusForbidden, "Missing required scope"),
-		docs.WithOAuth2Scopes("maintenance:write"),
+		openapi.WithTags("Maintenance"),
+		openapi.WithSummary("Start maintenance mode"),
+		openapi.WithOAuth2Scopes("maintenance:write"),
 	)
 
 	r.POST("/maintenance/end", endMaintenance,
-		docs.WithTags("Maintenance"),
-		docs.WithSummary("End maintenance mode"),
-		docs.WithDescription("Takes the service out of maintenance mode (requires service authentication)"),
-		docs.WithResponse(http.StatusOK, "Maintenance mode deactivated"),
-		docs.WithResponse(http.StatusUnauthorized, "Unauthorized"),
-		docs.WithJSONResponse[ErrorResponse](http.StatusUnauthorized, "Authentication error"),
-		docs.WithResponse(http.StatusForbidden, "Forbidden - insufficient permissions"),
-		docs.WithJSONResponse[ErrorResponse](http.StatusForbidden, "Missing required scope"),
-		docs.WithOAuth2Scopes("maintenance:write"),
+		openapi.WithTags("Maintenance"),
+		openapi.WithSummary("End maintenance mode"),
+		openapi.WithOAuth2Scopes("maintenance:write"),
 	)
 
-	// Create OpenAPI generator
 	generator := openapi.NewGenerator(openapi.Info{
 		Title:       "Service API with Client Credentials Flow",
 		Version:     "1.0.0",
-		Description: "API demonstrating OAuth2 Client Credentials Flow for service-to-service authentication",
+		Description: "API demonstrating OAuth2 Client Credentials Flow",
 	})
 
-	// Configure OAuth2 Client Credentials Flow
 	generator.WithOAuth2ClientCredentialsFlow(
 		"oauth2",
 		"OAuth2 Client Credentials Flow",
@@ -105,41 +71,28 @@ func main() {
 		},
 	)
 
-	// Configure OAuth2 for Swagger UI
-	oauth2Config := metadata.NewOAuth2Config().
-		WithClientID("your-service-client-id").
-		WithClientSecret("your-service-client-secret").
-		WithScopes("status:read", "maintenance:write")
-
-	// Configure Swagger UI
-	uiConfig := swagger.DefaultUIConfig()
-	uiConfig.OAuth2Config = oauth2Config
+	uiConfig := swaggerui.DefaultUIConfig()
 	uiConfig.Title = "Service API Documentation"
 	uiConfig.TryItOutEnabled = true
+	uiConfig.OAuth2Config = &swaggerui.OAuth2Config{
+		ClientID:     "your-service-client-id",
+		ClientSecret: "your-service-client-secret",
+		Scopes:       `"status:read maintenance:write"`,
+	}
 
-	// Set up Swagger UI integration
-	swaggerUI := integration.NewSwaggerUIIntegration(r, generator)
-	swaggerUI.WithUIConfig(uiConfig)
-	swaggerUI.SetupRoutes(r, "/openapi.json", "/docs")
+	setup := swaggerui.NewSetup(r, generator)
+	setup.WithUIConfig(uiConfig)
+	setup.RegisterRoutes(r, "/openapi.json", "/docs")
 
-	fmt.Println("Server starting on http://localhost:8080")
-	fmt.Println("API documentation available at http://localhost:8080/docs")
 	log.Fatal(http.ListenAndServe(":8080", r))
 }
 
-// Handler implementations
-
 func healthCheck(c *router.Context) {
-	c.JSON(http.StatusOK, map[string]string{
-		"status": "ok",
-	})
+	c.JSON(http.StatusOK, map[string]string{"status": "ok"})
 }
 
 func getStatus(c *router.Context) {
-	// In a real application, you would validate the client credentials
-	// token and ensure it has the 'status:read' scope before providing data
-
-	status := ServiceStatus{
+	c.JSON(http.StatusOK, ServiceStatus{
 		Status:      "operational",
 		Version:     "1.2.0",
 		Environment: "production",
@@ -153,35 +106,15 @@ func getStatus(c *router.Context) {
 				"/api/v1/products": 30658,
 			},
 		},
-	}
-
-	c.JSON(http.StatusOK, status)
+	})
 }
 
-var maintenanceMode bool = false
-
 func startMaintenance(c *router.Context) {
-	// In a real application, you would validate the client credentials
-	// token and ensure it has the 'maintenance:write' scope
-
 	maintenanceMode = true
-
-	c.JSON(http.StatusOK, map[string]interface{}{
-		"maintenanceMode": true,
-		"timestamp":       time.Now(),
-		"message":         "Maintenance mode activated",
-	})
+	c.JSON(http.StatusOK, map[string]interface{}{"maintenanceMode": true, "timestamp": time.Now(), "message": "Maintenance mode activated"})
 }
 
 func endMaintenance(c *router.Context) {
-	// In a real application, you would validate the client credentials
-	// token and ensure it has the 'maintenance:write' scope
-
 	maintenanceMode = false
-
-	c.JSON(http.StatusOK, map[string]interface{}{
-		"maintenanceMode": false,
-		"timestamp":       time.Now(),
-		"message":         "Maintenance mode deactivated",
-	})
+	c.JSON(http.StatusOK, map[string]interface{}{"maintenanceMode": false, "timestamp": time.Now(), "message": "Maintenance mode deactivated"})
 }
