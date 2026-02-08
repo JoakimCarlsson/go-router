@@ -60,6 +60,8 @@ type Parameter struct {
 	Description string      `json:"description,omitempty"`
 	Schema      Schema      `json:"schema"`
 	Example     interface{} `json:"example,omitempty"`
+	Style       string      `json:"style,omitempty"`
+	Explode     *bool       `json:"explode,omitempty"`
 }
 
 func (p Parameter) MarshalJSON() ([]byte, error) {
@@ -70,6 +72,8 @@ func (p Parameter) MarshalJSON() ([]byte, error) {
 		Description string      `json:"description,omitempty"`
 		Schema      Schema      `json:"schema"`
 		Example     interface{} `json:"example,omitempty"`
+		Style       string      `json:"style,omitempty"`
+		Explode     *bool       `json:"explode,omitempty"`
 	}
 	return json.Marshal(ParameterJSON(p))
 }
