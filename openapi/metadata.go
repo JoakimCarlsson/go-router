@@ -70,6 +70,8 @@ func applyOption(m *RouteMetadata, opt router.RouteOption) {
 			Required:    o.Required,
 			Description: o.Description,
 			Schema:      o.Schema,
+			Style:       o.Style,
+			Explode:     o.Explode,
 		})
 
 	case RequestBodyOption:

@@ -41,6 +41,8 @@ type ParameterWithSchemaOption struct {
 	Required    bool
 	Description string
 	Schema      Schema
+	Style       string
+	Explode     *bool
 }
 
 // RequestBodyOption adds a request body with a specific content type.
@@ -265,6 +267,24 @@ func WithRegexQueryParam(name, pattern string, required bool, description string
 			Type:    "string",
 			Pattern: pattern,
 			Example: example,
+		},
+	}
+}
+
+func WithEnumArrayQueryParam(name string, required bool, description string, explode bool, values []interface{}) router.RouteOption {
+	return ParameterWithSchemaOption{
+		Name:        name,
+		In:          "query",
+		Required:    required,
+		Description: description,
+		Style:       "form",
+		Explode:     &explode,
+		Schema: Schema{
+			Type: "array",
+			Items: &Schema{
+				Type: "string",
+				Enum: values,
+			},
 		},
 	}
 }
