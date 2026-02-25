@@ -19,9 +19,9 @@ const (
 
 // Cache manages HTTP response caching with configurable storage and policies.
 type Cache struct {
-	config  Config
-	storage Storage
-	cleanup func()
+	config   Config
+	storage  Storage
+	cleanup  func()
 	profiles *Profiles
 }
 
@@ -31,19 +31,19 @@ func New(config Config) *Cache {
 	if config.Storage == nil {
 		config.Storage = NewMemoryStorage()
 	}
-	
+
 	if config.DefaultDuration == 0 {
 		config.DefaultDuration = 5 * time.Minute
 	}
-	
+
 	if config.CleanupInterval == 0 {
 		config.CleanupInterval = time.Minute
 	}
-	
+
 	if len(config.ExcludeMethods) == 0 {
 		config.ExcludeMethods = []string{http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete}
 	}
-	
+
 	cache := &Cache{
 		config:   config,
 		storage:  config.Storage,

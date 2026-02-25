@@ -10,23 +10,23 @@ type Config struct {
 	// DefaultDuration is the default TTL for cached responses.
 	// Individual routes can override this with WithOutputCache.
 	DefaultDuration time.Duration
-	
+
 	// Storage is the cache storage backend to use.
 	// If nil, a new MemoryStorage instance will be created.
 	Storage Storage
-	
+
 	// OnlyStatus specifies which HTTP status codes should be cached.
 	// If nil, only 2xx status codes (200-299) are cached.
 	OnlyStatus []int
-	
+
 	// ExcludeMethods specifies HTTP methods that should never be cached.
 	// By default, only GET and HEAD requests are cached.
 	ExcludeMethods []string
-	
+
 	// CleanupInterval is the interval for cleaning up expired cache entries.
 	// Only applies to MemoryStorage. Default is 1 minute.
 	CleanupInterval time.Duration
-	
+
 	// Profiles contains reusable cache configurations.
 	Profiles *Profiles
 }

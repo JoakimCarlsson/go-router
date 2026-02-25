@@ -80,10 +80,10 @@ func TestGenerateETag(t *testing.T) {
 
 func TestShouldRevalidate(t *testing.T) {
 	tests := []struct {
-		name         string
-		ifNoneMatch  string
-		etag         string
-		shouldMatch  bool
+		name        string
+		ifNoneMatch string
+		etag        string
+		shouldMatch bool
 	}{
 		{"exact match", `"abc123"`, `"abc123"`, true},
 		{"wildcard", "*", `"abc123"`, true},

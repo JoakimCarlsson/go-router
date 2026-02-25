@@ -25,20 +25,20 @@ type Storage interface {
 	// Get retrieves a cached response by key.
 	// Returns the cached response and true if found, nil and false otherwise.
 	Get(key string) (*CachedResponse, bool)
-	
+
 	// Set stores a cached response with the given TTL.
 	// The response will be automatically expired after the TTL duration.
 	Set(key string, response *CachedResponse, ttl time.Duration)
-	
+
 	// Delete removes a cached response by key.
 	Delete(key string)
-	
+
 	// Clear removes all cached responses.
 	Clear()
-	
+
 	// InvalidateTag removes all cached responses with the given tag.
 	InvalidateTag(tag string)
-	
+
 	// InvalidateTags removes all cached responses with any of the given tags.
 	InvalidateTags(tags ...string)
 }
@@ -173,11 +173,11 @@ func (m *MemoryStorage) InvalidateTags(tags ...string) {
 // Returns a function that can be called to stop the cleanup goroutine.
 func (m *MemoryStorage) StartCleanup(interval time.Duration) func() {
 	done := make(chan struct{})
-	
+
 	go func() {
 		ticker := time.NewTicker(interval)
 		defer ticker.Stop()
-		
+
 		for {
 			select {
 			case <-ticker.C:
@@ -187,7 +187,7 @@ func (m *MemoryStorage) StartCleanup(interval time.Duration) func() {
 			}
 		}
 	}()
-	
+
 	return func() {
 		close(done)
 	}
@@ -195,10 +195,10 @@ func (m *MemoryStorage) StartCleanup(interval time.Duration) func() {
 
 func (m *MemoryStorage) cleanup() {
 	now := time.Now()
-	
+
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	
+
 	for key, response := range m.cache {
 		if now.After(response.ExpiresAt) {
 			delete(m.cache, key)
