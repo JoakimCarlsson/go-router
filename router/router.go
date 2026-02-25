@@ -207,7 +207,7 @@ func (r *Router) Handle(pattern string, handler HandlerFunc, opts ...RouteOption
 	})
 
 	r.mux.Handle(method+" "+fullpath, routeInfoHandler)
-	
+
 	return &RouteRegistration{
 		router: r,
 		method: method,

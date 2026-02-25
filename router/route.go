@@ -111,7 +111,7 @@ func (r *Router) setCacheProfile(method, path, profileName string) {
 func (r *Router) GetCacheConfig(method, path string) *CacheConfig {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	
+
 	key := method + " " + path
 	if cfg, ok := r.cacheConfigs[key]; ok {
 		return &cfg
@@ -122,11 +122,11 @@ func (r *Router) GetCacheConfig(method, path string) *CacheConfig {
 func (r *Router) setCacheConfig(method, path string, config CacheConfig) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	
+
 	if r.cacheConfigs == nil {
 		r.cacheConfigs = make(map[string]CacheConfig)
 	}
-	
+
 	key := method + " " + path
 	r.cacheConfigs[key] = config
 }

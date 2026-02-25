@@ -170,9 +170,9 @@ func getPrices(c *router.Context) {
 	log.Printf("Handler: getPrices called for role %s\n", role)
 
 	prices := map[string]int{
-		"guest":    100,
-		"member":   80,
-		"premium":  60,
+		"guest":   100,
+		"member":  80,
+		"premium": 60,
 	}
 
 	price := prices[role]

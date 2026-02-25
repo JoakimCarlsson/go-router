@@ -10,13 +10,13 @@ import (
 
 // CacheKeyGenerator generates cache keys based on request attributes.
 type CacheKeyGenerator struct {
-	varyByPath      bool
-	varyByQuery     []string
-	varyByHeaders   []string
-	customFunc      func(*http.Request) string
-	tags            []string
-	cacheWhenFunc   func(int, http.Header) bool
-	slidingExp      bool
+	varyByPath       bool
+	varyByQuery      []string
+	varyByHeaders    []string
+	customFunc       func(*http.Request) string
+	tags             []string
+	cacheWhenFunc    func(int, http.Header) bool
+	slidingExp       bool
 	withRevalidation bool
 }
 
@@ -25,13 +25,13 @@ func newCacheKeyGenerator(opts []interface{}) *CacheKeyGenerator {
 	gen := &CacheKeyGenerator{
 		varyByPath: false,
 	}
-	
+
 	for _, opt := range opts {
 		if fn, ok := opt.(func(*CacheKeyGenerator)); ok {
 			fn(gen)
 		}
 	}
-	
+
 	return gen
 }
 

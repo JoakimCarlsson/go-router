@@ -104,7 +104,6 @@ func TestMemoryStorage_Clear(t *testing.T) {
 	}
 }
 
-
 func TestMemoryStorage_Concurrent(t *testing.T) {
 	storage := NewMemoryStorage()
 
