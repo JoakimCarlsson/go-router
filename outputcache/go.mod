@@ -2,6 +2,6 @@ module github.com/joakimcarlsson/go-router/outputcache
 
 go 1.22
 
-require github.com/joakimcarlsson/go-router/router v0.0.0
+require github.com/joakimcarlsson/go-router/router/v2 v2.0.0
 
-replace github.com/joakimcarlsson/go-router/router => ../router
+replace github.com/joakimcarlsson/go-router/router/v2 => ../router

@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/joakimcarlsson/go-router/router"
+	"github.com/joakimcarlsson/go-router/router/v2"
 )
 
 func TestCache_ETag(t *testing.T) {
