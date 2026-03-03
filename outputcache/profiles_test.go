@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/joakimcarlsson/go-router/router"
+	"github.com/joakimcarlsson/go-router/router/v2"
 )
 
 func TestProfiles_AddGet(t *testing.T) {

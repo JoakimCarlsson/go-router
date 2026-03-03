@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/joakimcarlsson/go-router/router"
+	"github.com/joakimcarlsson/go-router/router/v2"
 )
 
 func TestCache_Basic(t *testing.T) {

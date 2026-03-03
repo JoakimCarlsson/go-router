@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/joakimcarlsson/go-router/router"
+	"github.com/joakimcarlsson/go-router/router/v2"
 )
 
 // contextKey is used to store cache-related data in request context.

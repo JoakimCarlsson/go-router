@@ -5,7 +5,7 @@ import (
 	"net/http"
 
 	"github.com/joakimcarlsson/go-router/openapi"
-	"github.com/joakimcarlsson/go-router/router"
+	"github.com/joakimcarlsson/go-router/router/v2"
 )
 
 // Setup provides integration between the router, OpenAPI generator, and Swagger UI.

@@ -3,7 +3,7 @@ package openapi
 import (
 	"reflect"
 
-	"github.com/joakimcarlsson/go-router/router"
+	"github.com/joakimcarlsson/go-router/router/v2"
 )
 
 // MetadataFromOptions converts a slice of router.RouteOption to RouteMetadata.
